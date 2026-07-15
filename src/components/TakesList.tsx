@@ -69,6 +69,7 @@ interface TakesListProps {
     target1: string,
     target2: string
   ) => void;
+  onEnterSyncMode: (index: number) => void;
 }
 
 interface TakeRowProps {
@@ -90,6 +91,7 @@ interface TakeRowProps {
   sourceTextRef: (el: HTMLTextAreaElement | null) => void;
   takesCount: number;
   hasApiKey: boolean;
+  onEnterSyncMode: (index: number) => void;
 }
 
 const TakeRow: React.FC<TakeRowProps> = ({
@@ -111,6 +113,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
   sourceTextRef,
   takesCount,
   hasApiKey,
+  onEnterSyncMode,
 }) => {
   const isLocked = take.status === 'Locked';
   const [localOriginal, setLocalOriginal] = useState(take.original || '');
@@ -317,6 +320,14 @@ const TakeRow: React.FC<TakeRowProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="text-xs">
               <DropdownMenuItem
+                onClick={() => onEnterSyncMode(index)}
+                className="cursor-pointer gap-2"
+              >
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Timeline Editor...</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
                 onClick={() => openSplitDialog(index)}
                 disabled={isLocked}
                 className="cursor-pointer gap-2"
@@ -373,6 +384,7 @@ const TakesList: React.FC<TakesListProps> = ({
   onTakeSelect,
   onTakeMerge,
   onTakeSplit,
+  onEnterSyncMode,
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
@@ -638,6 +650,7 @@ const TakesList: React.FC<TakesListProps> = ({
                   }}
                   takesCount={takes.length}
                   hasApiKey={hasApiKey}
+                  onEnterSyncMode={onEnterSyncMode}
                 />
               );
             })}

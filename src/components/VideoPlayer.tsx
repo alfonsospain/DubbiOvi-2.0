@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { AudioWaveform } from './AudioWaveform';
+import { AudioWaveform, PlaybackController } from './AudioWaveform';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +46,11 @@ interface VideoPlayerProps {
   currentTake?: Take | null;
   onDetachToggle?: () => void;
   isDetached?: boolean;
+  tempInSeconds?: number | null;
+  tempOutSeconds?: number | null;
+  onTempInSecondsChange?: (val: number) => void;
+  onTempOutSecondsChange?: (val: number) => void;
+  playbackController?: PlaybackController;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -66,6 +71,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   currentTake = null,
   onDetachToggle,
   isDetached = false,
+  tempInSeconds = null,
+  tempOutSeconds = null,
+  onTempInSecondsChange,
+  onTempOutSecondsChange,
+  playbackController,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -225,6 +235,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             videoFile={videoFile}
             currentTime={currentTime}
             duration={videoDuration}
+            tempInSeconds={tempInSeconds}
+            tempOutSeconds={tempOutSeconds}
+            onTempInSecondsChange={onTempInSecondsChange}
+            onTempOutSecondsChange={onTempOutSecondsChange}
+            playbackController={playbackController}
           />
         )}
 

@@ -1,22 +1,90 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
+import { formatTimeForDisplay } from '@/lib/utils';
+
+export interface PlaybackController {
+  play: () => void;
+  pause: () => void;
+  togglePlayPause: () => void;
+  seek: (time: number) => void;
+  getCurrentTime: () => number;
+  startPreview: (start: number, end: number) => void;
+  stopPreview: () => void;
+  isPreviewing: boolean;
+}
 
 interface AudioWaveformProps {
   videoFile: File | null;
   currentTime: number;
   duration: number;
+  tempInSeconds?: number | null;
+  tempOutSeconds?: number | null;
+  onTempInSecondsChange?: (val: number) => void;
+  onTempOutSecondsChange?: (val: number) => void;
+  playbackController?: PlaybackController;
+}
+
+enum DragTarget {
+  None = 'none',
+  InMarker = 'in',
+  OutMarker = 'out',
 }
 
 export const AudioWaveform: React.FC<AudioWaveformProps> = ({
   videoFile,
   currentTime,
   duration,
+  tempInSeconds = null,
+  tempOutSeconds = null,
+  onTempInSecondsChange,
+  onTempOutSecondsChange,
+  playbackController,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  const inMarkerRef = useRef<HTMLDivElement>(null);
+  const outMarkerRef = useRef<HTMLDivElement>(null);
+  const regionRef = useRef<HTMLDivElement>(null);
+
+  const inTimecodeRef = useRef<HTMLSpanElement>(null);
+  const outTimecodeRef = useRef<HTMLSpanElement>(null);
+
   const [peaks, setPeaks] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const decodingRef = useRef<string | null>(null);
+
+  // Gesture State
+  const dragRef = useRef<{
+    target: DragTarget;
+    currentIn: number;
+    currentOut: number;
+    rafId: number | null;
+  }>({
+    target: DragTarget.None,
+    currentIn: tempInSeconds ?? 0,
+    currentOut: tempOutSeconds ?? 0,
+    rafId: null,
+  });
+
+  // Keep local variables in sync with parent props changes
+  useEffect(() => {
+    dragRef.current.currentIn = tempInSeconds ?? 0;
+  }, [tempInSeconds]);
+
+  useEffect(() => {
+    dragRef.current.currentOut = tempOutSeconds ?? 0;
+  }, [tempOutSeconds]);
+
+  // Clean up animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (dragRef.current.rafId !== null) {
+        cancelAnimationFrame(dragRef.current.rafId);
+      }
+    };
+  }, []);
 
   // Decode audio track asynchronously
   useEffect(() => {
@@ -115,7 +183,118 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     ctx.fillRect(playheadX - 1, 0, 2, height);
   }, [peaks, currentTime, duration]);
 
+  // Coordinate Conversion Helpers
+  const timeToX = (time: number): number => {
+    if (duration <= 0) return 0;
+    return (time / duration) * 100;
+  };
+
+  const xToTime = (clientX: number): number => {
+    if (duration <= 0) return 0;
+    const container = containerRef.current;
+    if (!container) return 0;
+    const rect = container.getBoundingClientRect();
+    const relativeX = clientX - rect.left;
+    const ratio = Math.max(0, Math.min(relativeX / rect.width, 1));
+    return ratio * duration;
+  };
+
+  // Pointer Event Listeners
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, target: DragTarget) => {
+    if (e.button !== 0) return; // Left click only
+
+    if (playbackController) {
+      playbackController.stopPreview();
+    }
+
+    dragRef.current.target = target;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const { target } = dragRef.current;
+    if (target === DragTarget.None) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newTime = xToTime(e.clientX);
+    const MIN_DURATION = 0.2; // Keep at least 200ms gap
+
+    if (target === DragTarget.InMarker) {
+      const clampedIn = Math.max(0, Math.min(newTime, dragRef.current.currentOut - MIN_DURATION));
+      dragRef.current.currentIn = clampedIn;
+      
+      if (playbackController) {
+        playbackController.seek(clampedIn);
+      }
+    } else if (target === DragTarget.OutMarker) {
+      const clampedOut = Math.min(duration, Math.max(newTime, dragRef.current.currentIn + MIN_DURATION));
+      dragRef.current.currentOut = clampedOut;
+
+      if (playbackController) {
+        playbackController.seek(clampedOut);
+      }
+    }
+
+    // Schedule style redraw inside animation frame
+    if (dragRef.current.rafId === null) {
+      dragRef.current.rafId = requestAnimationFrame(updateDomStyles);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const { target, currentIn, currentOut } = dragRef.current;
+    if (target === DragTarget.None) return;
+
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    dragRef.current.target = DragTarget.None;
+
+    if (dragRef.current.rafId !== null) {
+      cancelAnimationFrame(dragRef.current.rafId);
+      dragRef.current.rafId = null;
+    }
+
+    // Dispatch committed timing change to parent state on release
+    if (target === DragTarget.InMarker && onTempInSecondsChange) {
+      onTempInSecondsChange(currentIn);
+    } else if (target === DragTarget.OutMarker && onTempOutSecondsChange) {
+      onTempOutSecondsChange(currentOut);
+    }
+  };
+
+  // Direct DOM style and timecode updates
+  const updateDomStyles = () => {
+    dragRef.current.rafId = null;
+    const { currentIn, currentOut } = dragRef.current;
+
+    const inPct = timeToX(currentIn);
+    const outPct = timeToX(currentOut);
+
+    if (inMarkerRef.current) {
+      inMarkerRef.current.style.left = `${inPct}%`;
+    }
+    if (outMarkerRef.current) {
+      outMarkerRef.current.style.left = `${outPct}%`;
+    }
+    if (regionRef.current) {
+      regionRef.current.style.left = `${inPct}%`;
+      regionRef.current.style.width = `${outPct - inPct}%`;
+    }
+
+    if (inTimecodeRef.current) {
+      inTimecodeRef.current.innerText = formatTimeForDisplay(currentIn);
+    }
+    if (outTimecodeRef.current) {
+      outTimecodeRef.current.innerText = formatTimeForDisplay(currentOut);
+    }
+  };
+
   if (!videoFile) return null;
+
+  const initialInPct = tempInSeconds !== null && tempInSeconds !== undefined ? timeToX(tempInSeconds) : 0;
+  const initialOutPct = tempOutSeconds !== null && tempOutSeconds !== undefined ? timeToX(tempOutSeconds) : 0;
 
   return (
     <div className="w-full bg-slate-950 border border-border/20 rounded-md p-2 flex flex-col gap-1.5 select-none">
@@ -127,13 +306,73 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
           <span>LOADED</span>
         )}
       </div>
-      <div className="relative h-14 w-full bg-slate-900/50 rounded overflow-hidden">
+      <div 
+        ref={containerRef}
+        className="relative h-14 w-full bg-slate-900/50 rounded overflow-hidden touch-none"
+        onPointerMove={handlePointerMove}
+      >
         <canvas
           ref={canvasRef}
           width={800}
           height={56}
           className="h-full w-full block"
         />
+        
+        {/* Highlighted region segment */}
+        {tempInSeconds !== null && tempOutSeconds !== null && duration > 0 && tempOutSeconds > tempInSeconds && (
+          <div
+            ref={regionRef}
+            className="absolute top-0 bottom-0 bg-blue-500/10 border-l border-r border-blue-400/20 z-0 pointer-events-none"
+            style={{
+              left: `${initialInPct}%`,
+              width: `${initialOutPct - initialInPct}%`,
+            }}
+          />
+        )}
+
+        {/* IN Marker */}
+        {tempInSeconds !== null && duration > 0 && (
+          <div
+            ref={inMarkerRef}
+            className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-10 cursor-ew-resize pointer-events-auto"
+            style={{ left: `${initialInPct}%` }}
+            onPointerDown={(e) => handlePointerDown(e, DragTarget.InMarker)}
+            onPointerUp={handlePointerUp}
+          >
+            {/* Grab hitbox wrapper */}
+            <div className="absolute -left-1.5 w-4 top-0 bottom-0 pointer-events-auto" />
+            
+            {/* Tooltip timecode */}
+            <span
+              ref={inTimecodeRef}
+              className="absolute bottom-1 left-2 bg-blue-600/90 text-white font-mono text-[9px] px-1 rounded shadow pointer-events-none select-none"
+            >
+              {formatTimeForDisplay(tempInSeconds)}
+            </span>
+          </div>
+        )}
+
+        {/* OUT Marker */}
+        {tempOutSeconds !== null && duration > 0 && (
+          <div
+            ref={outMarkerRef}
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 cursor-ew-resize pointer-events-auto"
+            style={{ left: `${initialOutPct}%` }}
+            onPointerDown={(e) => handlePointerDown(e, DragTarget.OutMarker)}
+            onPointerUp={handlePointerUp}
+          >
+            {/* Grab hitbox wrapper */}
+            <div className="absolute -left-1.5 w-4 top-0 bottom-0 pointer-events-auto" />
+            
+            {/* Tooltip timecode */}
+            <span
+              ref={outTimecodeRef}
+              className="absolute bottom-1 right-2 bg-red-600/90 text-white font-mono text-[9px] px-1 rounded shadow pointer-events-none select-none"
+            >
+              {formatTimeForDisplay(tempOutSeconds)}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

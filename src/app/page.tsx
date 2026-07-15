@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { loadAutosave, saveAutosave, clearAutosave } from '@/lib/projectStorage';
 import type { ProjectSettings, Take, GlossaryEntry } from '@/lib/types';
 import { DEFAULT_PROJECT_SETTINGS } from '@/lib/data';
@@ -15,6 +15,7 @@ import GlossaryPanel from '@/components/GlossaryPanel';
 import { v4 as uuidv4 } from 'uuid';
 import { Card, CardContent } from '@/components/ui/card';
 import TakesList from '@/components/TakesList';
+import { TimelineEditor } from '@/components/TimelineEditor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Settings, BookMarked, GripHorizontal } from 'lucide-react';
 import Timeline from '@/components/Timeline';
@@ -69,6 +70,41 @@ export default function DubbingStudioPro() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   
+  const [isTimelineEditorActive, setIsTimelineEditorActive] = useState(false);
+  const [tempInSeconds, setTempInSeconds] = useState<number | null>(null);
+  const [tempOutSeconds, setTempOutSeconds] = useState<number | null>(null);
+  const [previewRange, setPreviewRange] = useState<{ start: number; end: number } | null>(null);
+
+  const playbackController = useMemo(() => ({
+    play: () => videoRef.current?.play().catch(err => console.error(err)),
+    pause: () => videoRef.current?.pause(),
+    togglePlayPause: () => {
+      const video = videoRef.current;
+      if (!video) return;
+      if (video.paused) {
+        video.play().catch(err => console.error(err));
+      } else {
+        video.pause();
+      }
+    },
+    seek: (time: number) => {
+      if (videoRef.current) videoRef.current.currentTime = time;
+    },
+    getCurrentTime: () => videoRef.current?.currentTime ?? 0,
+    startPreview: (start: number, end: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = start;
+        setPreviewRange({ start, end });
+        videoRef.current.play().catch(err => console.error(err));
+      }
+    },
+    stopPreview: () => {
+      videoRef.current?.pause();
+      setPreviewRange(null);
+    },
+    isPreviewing: previewRange !== null,
+  }), [videoRef, previewRange]);
+
   const [past, setPast] = useState<HistoryState[]>([]);
   const [future, setFuture] = useState<HistoryState[]>([]);
 
@@ -181,6 +217,22 @@ export default function DubbingStudioPro() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
+
+  // Loop / Preview check
+  useEffect(() => {
+    if (previewRange && currentTime >= previewRange.end) {
+      videoRef.current?.pause();
+      setPreviewRange(null);
+    }
+  }, [currentTime, previewRange]);
+
+  // Cancel preview loop on take changes or exiting editor
+  useEffect(() => {
+    if (previewRange) {
+      videoRef.current?.pause();
+      setPreviewRange(null);
+    }
+  }, [currentIndex, isTimelineEditorActive]);
 
 
 
@@ -328,6 +380,54 @@ export default function DubbingStudioPro() {
     const newTakes = takes.map(t => t.id === updatedTake.id ? updatedTake : t);
     setTakes(newTakes);
     syncAutosave(settings, newTakes, glossary, videoFile);
+  };
+
+  const handleEnterTimelineEditor = (index: number) => {
+    setCurrentIndex(index);
+    const take = takes[index];
+    if (take) {
+      setTempInSeconds(take.startSeconds ?? 0);
+      setTempOutSeconds(take.endSeconds ?? 0);
+      if (videoRef.current) {
+        videoRef.current.currentTime = take.startSeconds ?? 0;
+      }
+    } else {
+      setTempInSeconds(null);
+      setTempOutSeconds(null);
+    }
+    setIsTimelineEditorActive(true);
+  };
+
+  const handleTimelineEditorNavigate = (targetIndex: number) => {
+    if (targetIndex >= 0 && targetIndex < takes.length) {
+      setCurrentIndex(targetIndex);
+      const nextTake = takes[targetIndex];
+      if (nextTake) {
+        setTempInSeconds(nextTake.startSeconds);
+        setTempOutSeconds(nextTake.endSeconds);
+        if (videoRef.current) {
+          videoRef.current.currentTime = nextTake.startSeconds;
+        }
+      }
+    }
+  };
+
+  const handleSaveSyncTiming = (inTime: number, outTime: number) => {
+    const take = takes[currentIndex];
+    if (!take) return;
+    const updatedTake = {
+      ...take,
+      startSeconds: inTime,
+      endSeconds: outTime,
+      time: `${formatTimeForDisplay(inTime)} - ${formatTimeForDisplay(outTime)}`
+    };
+    handleTakeUpdate(updatedTake);
+    setTempInSeconds(inTime);
+    setTempOutSeconds(outTime);
+    toast({
+      title: 'Timing Saved',
+      description: 'Changes committed to take timing successfully.',
+    });
   };
 
   const handleTimelineTakeClick = (index: number) => {
@@ -843,61 +943,84 @@ export default function DubbingStudioPro() {
       />
       <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
         {isDetached ? (
-          <Card className="flex-grow h-full flex flex-col min-h-0">
-            <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
-                <TabsList className="m-2 shrink-0">
-                  <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
-                  <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
-                  <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/> Settings</TabsTrigger>
-                  <TabsTrigger value="glossary"><BookMarked className="mr-2 h-4 w-4"/> Glossary</TabsTrigger>
-                </TabsList>
-                <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
-                  <TakesList
-                    takes={takes}
-                    onTakeUpdate={handleTakeUpdate}
-                    onTakeDelete={handleTakeDelete}
-                    glossary={glossary}
-                    settings={settings}
-                    videoRef={videoRef}
-                    currentTime={currentTime}
-                    selectedTakeIndex={currentIndex}
-                    onTakeSelect={(index) => {
-                      setCurrentIndex(index);
-                      if (videoRef.current) {
-                        videoRef.current.currentTime = takes[index]?.startSeconds ?? 0;
-                      }
-                    }}
-                    onTakeMerge={handleTakeMerge}
-                    onTakeSplit={handleTakeSplit}
-                  />
-                </TabsContent>
-                <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">
-                  <ImportExportPanel 
-                    takes={takes} 
-                    onImport={handleTakesChange} 
-                    videoFile={videoFile}
-                    defaultSourceLang={settings.sourceLang}
-                    projectName={settings.projectName || settings.title || 'Untitled Project'}
-                  />
-                </TabsContent>
-                <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
-                  <ProjectSettingsComponent
-                    settings={settings}
-                    onSettingsChange={handleSettingsChange}
-                  />
-                  <AiConfiguration />
-                </TabsContent>
-                <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
-                  <GlossaryPanel 
-                    glossary={glossary} 
-                    onGlossaryChange={handleGlossaryChange} 
-                    projectName={settings.projectName || settings.title || 'Untitled Project'}
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+          isTimelineEditorActive ? (
+            <TimelineEditor
+              take={takes[currentIndex]}
+              index={currentIndex}
+              takesCount={takes.length}
+              currentTime={currentTime}
+              duration={videoDuration}
+              playbackController={playbackController}
+              tempInSeconds={tempInSeconds}
+              tempOutSeconds={tempOutSeconds}
+              setTempInSeconds={setTempInSeconds}
+              setTempOutSeconds={setTempOutSeconds}
+              onSave={handleSaveSyncTiming}
+              onCancel={() => setIsTimelineEditorActive(false)}
+              onPrevTake={() => handleTimelineEditorNavigate(currentIndex - 1)}
+              onNextTake={() => handleTimelineEditorNavigate(currentIndex + 1)}
+              hasPrevTake={currentIndex > 0}
+              hasNextTake={currentIndex < takes.length - 1}
+              takes={takes}
+            />
+          ) : (
+            <Card className="flex-grow h-full flex flex-col min-h-0">
+              <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
+                  <TabsList className="m-2 shrink-0">
+                    <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
+                    <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
+                    <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/> Settings</TabsTrigger>
+                    <TabsTrigger value="glossary"><BookMarked className="mr-2 h-4 w-4"/> Glossary</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
+                    <TakesList
+                      takes={takes}
+                      onTakeUpdate={handleTakeUpdate}
+                      onTakeDelete={handleTakeDelete}
+                      glossary={glossary}
+                      settings={settings}
+                      videoRef={videoRef}
+                      currentTime={currentTime}
+                      selectedTakeIndex={currentIndex}
+                      onTakeSelect={(index) => {
+                        setCurrentIndex(index);
+                        if (videoRef.current) {
+                          videoRef.current.currentTime = takes[index]?.startSeconds ?? 0;
+                        }
+                      }}
+                      onTakeMerge={handleTakeMerge}
+                      onTakeSplit={handleTakeSplit}
+                      onEnterSyncMode={handleEnterTimelineEditor}
+                    />
+                  </TabsContent>
+                  <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">
+                    <ImportExportPanel 
+                      takes={takes} 
+                      onImport={handleTakesChange} 
+                      videoFile={videoFile}
+                      defaultSourceLang={settings.sourceLang}
+                      projectName={settings.projectName || settings.title || 'Untitled Project'}
+                    />
+                  </TabsContent>
+                  <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
+                    <ProjectSettingsComponent
+                      settings={settings}
+                      onSettingsChange={handleSettingsChange}
+                    />
+                    <AiConfiguration />
+                  </TabsContent>
+                  <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
+                    <GlossaryPanel 
+                      glossary={glossary} 
+                      onGlossaryChange={handleGlossaryChange} 
+                      projectName={settings.projectName || settings.title || 'Untitled Project'}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )
         ) : (
           <PanelGroup direction="vertical" className="flex-grow">
             <Panel defaultSize={70}>
@@ -926,6 +1049,11 @@ export default function DubbingStudioPro() {
                       hasNextTake={currentIndex < takes.length - 1}
                       currentTake={takes[currentIndex]}
                       onDetachToggle={handleDetachVideo}
+                      tempInSeconds={isTimelineEditorActive ? tempInSeconds : null}
+                      tempOutSeconds={isTimelineEditorActive ? tempOutSeconds : null}
+                      onTempInSecondsChange={isTimelineEditorActive ? setTempInSeconds : undefined}
+                      onTempOutSecondsChange={isTimelineEditorActive ? setTempOutSeconds : undefined}
+                      playbackController={isTimelineEditorActive ? playbackController : undefined}
                     />
                   </div>
                 </Panel>
@@ -934,61 +1062,84 @@ export default function DubbingStudioPro() {
                 </PanelResizeHandle>
                 <Panel defaultSize={50} minSize={30}>
                   <div className="h-full overflow-hidden pl-2 flex flex-col gap-4">
-                    <Card className="flex-grow h-full flex flex-col min-h-0">
-                      <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
-                          <TabsList className="m-2 shrink-0">
-                            <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
-                            <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
-                            <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/> Settings</TabsTrigger>
-                            <TabsTrigger value="glossary"><BookMarked className="mr-2 h-4 w-4"/> Glossary</TabsTrigger>
-                          </TabsList>
-                          <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
-                            <TakesList
-                              takes={takes}
-                              onTakeUpdate={handleTakeUpdate}
-                              onTakeDelete={handleTakeDelete}
-                              glossary={glossary}
-                              settings={settings}
-                              videoRef={videoRef}
-                              currentTime={currentTime}
-                              selectedTakeIndex={currentIndex}
-                              onTakeSelect={(index) => {
-                                setCurrentIndex(index);
-                                if (videoRef.current) {
-                                  videoRef.current.currentTime = takes[index]?.startSeconds ?? 0;
-                                }
-                              }}
-                              onTakeMerge={handleTakeMerge}
-                              onTakeSplit={handleTakeSplit}
-                            />
-                          </TabsContent>
-                          <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">
-                            <ImportExportPanel 
-                              takes={takes} 
-                              onImport={handleTakesChange} 
-                              videoFile={videoFile}
-                              defaultSourceLang={settings.sourceLang}
-                              projectName={settings.projectName || settings.title || 'Untitled Project'}
-                            />
-                          </TabsContent>
-                          <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
-                            <ProjectSettingsComponent
-                              settings={settings}
-                              onSettingsChange={handleSettingsChange}
-                            />
-                            <AiConfiguration />
-                          </TabsContent>
-                          <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
-                            <GlossaryPanel 
-                              glossary={glossary} 
-                              onGlossaryChange={handleGlossaryChange} 
-                              projectName={settings.projectName || settings.title || 'Untitled Project'}
-                            />
-                          </TabsContent>
-                        </Tabs>
-                      </CardContent>
-                    </Card>
+                    {isTimelineEditorActive ? (
+                      <TimelineEditor
+                        take={takes[currentIndex]}
+                        index={currentIndex}
+                        takesCount={takes.length}
+                        currentTime={currentTime}
+                        duration={videoDuration}
+                        playbackController={playbackController}
+                        tempInSeconds={tempInSeconds}
+                        tempOutSeconds={tempOutSeconds}
+                        setTempInSeconds={setTempInSeconds}
+                        setTempOutSeconds={setTempOutSeconds}
+                        onSave={handleSaveSyncTiming}
+                        onCancel={() => setIsTimelineEditorActive(false)}
+                        onPrevTake={() => handleTimelineEditorNavigate(currentIndex - 1)}
+                        onNextTake={() => handleTimelineEditorNavigate(currentIndex + 1)}
+                        hasPrevTake={currentIndex > 0}
+                        hasNextTake={currentIndex < takes.length - 1}
+                        takes={takes}
+                      />
+                    ) : (
+                      <Card className="flex-grow h-full flex flex-col min-h-0">
+                        <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
+                          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
+                            <TabsList className="m-2 shrink-0">
+                              <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
+                              <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
+                              <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/> Settings</TabsTrigger>
+                              <TabsTrigger value="glossary"><BookMarked className="mr-2 h-4 w-4"/> Glossary</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
+                              <TakesList
+                                takes={takes}
+                                onTakeUpdate={handleTakeUpdate}
+                                onTakeDelete={handleTakeDelete}
+                                glossary={glossary}
+                                settings={settings}
+                                videoRef={videoRef}
+                                currentTime={currentTime}
+                                selectedTakeIndex={currentIndex}
+                                onTakeSelect={(index) => {
+                                  setCurrentIndex(index);
+                                  if (videoRef.current) {
+                                    videoRef.current.currentTime = takes[index]?.startSeconds ?? 0;
+                                  }
+                                }}
+                                onTakeMerge={handleTakeMerge}
+                                onTakeSplit={handleTakeSplit}
+                                onEnterSyncMode={handleEnterTimelineEditor}
+                              />
+                            </TabsContent>
+                            <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">
+                              <ImportExportPanel 
+                                takes={takes} 
+                                onImport={handleTakesChange} 
+                                videoFile={videoFile}
+                                defaultSourceLang={settings.sourceLang}
+                                projectName={settings.projectName || settings.title || 'Untitled Project'}
+                              />
+                            </TabsContent>
+                            <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
+                              <ProjectSettingsComponent
+                                settings={settings}
+                                onSettingsChange={handleSettingsChange}
+                              />
+                              <AiConfiguration />
+                            </TabsContent>
+                            <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
+                              <GlossaryPanel 
+                                glossary={glossary} 
+                                onGlossaryChange={handleGlossaryChange} 
+                                projectName={settings.projectName || settings.title || 'Untitled Project'}
+                              />
+                            </TabsContent>
+                          </Tabs>
+                        </CardContent>
+                      </Card>
+                    )}
                   </div>
                 </Panel>
               </PanelGroup>
