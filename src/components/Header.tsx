@@ -9,6 +9,9 @@ import {
   MenubarMenu,
   MenubarTrigger,
   MenubarSeparator,
+  MenubarSub,
+  MenubarSubTrigger,
+  MenubarSubContent,
 } from '@/components/ui/menubar';
 import {
   Dialog,
@@ -19,7 +22,23 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { FolderOpen, FileSpreadsheet, FileText, Plus, Save, Info, HelpCircle, Copy, ExternalLink, Mail, Github, BookMarked, BookOpen, Globe } from 'lucide-react';
+import {
+  FolderOpen,
+  FileSpreadsheet,
+  FileText,
+  Plus,
+  Save,
+  HelpCircle,
+  Copy,
+  ExternalLink,
+  Mail,
+  Github,
+  BookMarked,
+  BookOpen,
+  Globe,
+  LogOut,
+  FileCode,
+} from 'lucide-react';
 import { DubbiOviLogo } from './DubbiOviLogo';
 
 interface HeaderProps {
@@ -36,6 +55,10 @@ interface HeaderProps {
   onExportGlossaryCSV: () => void;
   onExportGlossaryXLSX: () => void;
   onExportGlossaryJSON: () => void;
+  onExportSRT: () => void;
+  onExportVTT: () => void;
+  onExportJSON: () => void;
+  onImportClick: () => void;
   isDetached?: boolean;
   onDockVideo?: () => void;
 }
@@ -54,6 +77,10 @@ const Header: React.FC<HeaderProps> = ({
   onExportGlossaryCSV,
   onExportGlossaryXLSX,
   onExportGlossaryJSON,
+  onExportSRT,
+  onExportVTT,
+  onExportJSON,
+  onImportClick,
   isDetached = false,
   onDockVideo,
 }) => {
@@ -73,6 +100,11 @@ const Header: React.FC<HeaderProps> = ({
           onOpenProject(projectData, filePath);
         } catch (err) {
           console.error(err);
+          toast({
+            title: 'Failed to Open Project',
+            description: 'Invalid project format or corrupt file.',
+            variant: 'destructive',
+          });
         }
       };
       reader.readAsText(file);
@@ -83,7 +115,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleCopyCitation = () => {
-    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 1.3.7 Academic Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.20683887`;
+    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 2.0.0 Workstation Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.20683887`;
     navigator.clipboard.writeText(citationText)
       .then(() => {
         toast({
@@ -94,6 +126,17 @@ const Header: React.FC<HeaderProps> = ({
       .catch(err => {
         console.error(err);
       });
+  };
+
+  const handleExit = () => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
+    if (isElectron) {
+      window.close();
+    } else {
+      if (confirm('Are you sure you want to exit? In standard browsers, this closes or redirects the current tab.')) {
+        window.close();
+      }
+    }
   };
 
   return (
@@ -112,13 +155,13 @@ const Header: React.FC<HeaderProps> = ({
       {/* Top-Level Menubar */}
       <Menubar className="border-none bg-transparent h-auto p-0 gap-1 flex shrink-0">
         <MenubarMenu>
-          <MenubarTrigger className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm">Project</MenubarTrigger>
-          <MenubarContent>
+          <MenubarTrigger className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm">File</MenubarTrigger>
+          <MenubarContent className="min-w-[14rem]">
             <MenubarItem onClick={onNewProject} className="cursor-pointer gap-2 text-xs">
               <Plus className="h-3.5 w-3.5 text-muted-foreground" /> New Project
             </MenubarItem>
             <MenubarItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer gap-2 text-xs">
-              <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" /> Open Project
+              <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" /> Open Project...
             </MenubarItem>
             <MenubarItem onClick={onSaveProject} className="cursor-pointer gap-2 text-xs">
               <Save className="h-3.5 w-3.5 text-muted-foreground" /> Save Project
@@ -126,36 +169,60 @@ const Header: React.FC<HeaderProps> = ({
             <MenubarItem onClick={onSaveProjectAs} className="cursor-pointer gap-2 text-xs">
               <Save className="h-3.5 w-3.5 text-muted-foreground" /> Save Project As...
             </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-
-        <MenubarMenu>
-          <MenubarTrigger className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm">Export</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem onClick={onExportWordSource} className="cursor-pointer gap-2 text-xs">
-              <FileText className="h-3.5 w-3.5 text-blue-400" /> Word: Source Text
-            </MenubarItem>
-            <MenubarItem onClick={onExportWordTarget} className="cursor-pointer gap-2 text-xs">
-              <FileText className="h-3.5 w-3.5 text-green-400" /> Word: Target Text
-            </MenubarItem>
-            <MenubarItem onClick={onExportWordBoth} className="cursor-pointer gap-2 text-xs">
-              <FileText className="h-3.5 w-3.5 text-purple-400" /> Word: Both Texts
-            </MenubarItem>
-            <MenubarItem onClick={onExportExcel} className="cursor-pointer gap-2 text-xs">
-              <FileSpreadsheet className="h-3.5 w-3.5 text-green-500" /> Excel
-            </MenubarItem>
-            <MenubarItem onClick={onExportCSV} className="cursor-pointer gap-2 text-xs">
-              <FileText className="h-3.5 w-3.5 text-blue-500" /> CSV
-            </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onClick={onExportGlossaryCSV} className="cursor-pointer gap-2 text-xs">
-              <BookMarked className="h-3.5 w-3.5 text-orange-400" /> Export Glossary: CSV
+            
+            <MenubarItem onClick={onImportClick} className="cursor-pointer gap-2 text-xs">
+              <FolderOpen className="h-3.5 w-3.5 text-primary" /> Import Data...
             </MenubarItem>
-            <MenubarItem onClick={onExportGlossaryXLSX} className="cursor-pointer gap-2 text-xs">
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Glossary: Excel
-            </MenubarItem>
-            <MenubarItem onClick={onExportGlossaryJSON} className="cursor-pointer gap-2 text-xs">
-              <FileText className="h-3.5 w-3.5 text-yellow-400" /> Export Glossary: JSON
+            
+            <MenubarSub>
+              <MenubarSubTrigger className="cursor-pointer gap-2 text-xs focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground">
+                <FolderOpen className="h-3.5 w-3.5 text-green-500" /> Export Data
+              </MenubarSubTrigger>
+              <MenubarSubContent className="min-w-[13rem]">
+                <MenubarItem onClick={onExportWordSource} className="cursor-pointer gap-2 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-blue-400" /> Word: Source Text
+                </MenubarItem>
+                <MenubarItem onClick={onExportWordTarget} className="cursor-pointer gap-2 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-green-400" /> Word: Target Text
+                </MenubarItem>
+                <MenubarItem onClick={onExportWordBoth} className="cursor-pointer gap-2 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-purple-400" /> Word: Both Texts
+                </MenubarItem>
+                <MenubarItem onClick={onExportExcel} className="cursor-pointer gap-2 text-xs">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-green-500" /> Excel Worksheet
+                </MenubarItem>
+                <MenubarItem onClick={onExportCSV} className="cursor-pointer gap-2 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-blue-500" /> CSV File
+                </MenubarItem>
+                <MenubarItem onClick={onExportJSON} className="cursor-pointer gap-2 text-xs">
+                  <FileCode className="h-3.5 w-3.5 text-yellow-500" /> Plain JSON (Takes)
+                </MenubarItem>
+                <MenubarItem onClick={onSaveProjectAs} className="cursor-pointer gap-2 text-xs">
+                  <Save className="h-3.5 w-3.5 text-indigo-400" /> Project (.dubbiovi)
+                </MenubarItem>
+                <MenubarItem onClick={onExportSRT} className="cursor-pointer gap-2 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-orange-500" /> SRT Subtitles
+                </MenubarItem>
+                <MenubarItem onClick={onExportVTT} className="cursor-pointer gap-2 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-cyan-400" /> WebVTT Subtitles
+                </MenubarItem>
+                <MenubarSeparator />
+                <MenubarItem onClick={onExportGlossaryCSV} className="cursor-pointer gap-2 text-xs">
+                  <BookMarked className="h-3.5 w-3.5 text-orange-400" /> Export Glossary: CSV
+                </MenubarItem>
+                <MenubarItem onClick={onExportGlossaryXLSX} className="cursor-pointer gap-2 text-xs">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Glossary: Excel
+                </MenubarItem>
+                <MenubarItem onClick={onExportGlossaryJSON} className="cursor-pointer gap-2 text-xs">
+                  <FileText className="h-3.5 w-3.5 text-yellow-400" /> Export Glossary: JSON
+                </MenubarItem>
+              </MenubarSubContent>
+            </MenubarSub>
+            
+            <MenubarSeparator />
+            <MenubarItem onClick={handleExit} className="cursor-pointer gap-2 text-xs text-destructive focus:bg-destructive/10">
+              <LogOut className="h-3.5 w-3.5 text-destructive" /> Exit
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
@@ -207,13 +274,13 @@ const Header: React.FC<HeaderProps> = ({
               <DubbiOviLogo />
             </DialogTitle>
             <DialogDescription className="text-xs font-semibold text-muted-foreground">
-              v1.3.7 Academic Edition (June 2026)
+              v2.0.0 Workstation Edition (July 2026)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 my-2 text-xs leading-relaxed">
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Description</span>
-              <p className="text-foreground mt-0.5">Open-source AI-assisted audiovisual translation environment developed for teaching, research and knowledge transfer.</p>
+              <p className="text-foreground mt-0.5">Open-source modular audiovisual translation environment developed for teaching, research, and professional localization workflows.</p>
             </div>
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Developer</span>
@@ -248,7 +315,7 @@ const Header: React.FC<HeaderProps> = ({
             <div className="p-3 rounded-lg bg-secondary/40 border border-border/60 relative">
               <span className="font-bold text-[9px] text-muted-foreground uppercase tracking-wider block">Suggested Academic Citation</span>
               <pre className="font-mono text-[10.5px] mt-2 text-foreground whitespace-pre-wrap leading-normal font-medium bg-background/50 p-2.5 rounded border border-border/30">
-                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 1.3.7 Academic Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.20683887`}
+                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 2.0.0 Workstation Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.20683887`}
               </pre>
               <Button size="sm" variant="secondary" onClick={handleCopyCitation} className="mt-2.5 w-full h-8 gap-1.5 text-xs">
                 <Copy className="h-3.5 w-3.5" /> Copy Citation
@@ -256,7 +323,7 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
           <div className="border-t pt-3 mt-1 flex flex-col items-center text-[10px] text-muted-foreground text-center space-y-0.5">
-            <p>Built with Next.js, TypeScript, Local Storage and Gemini 2.5 Flash.</p>
+            <p>Built with Next.js, TypeScript, Local Storage, and Modular Service Chassis.</p>
             <p className="font-semibold text-foreground/80">University of Oviedo · 2026</p>
           </div>
           <DialogFooter className="mt-2">

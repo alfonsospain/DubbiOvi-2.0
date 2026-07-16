@@ -4,6 +4,8 @@ export interface ProjectSettings {
   sourceLang: string;
   targetLang: string;
   translator: string;
+  institution?: string;
+  client?: string;
 }
 
 export interface Take {

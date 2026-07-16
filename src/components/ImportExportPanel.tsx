@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import type { Take } from '@/lib/types';
 import {
   Card,
@@ -21,15 +21,25 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { toSRT, toVTT, parseTimestampToSeconds } from '@/lib/utils';
-import { HardDriveDownload, HardDriveUpload, FileText, UploadCloud, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  HardDriveUpload,
+  HardDriveDownload,
+  FileText,
+  UploadCloud,
+  Sparkles,
+  Loader2,
+  AlertTriangle,
+  FileSpreadsheet,
+  FileCode,
+  Copy,
+  Download,
+} from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
-import mammoth from 'mammoth';
 import { extractAudioTrack } from '@/lib/audio-utils';
 import { getAudioTranscription } from '@/app/actions';
 import { loadApiKey } from '@/lib/apiKeyStorage';
 import { SUPPORTED_LANGUAGES } from '@/lib/data';
-
 
 interface ImportExportPanelProps {
   takes: Take[];
@@ -37,9 +47,13 @@ interface ImportExportPanelProps {
   videoFile?: File | null;
   defaultSourceLang?: string;
   projectName?: string;
+  onExportWordSource?: () => void;
+  onExportWordTarget?: () => void;
+  onExportWordBoth?: () => void;
+  onExportExcel?: () => void;
+  onExportCSV?: () => void;
+  onSaveProjectAs?: () => void;
 }
-
-type ExportFormat = 'json' | 'srt' | 'vtt' | 'txt';
 
 const STAGE_DETAILS = {
   preparing: {
@@ -56,7 +70,7 @@ const STAGE_DETAILS = {
   },
   transcribing: {
     title: 'AI is transcribing...',
-    desc: 'This may take several minutes for long videos. Please keep DubbiOvi open while processing.'
+    desc: 'This may take several minutes for long videos. Please keep DubbiOvi open.'
   },
   generating: {
     title: 'Generating takes...',
@@ -68,18 +82,22 @@ const STAGE_DETAILS = {
   }
 };
 
-
 const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   takes,
   onImport,
   videoFile,
   defaultSourceLang,
   projectName,
+  onExportWordSource,
+  onExportWordTarget,
+  onExportWordBoth,
+  onExportExcel,
+  onExportCSV,
+  onSaveProjectAs,
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
   const [importScript, setImportScript] = useState('');
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('json');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -105,10 +123,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
     setTranscriptionStage('preparing');
 
     try {
-      // Step 1: Decode and downsample video audio to 16kHz mono WAV Blob
       const audioBlob = await extractAudioTrack(videoFile);
-
-      // Step 2: Package WAV file and target language selection in FormData
       setTranscriptionStage('optimizing');
       const formData = new FormData();
       formData.append('audio', audioBlob, 'audio.wav');
@@ -118,7 +133,6 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         formData.append('apiKey', userApiKey);
       }
 
-      // Step 3: Trigger Next.js Server Action
       setTranscriptionStage('uploading');
       setTranscriptionStage('transcribing');
       const result = await getAudioTranscription(formData);
@@ -131,44 +145,32 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         throw new Error('No speech segments detected in this video.');
       }
 
-      // Step 4: Map Gemini takes to DubbiOvi Take structure
       setTranscriptionStage('generating');
-      const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-        const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
-        const ms = Math.round((seconds % 1) * 1000).toString().padStart(3, '0');
-        return `${mins}:${secs}.${ms}`;
-      };
-
       const newTakes: Take[] = result.takes.map(t => {
-        const startSecs = parseTimestampToSeconds(t.startTime);
-        const endSecs = parseTimestampToSeconds(t.endTime);
         return {
           id: uuidv4(),
           character: t.character,
+          time: `${t.startTime} - ${t.endTime}`,
+          startSeconds: parseTimestampToSeconds(t.startTime),
+          endSeconds: parseTimestampToSeconds(t.endTime),
           original: t.original,
           translation: '',
           notes: '',
           status: 'Pending',
-          startSeconds: startSecs,
-          endSeconds: endSecs,
-          time: `${formatTime(startSecs)} --> ${formatTime(endSecs)}`,
         };
       });
 
-      // Step 5: Save takes
       onImport(newTakes);
       setTranscriptionStage('completed');
-
       toast({
-        title: 'ASR Transcription Complete',
-        description: `Successfully generated ${newTakes.length} takes. Detected language: ${result.detectedLanguage}`,
+        title: 'Transcription Complete',
+        description: `Imported ${newTakes.length} segments.`,
       });
-    } catch (error) {
-      console.error('ASR transcription failed:', error);
+    } catch (err: any) {
+      console.error(err);
       toast({
         title: 'Transcription Failed',
-        description: error instanceof Error ? error.message : 'Could not transcribe video. Please try again.',
+        description: err.message || String(err),
         variant: 'destructive',
       });
     } finally {
@@ -177,373 +179,436 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
     }
   };
 
-  const handleJsonImport = () => {
-    if (!importJson.trim()) {
-      toast({
-        title: 'Import Error',
-        description: 'Input is empty. Please paste your JSON data.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    try {
-      const parsed = JSON.parse(importJson);
-      const takesToImport = Array.isArray(parsed)
-        ? parsed
-        : parsed.takes && Array.isArray(parsed.takes)
-        ? parsed.takes
-        : null;
+  const handleScriptImport = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
 
-      if (!takesToImport) {
-        throw new Error('Invalid JSON structure. Expected an array of takes.');
+    // Split text by paragraphs or double newlines
+    const paragraphs = trimmed.split(/\n\s*\n+/);
+    const newTakes: Take[] = paragraphs.map((p, index) => {
+      let character = 'Character';
+      let original = p.trim();
+
+      // Check if paragraph starts with CHARACTER: or CHARACTER -
+      const match = p.match(/^([^:\n-]+)(?:\s*[:\-]\s*)([\s\S]*)$/);
+      if (match) {
+        character = match[1].trim();
+        original = match[2].trim();
       }
-      onImport(takesToImport);
-      toast({
-        title: 'Import Successful',
-        description: `${takesToImport.length} takes have been loaded from JSON.`,
-      });
+
+      return {
+        id: uuidv4(),
+        character,
+        time: '00:00.000 - 00:05.000',
+        startSeconds: 0,
+        endSeconds: 5,
+        original,
+        translation: '',
+        notes: '',
+        status: 'Pending',
+      };
+    });
+
+    onImport(newTakes);
+    setImportScript('');
+    toast({
+      title: 'Script Imported',
+      description: `Successfully loaded ${newTakes.length} takes.`,
+    });
+  };
+
+  const handleJsonImport = () => {
+    try {
+      const data = JSON.parse(importJson);
+      let parsedTakes: Take[] = [];
+      if (Array.isArray(data)) {
+        parsedTakes = data;
+      } else if (data && Array.isArray(data.takes)) {
+        parsedTakes = data.takes;
+      } else {
+        throw new Error('Invalid file format: list of takes not found.');
+      }
+
+      const formatted: Take[] = parsedTakes.map(t => ({
+        id: t.id || uuidv4(),
+        character: t.character || 'Unknown',
+        time: t.time || '00:00.000 - 00:00.000',
+        startSeconds: typeof t.startSeconds === 'number' ? t.startSeconds : 0,
+        endSeconds: typeof t.endSeconds === 'number' ? t.endSeconds : 0,
+        original: t.original || '',
+        translation: t.translation || '',
+        notes: t.notes || '',
+        status: t.status || 'Pending',
+      }));
+
+      onImport(formatted);
       setImportJson('');
-    } catch (error) {
+      toast({
+        title: 'Project Loaded',
+        description: `Imported ${formatted.length} takes successfully.`,
+      });
+    } catch (err: any) {
       toast({
         title: 'Import Failed',
-        description:
-          'Could not parse JSON. Please check the format and try again.',
+        description: err.message || String(err),
         variant: 'destructive',
       });
-      console.error(error);
     }
   };
-  
-  const handleScriptImport = (scriptText: string) => {
-    if (!scriptText.trim()) {
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    if (file.name.endsWith('.docx')) {
       toast({
-        title: 'Import Error',
-        description: 'Script is empty. Please paste your script text.',
-        variant: 'destructive',
+        title: 'Mammoth Docx Import',
+        description: 'Reading Word script file...',
       });
-      return;
-    }
-    try {
-      // Split script by paragraphs (one or more empty lines)
-      const paragraphs = scriptText.split(/\n\s*\n/).filter(p => p.trim() !== '');
-      let lastEndTime = 0;
-
-      const newTakes: Take[] = paragraphs.map((p, index) => {
-        const text = p.trim();
-        const wordCount = text.split(/\s+/).length;
-        const estimatedDuration = Math.max(2, wordCount / 2.5); // Estimate 2.5 words per second, min 2s
-        
-        const startTime = lastEndTime;
-        const endTime = startTime + estimatedDuration;
-        lastEndTime = endTime;
-
-        const formatTime = (seconds: number) => {
-          const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-          const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
-          const ms = Math.round((seconds % 1) * 1000).toString().padStart(3, '0');
-          return `${mins}:${secs}.${ms}`;
-        }
-        
-        return {
-          id: uuidv4(),
-          character: `Speaker ${ (index % 2) + 1}`,
-          original: text,
-          translation: '',
-          notes: '',
-          status: 'Pending',
-          startSeconds: startTime,
-          endSeconds: endTime,
-          time: `${formatTime(startTime)} --> ${formatTime(endTime)}`,
-        };
-      });
-
-      if (newTakes.length === 0) {
-          throw new Error('No paragraphs found in the script.');
-      }
-      
-      onImport(newTakes);
-      toast({
-        title: 'Script Import Successful',
-        description: `${newTakes.length} takes have been created from your script.`,
-      });
-      setImportScript('');
-
-    } catch (error) {
-      toast({
-        title: 'Script Import Failed',
-        description: 'Could not process the script.',
-        variant: 'destructive',
-      });
-      console.error(error);
-    }
-  };
-  
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      if (file.name.endsWith('.docx')) {
-        reader.onload = (e) => {
-            const arrayBuffer = e.target?.result as ArrayBuffer;
-            mammoth.extractRawText({ arrayBuffer: arrayBuffer })
-                .then(result => {
-                    handleScriptImport(result.value);
-                })
-                .catch(err => {
-                    toast({
-                        title: 'DOCX Import Failed',
-                        description: 'Could not extract text from the .docx file.',
-                        variant: 'destructive'
-                    });
-                    console.error(err);
-                });
+      // Word file import requires Mammoth (usually handles async buffer)
+      import('mammoth').then((mammoth) => {
+        reader.onload = (event) => {
+          const arrayBuffer = event.target?.result as ArrayBuffer;
+          mammoth.extractRawText({ arrayBuffer })
+            .then((result) => {
+              handleScriptImport(result.value);
+            })
+            .catch((err) => {
+              console.error(err);
+              toast({ title: 'Error reading .docx file', variant: 'destructive' });
+            });
         };
         reader.readAsArrayBuffer(file);
-
-      } else { // Assume .txt or other plain text
-        reader.onload = (e) => {
-            const text = e.target?.result as string;
-            handleScriptImport(text);
-        };
-        reader.readAsText(file);
-      }
-    }
-    // Reset file input
-    if(fileInputRef.current) {
-        fileInputRef.current.value = '';
-    }
-  };
-
-
-  const exportData = useMemo(() => {
-    switch (exportFormat) {
-      case 'srt':
-        return toSRT(takes);
-      case 'vtt':
-        return toVTT(takes);
-      case 'txt':
-        return takes
-          .map(t => `${t.character}: ${t.translation || t.original}`)
-          .join('\n\n');
-      case 'json':
-      default:
-        return JSON.stringify({ takes }, null, 2);
-    }
-  }, [takes, exportFormat]);
-
-  const handleCopyToClipboard = () => {
-    navigator.clipboard
-      .writeText(exportData)
-      .then(() => {
-        toast({ title: 'Copied to clipboard!' });
-      })
-      .catch(err => {
-        toast({ title: 'Failed to copy', variant: 'destructive' });
+      }).catch(err => {
+        console.error(err);
+        toast({ title: 'Failed to load docx parser', variant: 'destructive' });
       });
-  };
-
-  const handleDownload = () => {
-    const baseName = projectName ? projectName.trim() : 'untitled-project';
-    const sanitizedBase = baseName
-      .replace(/[^a-zA-Z0-9-_]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '');
-    const fileName = `${sanitizedBase || 'project'}.${exportFormat}`;
-
-    let mimeType = 'text/plain;charset=utf-8';
-    if (exportFormat === 'json') {
-      mimeType = 'application/json;charset=utf-8';
+    } else {
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        handleScriptImport(text);
+      };
+      reader.readAsText(file);
     }
 
-    const blob = new Blob([exportData], { type: mimeType });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Local helper to trigger downloads for text content (SRT, VTT, JSON, TXT)
+  const downloadLocalFile = (content: string, ext: string, mime: string) => {
+    const baseName = projectName ? projectName.trim() : 'untitled-project';
+    const sanitized = baseName.replace(/[^a-zA-Z0-9-_]/g, '-').replace(/-+/g, '-');
+    const filename = `${sanitized || 'project'}.${ext}`;
+
+    const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = fileName;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
     toast({
-      title: 'Download Started',
-      description: `Saving ${fileName}...`,
+      title: 'Download Complete',
+      description: `Saved "${filename}" successfully.`,
     });
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Data Management</CardTitle>
-        <CardDescription>
-          Import your script or export your work.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="import">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="import">
-              <HardDriveUpload className="mr-2 h-4 w-4" /> Import
-            </TabsTrigger>
-            <TabsTrigger value="export">
-              <HardDriveDownload className="mr-2 h-4 w-4" /> Export
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="import" className="mt-4">
-             <Tabs defaultValue="script">
-                  <TabsList className="grid w-full grid-cols-3">
-                     <TabsTrigger value="script">
-                         <FileText className="mr-2 h-4 w-4" /> From Script
-                     </TabsTrigger>
-                     <TabsTrigger value="json">From JSON</TabsTrigger>
-                     <TabsTrigger value="asr">
-                         <Sparkles className="mr-2 h-4 w-4" /> AI Transcribe
-                     </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="script" className="mt-4 space-y-4">
-                     <p className="text-sm text-muted-foreground">
-                         Upload a .txt or .docx file, or paste your script below. Paragraphs will be treated as separate takes.
-                     </p>
-                     <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                         <UploadCloud className="mr-2 h-4 w-4" />
-                         Upload .txt or .docx file
-                     </Button>
-                     <Textarea
-                         value={importScript}
-                         onChange={e => setImportScript(e.target.value)}
-                         className="h-32 font-mono text-xs"
-                         placeholder='Or paste your plain text script here...'
-                     />
-                     <Button onClick={() => handleScriptImport(importScript)} disabled={!importScript}>Import from Text</Button>
-                      <Input
-                         ref={fileInputRef}
-                         type="file"
-                         className="hidden"
-                         accept=".txt,.docx"
-                         onChange={handleFileChange}
-                       />
-                  </TabsContent>
-                  <TabsContent value="json" className="mt-4 space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                         For advanced users restoring a project from a previous export.
-                      </p>
-                      <Textarea
-                         value={importJson}
-                         onChange={e => setImportJson(e.target.value)}
-                         className="h-48 font-mono text-xs"
-                         placeholder='Paste your JSON data here...'
-                       />
-                       <Button onClick={handleJsonImport}>Load Project from JSON</Button>
-                  </TabsContent>
-                  <TabsContent value="asr" className="mt-4 space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                         Extract the audio track from the loaded video and automatically generate timestamped, speaker-separated Takes in the source language using Gemini 2.5 Flash.
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-muted-foreground">Spoken Audio Language</label>
-                        <Select
-                          value={selectedAsrLang}
-                          onValueChange={setSelectedAsrLang}
-                          disabled={isTranscribing}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select audio language" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Auto-Detect">Auto-Detect Language (AI)</SelectItem>
-                            {SUPPORTED_LANGUAGES.map(lang => (
-                              <SelectItem key={lang.code} value={lang.code}>
-                                {lang.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      {!hasApiKey ? (
-                        <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs flex flex-col gap-1.5">
-                          <p className="font-semibold flex items-center gap-1.5 text-[13px] text-amber-400">
-                            <AlertTriangle className="h-4 w-4" />
-                            Missing Gemini API Key
-                          </p>
-                          <p className="leading-relaxed text-muted-foreground">
-                            To use AI transcription and translation, please configure your Gemini API key in the <strong>Settings</strong> tab.
-                          </p>
-                        </div>
-                      ) : !videoFile ? (
-                        <p className="text-xs text-amber-500 font-medium">
-                          ⚠️ Please load a video file in the Video Player to start transcription.
-                        </p>
-                      ) : null}
-                      
-                      {isTranscribing && transcriptionStage && STAGE_DETAILS[transcriptionStage] && (
-                        <div className="flex flex-col gap-1.5 p-3.5 rounded-lg border border-border/50 bg-secondary/30 text-xs select-none">
-                          <div className="flex items-center gap-2 font-bold text-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-                            <span>{STAGE_DETAILS[transcriptionStage].title}</span>
-                          </div>
-                          <p className="text-muted-foreground pl-6 leading-relaxed">
-                            {STAGE_DETAILS[transcriptionStage].desc}
-                          </p>
-                        </div>
-                      )}
-                      
-                      <Button 
-                        onClick={handleAsrTranscription} 
-                        disabled={!videoFile || isTranscribing || !hasApiKey}
-                        className="w-full"
-                      >
-                        {isTranscribing ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            AI Transcribing...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Transcribe Video Audio
-                          </>
-                        )}
-                      </Button>
-                      <p className="text-[10px] text-muted-foreground text-center">
-                        Note: Processing may take 30-60 seconds. Video length is limited to 15 minutes.
-                      </p>
-                  </TabsContent>
-              </Tabs>
-          </TabsContent>
+  // Local copy helper
+  const copyToClipboard = (content: string) => {
+    navigator.clipboard.writeText(content)
+      .then(() => toast({ title: 'Copied to Clipboard!' }))
+      .catch(() => toast({ title: 'Copy Failed', variant: 'destructive' }));
+  };
 
-          <TabsContent value="export" className="mt-4">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Select
-                  value={exportFormat}
-                  onValueChange={(v: ExportFormat) => setExportFormat(v)}
+  return (
+    <div className="grid grid-cols-1 gap-6">
+      {/* Visual columns: Import left, Export right */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Import Section */}
+        <Card className="border-border/60 bg-card/50 backdrop-blur-sm flex flex-col">
+          <CardHeader className="pb-3 bg-secondary/5 border-b border-border/30">
+            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+              <HardDriveUpload className="h-4.5 w-4.5 text-primary" /> Import Source
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Load dialogue segments or scripts into your workspace.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 flex-grow">
+            <Tabs defaultValue="script" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 h-8 text-[11px] p-0.5 bg-secondary/40">
+                <TabsTrigger value="script" className="text-[11px] py-1">Script</TabsTrigger>
+                <TabsTrigger value="json" className="text-[11px] py-1">JSON</TabsTrigger>
+                <TabsTrigger value="asr" className="text-[11px] py-1 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-amber-400" /> AI Transcribe
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Script Tab */}
+              <TabsContent value="script" className="mt-3 space-y-3">
+                <p className="text-[11px] text-muted-foreground leading-normal">
+                  Upload a plain text or Word file. Paragraphs split into takes automatically.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs font-semibold h-8"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="json">Project (JSON)</SelectItem>
-                    <SelectItem value="srt">Subtitles (SRT)</SelectItem>
-                    <SelectItem value="vtt">Subtitles (VTT)</SelectItem>
-                    <SelectItem value="txt">Script (Text)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleCopyToClipboard}>Copy to Clipboard</Button>
-                <Button onClick={handleDownload} variant="outline">Download</Button>
+                  <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload File (.txt, .docx)
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".txt,.docx"
+                  onChange={handleFileChange}
+                />
+                <Textarea
+                  value={importScript}
+                  onChange={e => setImportScript(e.target.value)}
+                  className="h-36 font-mono text-[10.5px] p-2 resize-none"
+                  placeholder="Or paste your plain script here (e.g. CHARACTER: Dialogue)..."
+                />
+                <Button
+                  size="sm"
+                  className="w-full text-xs font-semibold h-8"
+                  onClick={() => handleScriptImport(importScript)}
+                  disabled={!importScript.trim()}
+                >
+                  Import Script Text
+                </Button>
+              </TabsContent>
+
+              {/* JSON Tab */}
+              <TabsContent value="json" className="mt-3 space-y-3">
+                <p className="text-[11px] text-muted-foreground leading-normal">
+                  Paste structured JSON code representing a previous export to restore.
+                </p>
+                <Textarea
+                  value={importJson}
+                  onChange={e => setImportJson(e.target.value)}
+                  className="h-44 font-mono text-[10.5px] p-2 resize-none"
+                  placeholder='Paste JSON containing {"takes": [...]} here...'
+                />
+                <Button
+                  size="sm"
+                  className="w-full text-xs font-semibold h-8"
+                  onClick={handleJsonImport}
+                  disabled={!importJson.trim()}
+                >
+                  Load Takes from JSON
+                </Button>
+              </TabsContent>
+
+              {/* AI ASR Tab */}
+              <TabsContent value="asr" className="mt-3 space-y-3">
+                <p className="text-[11px] text-muted-foreground leading-normal">
+                  Extract video audio and run Gemini 2.5 Flash Speech-to-Text transcription.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Audio Language</span>
+                  <Select value={selectedAsrLang} onValueChange={setSelectedAsrLang} disabled={isTranscribing}>
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Auto-Detect">Auto-Detect Language (AI)</SelectItem>
+                      {SUPPORTED_LANGUAGES.map(lang => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          {lang.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!hasApiKey ? (
+                  <div className="p-2.5 rounded border border-amber-500/20 bg-amber-500/5 text-[10.5px] flex flex-col gap-1">
+                    <p className="font-bold text-amber-400 flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" /> API Key Missing
+                    </p>
+                    <p className="text-muted-foreground leading-normal">
+                      Please configure your Gemini API key in the <strong>Providers</strong> tab.
+                    </p>
+                  </div>
+                ) : !videoFile ? (
+                  <div className="p-2 border border-amber-500/20 rounded bg-amber-500/5 text-[10.5px] text-amber-500 font-medium">
+                    ⚠️ Load a video in the media player to begin.
+                  </div>
+                ) : null}
+
+                {isTranscribing && transcriptionStage && STAGE_DETAILS[transcriptionStage] && (
+                  <div className="flex flex-col gap-1 p-2.5 rounded border border-border bg-secondary/20 text-[10.5px]">
+                    <div className="flex items-center gap-1.5 font-bold text-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      <span>{STAGE_DETAILS[transcriptionStage].title}</span>
+                    </div>
+                    <p className="text-muted-foreground pl-5 leading-normal">
+                      {STAGE_DETAILS[transcriptionStage].desc}
+                    </p>
+                  </div>
+                )}
+
+                <Button
+                  size="sm"
+                  onClick={handleAsrTranscription}
+                  disabled={!videoFile || isTranscribing || !hasApiKey}
+                  className="w-full text-xs font-semibold h-8"
+                >
+                  {isTranscribing ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Transcribing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1.5 h-3.5 w-3.5 text-amber-400" />
+                      Transcribe Video Audio
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Export Section */}
+        <Card className="border-border/60 bg-card/50 backdrop-blur-sm flex flex-col">
+          <CardHeader className="pb-3 bg-secondary/5 border-b border-border/30">
+            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+              <HardDriveDownload className="h-4.5 w-4.5 text-primary" /> Export Output
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Save your translation files in multiple professional formats.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 flex-grow space-y-4">
+            <div className="space-y-2.5">
+              
+              {/* Project .dubbiovi export */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">Project Workspace (.dubbiovi)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">Contains all settings, takes, and glossary.</p>
+                </div>
+                <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={onSaveProjectAs}>
+                  <Download className="h-3 w-3" /> Save As
+                </Button>
               </div>
-              <Textarea
-                readOnly
-                value={exportData}
-                className="h-48 font-mono text-xs"
-                placeholder="Exported data will appear here."
-              />
+
+              {/* Subtitles SRT */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">SRT Subtitles (.srt)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">Standard subtitle formatting with millisecond timestamps.</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(toSRT(takes))}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={() => downloadLocalFile(toSRT(takes), 'srt', 'text/srt;charset=utf-8')}>
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                </div>
+              </div>
+
+              {/* Subtitles VTT */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">WebVTT Subtitles (.vtt)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">HTML5 compatible web video subtitle formatting.</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(toVTT(takes))}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={() => downloadLocalFile(toVTT(takes), 'vtt', 'text/vtt;charset=utf-8')}>
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                </div>
+              </div>
+
+              {/* Word Document */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">Word Document (.docx)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">Export script formatted for MS Word.</p>
+                </div>
+                <div className="flex flex-col gap-1 sm:flex-row sm:gap-1.5">
+                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold" onClick={onExportWordSource}>Source</Button>
+                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold" onClick={onExportWordTarget}>Target</Button>
+                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold" onClick={onExportWordBoth}>Both</Button>
+                </div>
+              </div>
+
+              {/* Excel Worksheet */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">Excel Worksheet (.xlsx)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">Tabular layout of characters, timings, and dialogues.</p>
+                </div>
+                <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={onExportExcel}>
+                  <Download className="h-3 w-3" /> Download
+                </Button>
+              </div>
+
+              {/* CSV file */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">CSV Table (.csv)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">Timings and text formatted in comma-separated values.</p>
+                </div>
+                <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={onExportCSV}>
+                  <Download className="h-3 w-3" /> Download
+                </Button>
+              </div>
+
+              {/* JSON (Takes) */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">Plain Takes JSON (.json)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">Raw JSON list data containing only the takes list.</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(JSON.stringify({ takes }, null, 2))}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={() => downloadLocalFile(JSON.stringify({ takes }, null, 2), 'json', 'application/json;charset=utf-8')}>
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                </div>
+              </div>
+
+              {/* TXT Script */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-bold text-foreground">Plain Text Script (.txt)</div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">Formatted text script listing characters and dialogue lines.</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(takes.map(t => `${t.character}: ${t.translation || t.original}`).join('\n\n'))}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={() => downloadLocalFile(takes.map(t => `${t.character}: ${t.translation || t.original}`).join('\n\n'), 'txt', 'text/plain;charset=utf-8')}>
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                </div>
+              </div>
+
             </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+
+      </div>
+    </div>
   );
 };
 

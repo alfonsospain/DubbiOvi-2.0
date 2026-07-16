@@ -8,6 +8,8 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
   sourceLang: 'EN',
   targetLang: 'ES',
   translator: 'Your Name',
+  institution: '',
+  client: '',
 };
 
 export const DEFAULT_TAKES: Take[] = [

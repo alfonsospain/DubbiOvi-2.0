@@ -6,7 +6,8 @@ import type { ProjectSettings, Take, GlossaryEntry } from '@/lib/types';
 import { DEFAULT_PROJECT_SETTINGS } from '@/lib/data';
 import Header from '@/components/Header';
 import ProjectSettingsComponent from '@/components/ProjectSettings';
-import AiConfiguration from '@/components/AiConfiguration';
+import Services from '@/components/Services';
+import Providers from '@/components/Providers';
 import VideoPlayer from '@/components/VideoPlayer';
 import ImportExportPanel from '@/components/ImportExportPanel';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import TakesList from '@/components/TakesList';
 import { TimelineEditor } from '@/components/TimelineEditor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Settings, BookMarked, GripHorizontal } from 'lucide-react';
+import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen } from 'lucide-react';
 import Timeline from '@/components/Timeline';
 import {
   exportToExcel,
@@ -29,7 +30,7 @@ import {
   exportGlossaryXLSX,
   exportGlossaryJSON,
 } from '@/lib/export-utils';
-import { formatTimeForDisplay } from '@/lib/utils';
+import { formatTimeForDisplay, toSRT, toVTT } from '@/lib/utils';
 import {
   Panel,
   PanelGroup,
@@ -67,6 +68,10 @@ export default function DubbingStudioPro() {
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState('takes');
   const [isDetached, setIsDetached] = useState(false);
+  const [workflowMode, setWorkflowMode] = useState('manual');
+  const [transcriptionProvider, setTranscriptionProvider] = useState('None');
+  const [translationProvider, setTranslationProvider] = useState('None');
+  const [speechProvider, setSpeechProvider] = useState('None');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -760,6 +765,67 @@ export default function DubbingStudioPro() {
     });
   };
 
+  const handleExportSRT = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    const srtContent = toSRT(takes);
+    const blob = new Blob([srtContent], { type: 'text/srt;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${name}.srt`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({
+      title: 'SRT Export Complete',
+      description: `Downloaded "${name}.srt"`,
+    });
+  };
+
+  const handleExportVTT = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    const vttContent = toVTT(takes);
+    const blob = new Blob([vttContent], { type: 'text/vtt;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${name}.vtt`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({
+      title: 'WebVTT Export Complete',
+      description: `Downloaded "${name}.vtt"`,
+    });
+  };
+
+  const handleExportJSON = () => {
+    const name = settings.projectName || settings.title || 'Project';
+    const jsonContent = JSON.stringify({ takes }, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${name}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({
+      title: 'JSON Export Complete',
+      description: `Downloaded "${name}.json"`,
+    });
+  };
+
+  const handleImportClick = () => {
+    setActiveTab('data');
+  };
+
   const handleTakeMerge = async (index: number, direction: 'prev' | 'next') => {
     pushToHistory("Merge Takes");
 
@@ -938,6 +1004,10 @@ export default function DubbingStudioPro() {
         onExportGlossaryCSV={handleExportGlossaryCSV}
         onExportGlossaryXLSX={handleExportGlossaryXLSX}
         onExportGlossaryJSON={handleExportGlossaryJSON}
+        onExportSRT={handleExportSRT}
+        onExportVTT={handleExportVTT}
+        onExportJSON={handleExportJSON}
+        onImportClick={handleImportClick}
         isDetached={isDetached}
         onDockVideo={handleDockVideo}
       />
@@ -967,11 +1037,13 @@ export default function DubbingStudioPro() {
             <Card className="flex-grow h-full flex flex-col min-h-0">
               <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
-                  <TabsList className="m-2 shrink-0">
-                    <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
-                    <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
-                    <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/> Settings</TabsTrigger>
-                    <TabsTrigger value="glossary"><BookMarked className="mr-2 h-4 w-4"/> Glossary</TabsTrigger>
+                  <TabsList className="m-2 shrink-0 flex flex-wrap gap-1 bg-secondary/40 p-0.5 rounded-md">
+                    <TabsTrigger value="takes" className="text-xs px-2.5 py-1.5"><FileText className="mr-1 h-3.5 w-3.5" /> Takes</TabsTrigger>
+                    <TabsTrigger value="project" className="text-xs px-2.5 py-1.5"><Settings className="mr-1 h-3.5 w-3.5" /> Project</TabsTrigger>
+                    <TabsTrigger value="services" className="text-xs px-2.5 py-1.5"><Cpu className="mr-1 h-3.5 w-3.5" /> Services</TabsTrigger>
+                    <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> Providers</TabsTrigger>
+                    <TabsTrigger value="glossary" className="text-xs px-2.5 py-1.5"><BookMarked className="mr-1 h-3.5 w-3.5" /> Glossary</TabsTrigger>
+                    <TabsTrigger value="data" className="text-xs px-2.5 py-1.5"><FolderOpen className="mr-1 h-3.5 w-3.5" /> Data</TabsTrigger>
                   </TabsList>
                   <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
                     <TakesList
@@ -994,27 +1066,50 @@ export default function DubbingStudioPro() {
                       onEnterSyncMode={handleEnterTimelineEditor}
                     />
                   </TabsContent>
-                  <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">
-                    <ImportExportPanel 
-                      takes={takes} 
-                      onImport={handleTakesChange} 
-                      videoFile={videoFile}
-                      defaultSourceLang={settings.sourceLang}
-                      projectName={settings.projectName || settings.title || 'Untitled Project'}
-                    />
-                  </TabsContent>
-                  <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
+                  <TabsContent value="project" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
                     <ProjectSettingsComponent
                       settings={settings}
                       onSettingsChange={handleSettingsChange}
+                      videoFile={videoFile}
+                      videoDuration={videoDuration}
+                      takes={takes}
                     />
-                    <AiConfiguration />
+                  </TabsContent>
+                  <TabsContent value="services" className="flex-grow overflow-y-auto min-h-0 px-4">
+                    <Services
+                      workflowMode={workflowMode}
+                      setWorkflowMode={setWorkflowMode}
+                      transcriptionProvider={transcriptionProvider}
+                      setTranscriptionProvider={setTranscriptionProvider}
+                      translationProvider={translationProvider}
+                      setTranslationProvider={setTranslationProvider}
+                      speechProvider={speechProvider}
+                      setSpeechProvider={setSpeechProvider}
+                    />
+                  </TabsContent>
+                  <TabsContent value="providers" className="flex-grow overflow-y-auto min-h-0 px-4">
+                    <Providers />
                   </TabsContent>
                   <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
                     <GlossaryPanel 
                       glossary={glossary} 
                       onGlossaryChange={handleGlossaryChange} 
                       projectName={settings.projectName || settings.title || 'Untitled Project'}
+                    />
+                  </TabsContent>
+                  <TabsContent value="data" className="flex-grow overflow-y-auto min-h-0 px-4">
+                    <ImportExportPanel 
+                      takes={takes} 
+                      onImport={handleTakesChange} 
+                      videoFile={videoFile}
+                      defaultSourceLang={settings.sourceLang}
+                      projectName={settings.projectName || settings.title || 'Untitled Project'}
+                      onExportWordSource={handleExportWordSource}
+                      onExportWordTarget={handleExportWordTarget}
+                      onExportWordBoth={handleExportWordBoth}
+                      onExportExcel={handleExportExcel}
+                      onExportCSV={handleExportCSV}
+                      onSaveProjectAs={handleSaveProjectAs}
                     />
                   </TabsContent>
                 </Tabs>
@@ -1086,11 +1181,13 @@ export default function DubbingStudioPro() {
                       <Card className="flex-grow h-full flex flex-col min-h-0">
                         <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
                           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
-                            <TabsList className="m-2 shrink-0">
-                              <TabsTrigger value="takes"><FileText className="mr-2 h-4 w-4" /> Takes</TabsTrigger>
-                              <TabsTrigger value="import"><FileText className="mr-2 h-4 w-4" /> Import/Export</TabsTrigger>
-                              <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/> Settings</TabsTrigger>
-                              <TabsTrigger value="glossary"><BookMarked className="mr-2 h-4 w-4"/> Glossary</TabsTrigger>
+                            <TabsList className="m-2 shrink-0 flex flex-wrap gap-1 bg-secondary/40 p-0.5 rounded-md">
+                              <TabsTrigger value="takes" className="text-xs px-2.5 py-1.5"><FileText className="mr-1 h-3.5 w-3.5" /> Takes</TabsTrigger>
+                              <TabsTrigger value="project" className="text-xs px-2.5 py-1.5"><Settings className="mr-1 h-3.5 w-3.5" /> Project</TabsTrigger>
+                              <TabsTrigger value="services" className="text-xs px-2.5 py-1.5"><Cpu className="mr-1 h-3.5 w-3.5" /> Services</TabsTrigger>
+                              <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> Providers</TabsTrigger>
+                              <TabsTrigger value="glossary" className="text-xs px-2.5 py-1.5"><BookMarked className="mr-1 h-3.5 w-3.5" /> Glossary</TabsTrigger>
+                              <TabsTrigger value="data" className="text-xs px-2.5 py-1.5"><FolderOpen className="mr-1 h-3.5 w-3.5" /> Data</TabsTrigger>
                             </TabsList>
                             <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
                               <TakesList
@@ -1113,27 +1210,50 @@ export default function DubbingStudioPro() {
                                 onEnterSyncMode={handleEnterTimelineEditor}
                               />
                             </TabsContent>
-                            <TabsContent value="import" className="flex-grow overflow-y-auto min-h-0 px-4">
-                              <ImportExportPanel 
-                                takes={takes} 
-                                onImport={handleTakesChange} 
-                                videoFile={videoFile}
-                                defaultSourceLang={settings.sourceLang}
-                                projectName={settings.projectName || settings.title || 'Untitled Project'}
-                              />
-                            </TabsContent>
-                            <TabsContent value="settings" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
+                            <TabsContent value="project" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
                               <ProjectSettingsComponent
                                 settings={settings}
                                 onSettingsChange={handleSettingsChange}
+                                videoFile={videoFile}
+                                videoDuration={videoDuration}
+                                takes={takes}
                               />
-                              <AiConfiguration />
+                            </TabsContent>
+                            <TabsContent value="services" className="flex-grow overflow-y-auto min-h-0 px-4">
+                              <Services
+                                workflowMode={workflowMode}
+                                setWorkflowMode={setWorkflowMode}
+                                transcriptionProvider={transcriptionProvider}
+                                setTranscriptionProvider={setTranscriptionProvider}
+                                translationProvider={translationProvider}
+                                setTranslationProvider={setTranslationProvider}
+                                speechProvider={speechProvider}
+                                setSpeechProvider={setSpeechProvider}
+                              />
+                            </TabsContent>
+                            <TabsContent value="providers" className="flex-grow overflow-y-auto min-h-0 px-4">
+                              <Providers />
                             </TabsContent>
                             <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
                               <GlossaryPanel 
                                 glossary={glossary} 
                                 onGlossaryChange={handleGlossaryChange} 
                                 projectName={settings.projectName || settings.title || 'Untitled Project'}
+                              />
+                            </TabsContent>
+                            <TabsContent value="data" className="flex-grow overflow-y-auto min-h-0 px-4">
+                              <ImportExportPanel 
+                                takes={takes} 
+                                onImport={handleTakesChange} 
+                                videoFile={videoFile}
+                                defaultSourceLang={settings.sourceLang}
+                                projectName={settings.projectName || settings.title || 'Untitled Project'}
+                                onExportWordSource={handleExportWordSource}
+                                onExportWordTarget={handleExportWordTarget}
+                                onExportWordBoth={handleExportWordBoth}
+                                onExportExcel={handleExportExcel}
+                                onExportCSV={handleExportCSV}
+                                onSaveProjectAs={handleSaveProjectAs}
                               />
                             </TabsContent>
                           </Tabs>
