@@ -88,15 +88,38 @@ export function parseTimestampToSeconds(timestamp: string): number {
     throw new Error('Invalid timestamp input: must be a non-empty string');
   }
 
-  // Normalize comma to dot for decimal milliseconds
+  // Normalize comma to dot for decimal milliseconds and trim surrounding whitespace
   const normalized = timestamp.trim().replace(',', '.');
+
+  // Parse and normalize segments to ensure double digits (or single-digit padding)
+  const parts = normalized.split(':').map(p => p.trim());
+  let finalTimestamp = normalized;
+
+  if (parts.length === 2) {
+    // Format: MM:SS.mmm
+    const minutes = parts[0].padStart(2, '0');
+    const secondsWithMs = parts[1];
+    const secParts = secondsWithMs.split('.').map(s => s.trim());
+    const seconds = secParts[0].padStart(2, '0');
+    const ms = secParts[1] || '000';
+    finalTimestamp = `00:${minutes}:${seconds}.${ms}`;
+  } else if (parts.length === 3) {
+    // Format: HH:MM:SS.mmm
+    const hours = parts[0].padStart(2, '0');
+    const minutes = parts[1].padStart(2, '0');
+    const secondsWithMs = parts[2];
+    const secParts = secondsWithMs.split('.').map(s => s.trim());
+    const seconds = secParts[0].padStart(2, '0');
+    const ms = secParts[1] || '000';
+    finalTimestamp = `${hours}:${minutes}:${seconds}.${ms}`;
+  }
 
   // Regex to match HH:MM:SS.mmm format (HH can be 1 or more digits)
   const regex = /^(\d+):([0-5]\d):([0-5]\d)\.(\d+)$/;
-  const match = normalized.match(regex);
+  const match = finalTimestamp.match(regex);
 
   if (!match) {
-    throw new Error(`Malformed timestamp: "${timestamp}". Expected format HH:MM:SS.mmm`);
+    throw new Error(`Malformed timestamp: "${timestamp}". Expected format HH:MM:SS.mmm or MM:SS.mmm`);
   }
 
   const hours = parseInt(match[1], 10);

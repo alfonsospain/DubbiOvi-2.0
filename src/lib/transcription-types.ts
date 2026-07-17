@@ -8,12 +8,32 @@ export interface TranscriptionProviderMetadata {
   costEstimate?: number;
 }
 
+export interface ProviderAudioCapabilities {
+  format: 'wav' | 'mp3' | string;
+  sampleRate: number;
+  channels: 1 | 2;
+  normalize?: boolean;
+}
+
 export interface ProviderCapabilities {
   supportsLanguageDetection: boolean;
   supportedLanguages: string[]; // List of language codes
   supportsWordTimestamps: boolean;
   supportsSpeakerDiarization: boolean;
   isOffline: boolean;
+  audio?: ProviderAudioCapabilities;
+}
+
+export interface PreparedAudio {
+  blob: Blob;
+  mimeType: string;
+  sampleRate: number;
+  channels: number;
+  duration: number;
+  format: string;
+  normalizationApplied: boolean;
+  sourceFileName: string;
+  metadata?: Record<string, any>;
 }
 
 export interface TranscriptResult {
