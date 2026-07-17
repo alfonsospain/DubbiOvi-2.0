@@ -1,5 +1,6 @@
 import { TranscriptionProvider } from './transcription-types';
 import { GeminiProvider } from './GeminiProvider';
+import { WhisperLocalProvider } from './WhisperLocalProvider';
 
 export class ProviderRegistry {
   private static instance: ProviderRegistry | null = null;
@@ -12,6 +13,7 @@ export class ProviderRegistry {
       ProviderRegistry.instance = new ProviderRegistry();
       // Auto-register available providers
       ProviderRegistry.instance.register(new GeminiProvider());
+      ProviderRegistry.instance.register(new WhisperLocalProvider());
     }
     return ProviderRegistry.instance;
   }
@@ -29,6 +31,12 @@ export class ProviderRegistry {
   }
 
   public getDefaultProvider(): TranscriptionProvider | undefined {
+    if (typeof window !== 'undefined') {
+      const savedProvider = localStorage.getItem('dubbiovi_transcription_provider');
+      if (savedProvider && this.get(savedProvider)) {
+        return this.get(savedProvider);
+      }
+    }
     // Gemini is the current default provider
     return this.get('gemini') || this.getAll()[0];
   }

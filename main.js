@@ -1,9 +1,10 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
-const { fork } = require('child_process');
+const { fork, spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
 const net = require('net');
 const fs = require('fs');
+const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers');
 
 let nextProcess = null;
 let mainWindow = null;
@@ -418,6 +419,76 @@ ipcMain.on('close-detached-video', () => {
   if (detachedWindow) {
     detachedWindow.close();
     detachedWindow = null;
+  }
+});
+
+ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) => {
+  const tempId = Math.random().toString(36).substring(7);
+  const tempWavPath = path.join(app.getPath('temp'), `whisper_${tempId}.wav`);
+  const tempJsonPath = `${tempWavPath}.json`;
+
+  const cleanup = () => {
+    try {
+      if (fs.existsSync(tempWavPath)) fs.unlinkSync(tempWavPath);
+      if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+    } catch (err) {
+      logDiag(`[WhisperLocal] Cleanup error: ${err.message}`);
+    }
+  };
+
+  try {
+    fs.writeFileSync(tempWavPath, Buffer.from(audioBuffer));
+
+    const cliPath = WhisperBinaryLocator.locate(app);
+    const resolvedModelPath = WhisperModelManager.resolveActiveModelPath(app, modelPath);
+
+    if (!fs.existsSync(resolvedModelPath)) {
+      throw new Error(`Whisper model file not found at: ${resolvedModelPath}. Please download 'ggml-tiny.bin' and place it in the 'models/' folder.`);
+    }
+
+    logDiag(`[WhisperLocal] Spawning CLI: ${cliPath}`);
+    logDiag(`[WhisperLocal] Model path: ${resolvedModelPath}`);
+    logDiag(`[WhisperLocal] Input audio: ${tempWavPath}`);
+
+    return await new Promise((resolve, reject) => {
+      const args = ['-m', resolvedModelPath, '-f', tempWavPath, '-oj'];
+      const child = spawn(cliPath, args);
+      let stderrOutput = '';
+
+      child.stderr.on('data', (data) => {
+        stderrOutput += data.toString();
+      });
+
+      child.on('error', (err) => {
+        cleanup();
+        reject(new Error(`Failed to execute whisper-cli binary: ${err.message}`));
+      });
+
+      child.on('close', (code) => {
+        if (code !== 0) {
+          cleanup();
+          reject(new Error(`whisper-cli exited with code ${code}. Stderr details: ${stderrOutput}`));
+          return;
+        }
+
+        try {
+          if (!fs.existsSync(tempJsonPath)) {
+            throw new Error(`Whisper JSON output file missing at: ${tempJsonPath}`);
+          }
+          const rawData = fs.readFileSync(tempJsonPath, 'utf8');
+          const jsonData = JSON.parse(rawData);
+          cleanup();
+          resolve(jsonData);
+        } catch (err) {
+          cleanup();
+          reject(err);
+        }
+      });
+    });
+  } catch (error) {
+    cleanup();
+    logDiag(`[WhisperLocal] Error in run-whisper-local handler: ${error.message}`);
+    throw error;
   }
 });
 
