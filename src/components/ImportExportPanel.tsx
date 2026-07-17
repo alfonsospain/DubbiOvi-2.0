@@ -36,8 +36,8 @@ import {
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
-import { extractAudioTrack } from '@/lib/audio-utils';
-import { getAudioTranscription } from '@/app/actions';
+import { AudioPreparationService } from '@/lib/AudioPreparationService';
+import { ProviderRegistry } from '@/lib/ProviderRegistry';
 import { loadApiKey } from '@/lib/apiKeyStorage';
 import { SUPPORTED_LANGUAGES } from '@/lib/data';
 
@@ -123,48 +123,32 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
     setTranscriptionStage('preparing');
 
     try {
-      const audioBlob = await extractAudioTrack(videoFile);
-      setTranscriptionStage('optimizing');
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'audio.wav');
-      formData.append('sourceLang', selectedAsrLang);
-      const userApiKey = loadApiKey();
-      if (userApiKey) {
-        formData.append('apiKey', userApiKey);
+      const provider = ProviderRegistry.getInstance().getDefaultProvider();
+      if (!provider) {
+        throw new Error('No transcription provider registered.');
       }
+
+      const prepService = new AudioPreparationService();
+      const preparedAudio = await prepService.prepareAudio(videoFile, provider.capabilities);
+
+      setTranscriptionStage('optimizing');
 
       setTranscriptionStage('uploading');
       setTranscriptionStage('transcribing');
-      const result = await getAudioTranscription(formData);
-
-      if (!result) {
-        throw new Error('Transcription failed. No response from AI service.');
-      }
+      const userApiKey = loadApiKey() || undefined;
+      const result = await provider.transcribe(preparedAudio, selectedAsrLang, userApiKey);
 
       if (!result.takes || result.takes.length === 0) {
         throw new Error('No speech segments detected in this video.');
       }
 
       setTranscriptionStage('generating');
-      const newTakes: Take[] = result.takes.map(t => {
-        return {
-          id: uuidv4(),
-          character: t.character,
-          time: `${t.startTime} - ${t.endTime}`,
-          startSeconds: parseTimestampToSeconds(t.startTime),
-          endSeconds: parseTimestampToSeconds(t.endTime),
-          original: t.original,
-          translation: '',
-          notes: '',
-          status: 'Pending',
-        };
-      });
 
-      onImport(newTakes);
+      onImport(result.takes);
       setTranscriptionStage('completed');
       toast({
         title: 'Transcription Complete',
-        description: `Imported ${newTakes.length} segments.`,
+        description: `Imported ${result.takes.length} segments.`,
       });
     } catch (err: any) {
       console.error(err);

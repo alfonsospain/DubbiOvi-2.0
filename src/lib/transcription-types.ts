@@ -48,5 +48,5 @@ export interface TranscriptionProvider {
   id: string;
   name: string;
   capabilities: ProviderCapabilities;
-  transcribe(audioFile: Blob, sourceLanguage?: string): Promise<TranscriptResult>;
+  transcribe(audio: PreparedAudio, sourceLanguage?: string, apiKey?: string): Promise<TranscriptResult>;
 }
