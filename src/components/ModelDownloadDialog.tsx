@@ -71,7 +71,9 @@ export const ModelDownloadDialog: React.FC<ModelDownloadDialogProps> = ({
       }
     };
 
-    if (resourceType === 'engine' && electron.onEngineDownloadProgress) {
+    if (resourceType === 'engine' && electron.onRuntimeDownloadProgress) {
+      unsub = electron.onRuntimeDownloadProgress(handleProgress);
+    } else if (resourceType === 'engine' && electron.onEngineDownloadProgress) {
       unsub = electron.onEngineDownloadProgress(handleProgress);
     } else if (resourceType === 'model' && electron.onModelDownloadProgress) {
       unsub = electron.onModelDownloadProgress(handleProgress);
@@ -94,15 +96,18 @@ export const ModelDownloadDialog: React.FC<ModelDownloadDialogProps> = ({
       }
 
       if (resourceType === 'engine') {
-        const res = await electron.downloadEngineBinary(engineId);
-        if (res && res.success) {
+        const res = typeof electron.installRuntime === 'function'
+          ? await electron.installRuntime(engineId, '1.9.1')
+          : await electron.downloadEngineBinary(engineId);
+
+        if (res && (res.executablePath || res.success)) {
           toast({
-            title: 'Engine Installed',
-            description: `Successfully installed ${engineName} binary into engines/${engineId}/.`,
+            title: 'Runtime Installed',
+            description: `Successfully installed ${engineName} runtime into runtimes/${engineId}/.`,
           });
           onDownloadSuccess();
         } else {
-          throw new Error(res?.error || 'Engine binary download failed.');
+          throw new Error(res?.error || 'Engine runtime installation failed.');
         }
       } else {
         const res = await electron.downloadEngineModel(engineId, modelName);

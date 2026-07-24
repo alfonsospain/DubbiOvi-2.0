@@ -41,10 +41,11 @@ export class WhisperLocalParser {
 }
 
 /**
- * TranscriptionProvider implementation for local whisper.cpp execution.
+ * TranscriptionProvider implementation for local whisper.cpp execution & runtime lifecycle management.
  */
 export class WhisperLocalProvider implements TranscriptionProvider {
   public readonly id = 'whisper-local';
+  public readonly runtimeId = 'whisper';
   public readonly name = 'Whisper Local (Offline)';
   public readonly capabilities: ProviderCapabilities = {
     supportsLanguageDetection: true,
@@ -62,23 +63,85 @@ export class WhisperLocalProvider implements TranscriptionProvider {
   };
 
   private activeModelName?: string;
+  private targetVersion: string = '1.9.1';
 
   /**
-   * Constructs the provider with a configurable model name.
-   * Defaults to undefined, letting the backend resolve the default model (ggml-tiny.bin).
-   * 
-   * @param activeModelName The filename of the model (e.g. 'ggml-tiny.bin', 'ggml-base.bin').
+   * Constructs the provider with an optional model name and target version.
    */
-  constructor(activeModelName?: string) {
+  constructor(activeModelName?: string, targetVersion = '1.9.1') {
     this.activeModelName = activeModelName;
+    this.targetVersion = targetVersion;
+  }
+
+  /**
+   * Checks whether the underlying Whisper engine runtime is installed via RuntimeRegistry IPC.
+   */
+  public async checkRuntimeStatus(version = this.targetVersion): Promise<{ isInstalled: boolean; info?: any }> {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
+    if (!isElectron) {
+      return { isInstalled: false };
+    }
+    try {
+      return await (window as any).electron.checkRuntimeInstalled(this.runtimeId, version);
+    } catch (err) {
+      console.error('[WhisperLocalProvider] Error checking runtime status:', err);
+      return { isInstalled: false };
+    }
+  }
+
+  /**
+   * Fetches the catalog descriptor for the Whisper runtime via RuntimeRepository IPC.
+   */
+  public async getRuntimeDescriptor(version = this.targetVersion): Promise<any> {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
+    if (!isElectron) return null;
+    return (window as any).electron.getRuntimeDescriptor(this.runtimeId, version);
+  }
+
+  /**
+   * Requests atomic installation of the Whisper runtime via RuntimeManager IPC.
+   */
+  public async ensureRuntimeInstalled(
+    onProgress?: (progress: any) => void,
+    version = this.targetVersion
+  ): Promise<any> {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
+    if (!isElectron) {
+      throw new Error('Whisper Local runtime installation is only supported inside the desktop app.');
+    }
+
+    const status = await this.checkRuntimeStatus(version);
+    if (status.isInstalled && status.info) {
+      return status.info;
+    }
+
+    let unsubProgress: (() => void) | null = null;
+    if (onProgress && typeof (window as any).electron.onRuntimeDownloadProgress === 'function') {
+      unsubProgress = (window as any).electron.onRuntimeDownloadProgress((data: any) => {
+        if (data.runtimeId === this.runtimeId) {
+          onProgress(data);
+        }
+      });
+    }
+
+    try {
+      const installedInfo = await (window as any).electron.installRuntime(this.runtimeId, version);
+      return installedInfo;
+    } finally {
+      if (unsubProgress) unsubProgress();
+    }
+  }
+
+  /**
+   * Locates the runtime executable through RuntimeRegistry.
+   */
+  public async getExecutablePath(version = this.targetVersion): Promise<string | null> {
+    const status = await this.checkRuntimeStatus(version);
+    return status.isInstalled && status.info ? status.info.executablePath : null;
   }
 
   /**
    * Transcribes a PreparedAudio object using local whisper.cpp execution via Electron IPC.
-   * 
-   * @param audio The PreparedAudio container from AudioPreparationService.
-   * @param sourceLanguage Optional target language code (or 'Auto-Detect').
-   * @param apiKey Not used for local execution.
    */
   public async transcribe(
     audio: PreparedAudio,
@@ -88,6 +151,12 @@ export class WhisperLocalProvider implements TranscriptionProvider {
     const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
     if (!isElectron) {
       throw new Error('Whisper Local is only supported when running inside the desktop app (Electron).');
+    }
+
+    // Ensure runtime is installed before proceeding
+    const status = await this.checkRuntimeStatus();
+    if (!status.isInstalled) {
+      throw new Error('Whisper Local runtime is missing. Please install the engine runtime first.');
     }
 
     // Convert PreparedAudio.blob to ArrayBuffer for IPC transfer

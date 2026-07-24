@@ -4,6 +4,8 @@ const path = require('path');
 const http = require('http');
 const net = require('net');
 const fs = require('fs');
+require('tsx/cjs');
+const { RuntimeManager, RuntimeRepository } = require('./src/runtime');
 const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers');
 const EngineRegistry = require('./engine-registry');
 const LocalEngineManager = require('./local-engine-manager');
@@ -12,6 +14,8 @@ let nextProcess = null;
 let mainWindow = null;
 let engineRegistry = null;
 let localEngineManager = null;
+let runtimeManager = null;
+let runtimeRepository = null;
 
 // Resolve diagnostics logging directory
 const logDir = app.getPath('logs');
@@ -348,6 +352,21 @@ app.whenReady().then(() => {
   } catch (err) {
     logDiag(`[LocalEngineManager] Storage initialization error: ${err.message}`);
   }
+
+  try {
+    const runtimesDir = path.join(app.getPath('userData'), 'runtimes');
+    const cacheDir = path.join(app.getPath('userData'), 'cache');
+    runtimeRepository = new RuntimeRepository();
+    runtimeManager = new RuntimeManager({
+      runtimesDir,
+      cacheDir,
+      appVersion: app.getVersion(),
+    });
+    logDiag('[RuntimeManager] Initialized RuntimeManager & RuntimeRepository successfully.');
+  } catch (err) {
+    logDiag(`[RuntimeManager] Initialization error: ${err.message}`);
+  }
+
   createWindow();
 });
 
@@ -592,6 +611,62 @@ ipcMain.handle('download-engine-model', async (event, { engineId, modelName }) =
   logDiag(`[LocalEngineManager] Successfully installed model to ${installedPath}`);
   return { success: true, modelPath: installedPath };
 });
+
+// -----------------------------------------------------------------------------
+// Milestone 5/6: Runtime Manager Subsystem IPC Endpoints
+// -----------------------------------------------------------------------------
+
+ipcMain.handle('check-runtime-installed', async (event, { runtimeId, version }) => {
+  const targetId = runtimeId || 'whisper';
+  if (!runtimeManager) {
+    return { isInstalled: false, runtimeInfo: null };
+  }
+  const info = runtimeManager.getRuntime(targetId, version);
+  const isInstalled = !!info && fs.existsSync(info.executablePath);
+  return { isInstalled, runtimeInfo: isInstalled ? info : null };
+});
+
+ipcMain.handle('get-runtime-descriptor', async (event, { runtimeId, version }) => {
+  const targetId = runtimeId || 'whisper';
+  if (!runtimeRepository) {
+    return null;
+  }
+  return runtimeRepository.getDescriptor(targetId, version, process.platform, process.arch);
+});
+
+ipcMain.handle('install-runtime', async (event, { runtimeId, version }) => {
+  const targetId = runtimeId || 'whisper';
+  if (!runtimeManager || !runtimeRepository) {
+    throw new Error('RuntimeManager or RuntimeRepository is not initialized.');
+  }
+
+  const descriptor = await runtimeRepository.getDescriptor(targetId, version, process.platform, process.arch);
+  if (!descriptor) {
+    throw new Error(`Catalog descriptor not found for runtime '${targetId}' (${process.platform}_${process.arch}).`);
+  }
+
+  logDiag(`[RuntimeManager] Installing runtime '${descriptor.id}' v${descriptor.version}...`);
+
+  const info = await runtimeManager.installRuntime(descriptor, (progress) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('runtime-download-progress', {
+        runtimeId: descriptor.id,
+        ...progress,
+      });
+    }
+  });
+
+  logDiag(`[RuntimeManager] Successfully installed runtime to ${info.installedPath}`);
+  return info;
+});
+
+ipcMain.handle('get-installed-runtimes', async () => {
+  if (!runtimeManager) {
+    return [];
+  }
+  return runtimeManager.getAllRuntimes();
+});
+
 
 
 

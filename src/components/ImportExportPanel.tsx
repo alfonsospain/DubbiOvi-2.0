@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { toSRT, toVTT, parseTimestampToSeconds } from '@/lib/utils';
+import { WhisperLocalProvider } from '@/lib/WhisperLocalProvider';
 import {
   HardDriveUpload,
   HardDriveDownload,
@@ -147,20 +148,35 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       return;
     }
 
-    // Pre-flight check for local offline engines (Phase 1: Binary, Phase 2: Model)
+    // Pre-flight check for local offline engines (Phase 1: Runtime Engine, Phase 2: Model)
     const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
     if (isElectron && activeProvider.capabilities.isOffline) {
-      // Phase 1: Check engine binary executable
-      const binaryRes = await (window as any).electron.checkEngineBinary('whisper');
-      if (binaryRes && !binaryRes.installed) {
-        setMissingResourceDetails({
-          resourceType: 'engine',
-          engineId: 'whisper',
-          engineName: activeProvider.name,
-          estimatedSize: '~12 MB',
-        });
-        setDownloadDialogOpen(true);
-        return;
+      // Phase 1: Check engine runtime installation state via WhisperLocalProvider
+      const whisperProvider = activeProvider as WhisperLocalProvider;
+      if (typeof whisperProvider.checkRuntimeStatus === 'function') {
+        const runtimeStatus = await whisperProvider.checkRuntimeStatus();
+        if (!runtimeStatus.isInstalled) {
+          setMissingResourceDetails({
+            resourceType: 'engine',
+            engineId: 'whisper',
+            engineName: activeProvider.name,
+            estimatedSize: '~1.26 MB',
+          });
+          setDownloadDialogOpen(true);
+          return;
+        }
+      } else {
+        const binaryRes = await (window as any).electron.checkEngineBinary('whisper');
+        if (binaryRes && !binaryRes.installed) {
+          setMissingResourceDetails({
+            resourceType: 'engine',
+            engineId: 'whisper',
+            engineName: activeProvider.name,
+            estimatedSize: '~1.26 MB',
+          });
+          setDownloadDialogOpen(true);
+          return;
+        }
       }
 
       // Phase 2: Check engine model file

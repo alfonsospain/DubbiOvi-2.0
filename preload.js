@@ -24,5 +24,15 @@ contextBridge.exposeInMainWorld('electron', {
     const subscription = (event, status) => callback(status);
     ipcRenderer.on('detached-window-status', subscription);
     return () => ipcRenderer.removeListener('detached-window-status', subscription);
-  }
+  },
+  // Runtime Manager IPC Endpoints
+  checkRuntimeInstalled: (runtimeId, version) => ipcRenderer.invoke('check-runtime-installed', { runtimeId, version }),
+  getRuntimeDescriptor: (runtimeId, version) => ipcRenderer.invoke('get-runtime-descriptor', { runtimeId, version }),
+  installRuntime: (runtimeId, version) => ipcRenderer.invoke('install-runtime', { runtimeId, version }),
+  onRuntimeDownloadProgress: (callback) => {
+    const subscription = (event, progress) => callback(progress);
+    ipcRenderer.on('runtime-download-progress', subscription);
+    return () => ipcRenderer.removeListener('runtime-download-progress', subscription);
+  },
+  getInstalledRuntimes: () => ipcRenderer.invoke('get-installed-runtimes'),
 });
