@@ -21,6 +21,7 @@ export interface ProviderCapabilities {
   supportsWordTimestamps: boolean;
   supportsSpeakerDiarization: boolean;
   isOffline: boolean;
+  requiresApiKey: boolean;
   audio?: ProviderAudioCapabilities;
 }
 

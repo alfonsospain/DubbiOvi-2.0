@@ -37,9 +37,10 @@ import {
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
 import { AudioPreparationService } from '@/lib/AudioPreparationService';
-import { ProviderRegistry } from '@/lib/ProviderRegistry';
+import { providerRegistry } from '@/lib/ProviderRegistry';
 import { loadApiKey } from '@/lib/apiKeyStorage';
 import { SUPPORTED_LANGUAGES } from '@/lib/data';
+import { ModelDownloadDialog } from './ModelDownloadDialog';
 
 interface ImportExportPanelProps {
   takes: Take[];
@@ -53,6 +54,7 @@ interface ImportExportPanelProps {
   onExportExcel?: () => void;
   onExportCSV?: () => void;
   onSaveProjectAs?: () => void;
+  transcriptionProvider?: string;
 }
 
 const STAGE_DETAILS = {
@@ -94,6 +96,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   onExportExcel,
   onExportCSV,
   onSaveProjectAs,
+  transcriptionProvider,
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
@@ -105,9 +108,25 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   const [selectedAsrLang, setSelectedAsrLang] = useState('Auto-Detect');
   const [hasApiKey, setHasApiKey] = useState(false);
 
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [missingResourceDetails, setMissingResourceDetails] = useState<{
+    resourceType: 'engine' | 'model';
+    engineId: string;
+    engineName: string;
+    modelName?: string;
+    estimatedSize: string;
+  } | null>(null);
+
   React.useEffect(() => {
     setHasApiKey(!!loadApiKey());
   }, []);
+
+  const activeProvider = React.useMemo(() => {
+    if (!transcriptionProvider || transcriptionProvider === 'None') {
+      return null;
+    }
+    return providerRegistry.get(transcriptionProvider) || null;
+  }, [transcriptionProvider]);
 
   const handleAsrTranscription = async () => {
     if (!videoFile) {
@@ -119,24 +138,60 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       return;
     }
 
+    if (!activeProvider) {
+      toast({
+        title: 'No Provider Selected',
+        description: 'Please select a transcription provider in the Services tab.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Pre-flight check for local offline engines (Phase 1: Binary, Phase 2: Model)
+    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
+    if (isElectron && activeProvider.capabilities.isOffline) {
+      // Phase 1: Check engine binary executable
+      const binaryRes = await (window as any).electron.checkEngineBinary('whisper');
+      if (binaryRes && !binaryRes.installed) {
+        setMissingResourceDetails({
+          resourceType: 'engine',
+          engineId: 'whisper',
+          engineName: activeProvider.name,
+          estimatedSize: '~12 MB',
+        });
+        setDownloadDialogOpen(true);
+        return;
+      }
+
+      // Phase 2: Check engine model file
+      const targetModel = 'ggml-tiny.bin';
+      const modelRes = await (window as any).electron.checkEngineModel('whisper', targetModel);
+      if (modelRes && !modelRes.exists) {
+        setMissingResourceDetails({
+          resourceType: 'model',
+          engineId: 'whisper',
+          engineName: activeProvider.name,
+          modelName: targetModel,
+          estimatedSize: '~75 MB',
+        });
+        setDownloadDialogOpen(true);
+        return;
+      }
+    }
+
     setIsTranscribing(true);
     setTranscriptionStage('preparing');
 
     try {
-      const provider = ProviderRegistry.getInstance().getDefaultProvider();
-      if (!provider) {
-        throw new Error('No transcription provider registered.');
-      }
-
       const prepService = new AudioPreparationService();
-      const preparedAudio = await prepService.prepareAudio(videoFile, provider.capabilities);
+      const preparedAudio = await prepService.prepareAudio(videoFile, activeProvider.capabilities);
 
       setTranscriptionStage('optimizing');
 
       setTranscriptionStage('uploading');
       setTranscriptionStage('transcribing');
       const userApiKey = loadApiKey() || undefined;
-      const result = await provider.transcribe(preparedAudio, selectedAsrLang, userApiKey);
+      const result = await activeProvider.transcribe(preparedAudio, selectedAsrLang, userApiKey);
 
       if (!result.takes || result.takes.length === 0) {
         throw new Error('No speech segments detected in this video.');
@@ -148,7 +203,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       setTranscriptionStage('completed');
       toast({
         title: 'Transcription Complete',
-        description: `Imported ${result.takes.length} segments.`,
+        description: `Imported ${result.takes.length} segments using ${activeProvider.name}.`,
       });
     } catch (err: any) {
       console.error(err);
@@ -395,8 +450,32 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
               {/* AI ASR Tab */}
               <TabsContent value="asr" className="mt-3 space-y-3">
                 <p className="text-[11px] text-muted-foreground leading-normal">
-                  Extract video audio and run Gemini 2.5 Flash Speech-to-Text transcription.
+                  Extract video audio and run speech-to-text transcription using the provider configured in the <strong>Services</strong> tab.
                 </p>
+
+                {/* Active Provider Indicator Badge */}
+                <div className="flex items-center justify-between p-2 rounded-lg border border-border/50 bg-secondary/15">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Active Provider
+                  </span>
+                  <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                    {transcriptionProvider === 'None' ? (
+                      '✍️ None (Manual)'
+                    ) : activeProvider ? (
+                      <>
+                        <span>🎙️ {activeProvider.name}</span>
+                        {activeProvider.capabilities.isOffline && (
+                          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono">
+                            Offline
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      transcriptionProvider
+                    )}
+                  </span>
+                </div>
+
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Audio Language</span>
                   <Select value={selectedAsrLang} onValueChange={setSelectedAsrLang} disabled={isTranscribing}>
@@ -414,13 +493,17 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                   </Select>
                 </div>
 
-                {!hasApiKey ? (
+                {transcriptionProvider === 'None' ? (
+                  <div className="p-2.5 rounded border border-amber-500/20 bg-amber-500/5 text-[10.5px] text-amber-400 leading-normal">
+                    ⚠️ Transcription provider is set to <strong>None (Manual)</strong> in the <strong>Services</strong> tab. Select a provider (e.g. <strong>Whisper Local</strong> or <strong>Gemini</strong>) to transcribe automatically.
+                  </div>
+                ) : activeProvider && activeProvider.capabilities.requiresApiKey && !hasApiKey ? (
                   <div className="p-2.5 rounded border border-amber-500/20 bg-amber-500/5 text-[10.5px] flex flex-col gap-1">
                     <p className="font-bold text-amber-400 flex items-center gap-1">
                       <AlertTriangle className="h-3.5 w-3.5" /> API Key Missing
                     </p>
                     <p className="text-muted-foreground leading-normal">
-                      Please configure your Gemini API key in the <strong>Providers</strong> tab.
+                      Please configure your API key for <strong>{activeProvider.name}</strong> in the <strong>Providers</strong> tab.
                     </p>
                   </div>
                 ) : !videoFile ? (
@@ -444,7 +527,12 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                 <Button
                   size="sm"
                   onClick={handleAsrTranscription}
-                  disabled={!videoFile || isTranscribing || !hasApiKey}
+                  disabled={
+                    !videoFile ||
+                    isTranscribing ||
+                    !activeProvider ||
+                    (activeProvider.capabilities.requiresApiKey && !hasApiKey)
+                  }
                   className="w-full text-xs font-semibold h-8"
                 >
                   {isTranscribing ? (
@@ -592,6 +680,25 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         </Card>
 
       </div>
+
+      {/* Missing Resource (Engine / Model) Download Dialog */}
+      <ModelDownloadDialog
+        open={downloadDialogOpen}
+        onClose={() => setDownloadDialogOpen(false)}
+        resourceType={missingResourceDetails?.resourceType}
+        engineId={missingResourceDetails?.engineId}
+        engineName={missingResourceDetails?.engineName}
+        modelName={missingResourceDetails?.modelName}
+        estimatedSize={missingResourceDetails?.estimatedSize}
+        onDownloadSuccess={() => {
+          setDownloadDialogOpen(false);
+          setMissingResourceDetails(null);
+          // Auto-resume transcription workflow after download completes!
+          setTimeout(() => {
+            handleAsrTranscription();
+          }, 300);
+        }}
+      />
     </div>
   );
 };

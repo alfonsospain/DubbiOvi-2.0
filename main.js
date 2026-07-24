@@ -5,9 +5,13 @@ const http = require('http');
 const net = require('net');
 const fs = require('fs');
 const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers');
+const EngineRegistry = require('./engine-registry');
+const LocalEngineManager = require('./local-engine-manager');
 
 let nextProcess = null;
 let mainWindow = null;
+let engineRegistry = null;
+let localEngineManager = null;
 
 // Resolve diagnostics logging directory
 const logDir = app.getPath('logs');
@@ -333,7 +337,19 @@ async function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  try {
+    engineRegistry = new EngineRegistry();
+    engineRegistry.registerDefaults();
+    localEngineManager = new LocalEngineManager(app, engineRegistry);
+    localEngineManager.initializeStorage();
+    app.engineManager = localEngineManager;
+    logDiag('[LocalEngineManager] Initialized local AI engines infrastructure successfully.');
+  } catch (err) {
+    logDiag(`[LocalEngineManager] Storage initialization error: ${err.message}`);
+  }
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -439,11 +455,15 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
   try {
     fs.writeFileSync(tempWavPath, Buffer.from(audioBuffer));
 
-    const cliPath = WhisperBinaryLocator.locate(app);
-    const resolvedModelPath = WhisperModelManager.resolveActiveModelPath(app, modelPath);
+    const cliPath = localEngineManager
+      ? localEngineManager.locateExecutable('whisper')
+      : WhisperBinaryLocator.locate(app);
+    const resolvedModelPath = localEngineManager
+      ? localEngineManager.locateModel('whisper', modelPath)
+      : WhisperModelManager.resolveActiveModelPath(app, modelPath);
 
     if (!fs.existsSync(resolvedModelPath)) {
-      throw new Error(`Whisper model file not found at: ${resolvedModelPath}. Please download 'ggml-tiny.bin' and place it in the 'models/' folder.`);
+      throw new Error(`Whisper model file not found at: ${resolvedModelPath}. Please download 'ggml-tiny.bin' and place it in the 'models/whisper/' folder.`);
     }
 
     logDiag(`[WhisperLocal] Spawning CLI: ${cliPath}`);
@@ -491,5 +511,87 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
     throw error;
   }
 });
+
+ipcMain.handle('check-engine-binary', async (event, { engineId }) => {
+  const targetEngine = engineId || 'whisper';
+  if (!localEngineManager) {
+    return { installed: false, executablePath: null };
+  }
+  const execPath = localEngineManager.locateExecutable(targetEngine);
+  const installed = fs.existsSync(execPath);
+
+  let permissionsStr = 'N/A';
+  if (installed && process.platform !== 'win32') {
+    try {
+      const stat = fs.statSync(execPath);
+      permissionsStr = (stat.mode & 0o777).toString(8);
+    } catch (_) {}
+  }
+
+  logDiag(`[check-engine-binary Diagnostic Log]`);
+  logDiag(`  - engineId: ${targetEngine}`);
+  logDiag(`  - userData directory: ${app.getPath('userData')}`);
+  logDiag(`  - locateExecutable resolved path: ${execPath}`);
+  logDiag(`  - fs.existsSync(execPath): ${installed}`);
+  logDiag(`  - executable permissions: ${permissionsStr}`);
+
+  return { installed, executablePath: installed ? execPath : null };
+});
+
+ipcMain.handle('download-engine-binary', async (event, { engineId }) => {
+  const targetEngine = engineId || 'whisper';
+  if (!localEngineManager) {
+    throw new Error('LocalEngineManager is not initialized.');
+  }
+
+  logDiag(`[LocalEngineManager] Downloading binary release package for engine ${targetEngine}...`);
+
+  const installedPath = await localEngineManager.installEngineBinary(targetEngine, (progress) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('engine-download-progress', {
+        engineId: targetEngine,
+        ...progress,
+      });
+    }
+  });
+
+  logDiag(`[LocalEngineManager] Successfully installed binary executable to ${installedPath}`);
+  return { success: true, executablePath: installedPath };
+});
+
+ipcMain.handle('check-engine-model', async (event, { engineId, modelName }) => {
+  const targetName = modelName || 'ggml-tiny.bin';
+  const targetEngine = engineId || 'whisper';
+  if (!localEngineManager) {
+    return { exists: false, modelPath: null };
+  }
+  const resolvedPath = localEngineManager.locateModel(targetEngine, targetName);
+  const exists = fs.existsSync(resolvedPath);
+  return { exists, modelPath: resolvedPath, modelName: targetName };
+});
+
+ipcMain.handle('download-engine-model', async (event, { engineId, modelName }) => {
+  const targetName = modelName || 'ggml-tiny.bin';
+  const targetEngine = engineId || 'whisper';
+  if (!localEngineManager) {
+    throw new Error('LocalEngineManager is not initialized.');
+  }
+
+  logDiag(`[LocalEngineManager] Downloading model ${targetName} for engine ${targetEngine}...`);
+
+  const installedPath = await localEngineManager.downloadModel(targetEngine, targetName, (progress) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('model-download-progress', {
+        engineId: targetEngine,
+        modelName: targetName,
+        ...progress,
+      });
+    }
+  });
+
+  logDiag(`[LocalEngineManager] Successfully installed model to ${installedPath}`);
+  return { success: true, modelPath: installedPath };
+});
+
 
 

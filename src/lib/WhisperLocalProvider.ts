@@ -52,6 +52,7 @@ export class WhisperLocalProvider implements TranscriptionProvider {
     supportsWordTimestamps: true,
     supportsSpeakerDiarization: false,
     isOffline: true,
+    requiresApiKey: false,
     audio: {
       format: 'wav',
       sampleRate: 16000,

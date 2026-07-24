@@ -43,6 +43,7 @@ export class GeminiProvider implements TranscriptionProvider {
     supportsWordTimestamps: true,
     supportsSpeakerDiarization: true,
     isOffline: false,
+    requiresApiKey: true,
     audio: {
       format: 'wav',
       sampleRate: 16000,

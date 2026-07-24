@@ -1110,6 +1110,7 @@ export default function DubbingStudioPro() {
                       onExportExcel={handleExportExcel}
                       onExportCSV={handleExportCSV}
                       onSaveProjectAs={handleSaveProjectAs}
+                      transcriptionProvider={transcriptionProvider}
                     />
                   </TabsContent>
                 </Tabs>
@@ -1254,6 +1255,7 @@ export default function DubbingStudioPro() {
                                 onExportExcel={handleExportExcel}
                                 onExportCSV={handleExportCSV}
                                 onSaveProjectAs={handleSaveProjectAs}
+                                transcriptionProvider={transcriptionProvider}
                               />
                             </TabsContent>
                           </Tabs>
