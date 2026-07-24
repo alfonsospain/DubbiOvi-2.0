@@ -5,7 +5,7 @@ const http = require('http');
 const net = require('net');
 const fs = require('fs');
 require('tsx/cjs');
-const { RuntimeManager, RuntimeRepository } = require('./src/runtime');
+const { RuntimeManager, RuntimeRepository, RuntimeExecutor } = require('./src/runtime');
 const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers');
 const EngineRegistry = require('./engine-registry');
 const LocalEngineManager = require('./local-engine-manager');
@@ -16,6 +16,7 @@ let engineRegistry = null;
 let localEngineManager = null;
 let runtimeManager = null;
 let runtimeRepository = null;
+let runtimeExecutor = null;
 
 // Resolve diagnostics logging directory
 const logDir = app.getPath('logs');
@@ -362,7 +363,8 @@ app.whenReady().then(() => {
       cacheDir,
       appVersion: app.getVersion(),
     });
-    logDiag('[RuntimeManager] Initialized RuntimeManager & RuntimeRepository successfully.');
+    runtimeExecutor = new RuntimeExecutor(runtimeManager.registry);
+    logDiag('[RuntimeManager] Initialized RuntimeManager, RuntimeRepository & RuntimeExecutor successfully.');
   } catch (err) {
     logDiag(`[RuntimeManager] Initialization error: ${err.message}`);
   }
@@ -665,6 +667,33 @@ ipcMain.handle('get-installed-runtimes', async () => {
     return [];
   }
   return runtimeManager.getAllRuntimes();
+});
+
+ipcMain.handle('execute-runtime', async (event, options) => {
+  if (!runtimeExecutor) {
+    throw new Error('RuntimeExecutor is not initialized in Main Process.');
+  }
+  const { executionId, runtimeId, version, args, env, cwd, timeoutMs } = options || {};
+  logDiag(`[RuntimeExecutor IPC] Executing runtime '${runtimeId || 'whisper'}' with args: ${JSON.stringify(args || [])}`);
+
+  return runtimeExecutor.execute({
+    runtimeId: runtimeId || 'whisper',
+    version,
+    args: args || ['--help'],
+    env,
+    cwd,
+    timeoutMs,
+    onStdout: (chunk) => {
+      if (mainWindow && executionId) {
+        mainWindow.webContents.send('runtime-output-stream', { executionId, stream: 'stdout', chunk });
+      }
+    },
+    onStderr: (chunk) => {
+      if (mainWindow && executionId) {
+        mainWindow.webContents.send('runtime-output-stream', { executionId, stream: 'stderr', chunk });
+      }
+    },
+  });
 });
 
 

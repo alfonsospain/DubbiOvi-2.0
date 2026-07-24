@@ -5,3 +5,7 @@ export * from './RuntimeDownloader';
 export * from './RuntimeValidator';
 export * from './RuntimeInstaller';
 export * from './RuntimeManager';
+export * from './RuntimeExecution';
+export * from './RuntimeExecutionResult';
+export * from './RuntimeProcess';
+export * from './RuntimeExecutor';

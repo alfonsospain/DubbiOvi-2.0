@@ -35,4 +35,10 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('runtime-download-progress', subscription);
   },
   getInstalledRuntimes: () => ipcRenderer.invoke('get-installed-runtimes'),
+  executeRuntime: (options) => ipcRenderer.invoke('execute-runtime', options),
+  onRuntimeOutputStream: (callback) => {
+    const subscription = (event, data) => callback(data);
+    ipcRenderer.on('runtime-output-stream', subscription);
+    return () => ipcRenderer.removeListener('runtime-output-stream', subscription);
+  },
 });
