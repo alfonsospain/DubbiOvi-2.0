@@ -62,7 +62,7 @@ export class RuntimeRepository {
       category: 'asr',
       version: '1.9.1',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/whisper-darwin_arm64.zip',
-      checksumSha256: 'd622207debfe2b91d0f4eba2b16915303497ecc737cdab8982a99ce2da4d5f1e',
+      checksumSha256: '1438405b9b4c8db5cfc30f37074b3f16b24c73a9b36ee7ebaa92fcdf8cc1cfad',
       estimatedSize: '1.26 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',

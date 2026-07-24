@@ -1,20 +1,23 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 console.log('=== STARTING REAL ELECTRON E2E INTEGRATION TEST ===');
 
-const electronBin = path.join(__dirname, '../node_modules/.bin/electron');
-const mainPath = path.join(__dirname, '../main.js');
+const projectRoot = path.join(__dirname, '..');
+const electronBin = path.join(projectRoot, 'node_modules/.bin/electron');
+const runtimeModulePath = path.join(projectRoot, 'src/runtime');
+const providerModulePath = path.join(projectRoot, 'src/lib/WhisperLocalProvider');
 
-// Create temporary runner script for Electron Main Process
+// Create temporary runner script outside workspace directory in OS tmpdir
 const runnerScript = `
 const { app, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 require('tsx/cjs');
-const { RuntimeManager, RuntimeRepository } = require('./src/runtime');
-const { WhisperLocalProvider } = require('./src/lib/WhisperLocalProvider');
+const { RuntimeManager, RuntimeRepository } = require(${JSON.stringify(runtimeModulePath)});
+const { WhisperLocalProvider } = require(${JSON.stringify(providerModulePath)});
 
 app.whenReady().then(async () => {
   try {
@@ -57,7 +60,7 @@ app.whenReady().then(async () => {
     console.log('  ✓ STEP 2 PASSED: Descriptor resolved:', descriptor.name, descriptor.downloadUrl);
 
     // Override downloadUrl to use local valid package zip to test real local IPC pipeline
-    const localPackageZip = path.join('/Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/dist', 'whisper-darwin_arm64.zip');
+    const localPackageZip = path.join(${JSON.stringify(projectRoot)}, 'dist', 'whisper-darwin_arm64.zip');
     if (fs.existsSync(localPackageZip)) {
       descriptor.downloadUrl = 'file://' + localPackageZip;
     }
@@ -105,7 +108,7 @@ app.whenReady().then(async () => {
 });
 `;
 
-const tempRunner = path.join(__dirname, 'temp-e2e-runner.js');
+const tempRunner = path.join(os.tmpdir(), `dubbiovi-e2e-runner-${Date.now()}.js`);
 fs.writeFileSync(tempRunner, runnerScript, 'utf8');
 
 const child = spawn(electronBin, [tempRunner], {
