@@ -13,8 +13,8 @@ const DEFAULT_MIN_DUBBIOVI_VERSION = '2.0.0';
  */
 function createRuntimeManifest(options) {
   const {
-    id,
-    name,
+    id = options.engineId,
+    name = options.engineName,
     category,
     version,
     executable,
@@ -22,12 +22,14 @@ function createRuntimeManifest(options) {
     arch,
     files,
     checksumSha256,
+    runtimeApiVersion = '2.0.0',
     minimumDubbiOviVersion = DEFAULT_MIN_DUBBIOVI_VERSION,
   } = options;
 
   return {
     schemaVersion: MANIFEST_SCHEMA_VERSION,
     minimumDubbiOviVersion,
+    runtimeApiVersion,
     id,
     name,
     category,
