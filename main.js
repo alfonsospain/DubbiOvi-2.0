@@ -476,9 +476,20 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
   try {
     fs.writeFileSync(tempWavPath, Buffer.from(audioBuffer));
 
-    const cliPath = localEngineManager
-      ? localEngineManager.locateExecutable('whisper')
-      : WhisperBinaryLocator.locate(app);
+    let cliPath = null;
+    if (runtimeManager) {
+      const runtimeInfo = runtimeManager.getRuntime('whisper', '1.9.1');
+      if (runtimeInfo && runtimeInfo.executablePath && fs.existsSync(runtimeInfo.executablePath)) {
+        cliPath = runtimeInfo.executablePath;
+      }
+    }
+    if (!cliPath && localEngineManager) {
+      cliPath = localEngineManager.locateExecutable('whisper');
+    }
+    if (!cliPath) {
+      cliPath = WhisperBinaryLocator.locate(app);
+    }
+
     const resolvedModelPath = localEngineManager
       ? localEngineManager.locateModel('whisper', modelPath)
       : WhisperModelManager.resolveActiveModelPath(app, modelPath);
@@ -535,6 +546,15 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
 
 ipcMain.handle('check-engine-binary', async (event, { engineId }) => {
   const targetEngine = engineId || 'whisper';
+
+  // Use new Runtime Framework for 'whisper' engine
+  if (runtimeManager && (targetEngine === 'whisper' || targetEngine === 'whisper-local')) {
+    const info = runtimeManager.getRuntime('whisper', '1.9.1');
+    const installed = !!info && fs.existsSync(info.executablePath);
+    return { installed, executablePath: installed ? info.executablePath : null };
+  }
+
+  // Legacy fallback for unmigrated engines
   if (!localEngineManager) {
     return { installed: false, executablePath: null };
   }
@@ -561,6 +581,33 @@ ipcMain.handle('check-engine-binary', async (event, { engineId }) => {
 
 ipcMain.handle('download-engine-binary', async (event, { engineId }) => {
   const targetEngine = engineId || 'whisper';
+
+  // Use new Runtime Framework for 'whisper' engine
+  if (runtimeManager && runtimeRepository && (targetEngine === 'whisper' || targetEngine === 'whisper-local')) {
+    logDiag(`[RuntimeManager] Downloading & installing runtime package for engine 'whisper'...`);
+    const descriptor = await runtimeRepository.getDescriptor('whisper', '1.9.1', process.platform, process.arch);
+    if (!descriptor) {
+      throw new Error(`Catalog descriptor not found for runtime 'whisper' (${process.platform}_${process.arch}).`);
+    }
+
+    const info = await runtimeManager.installRuntime(descriptor, (progress) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('engine-download-progress', {
+          engineId: 'whisper',
+          ...progress,
+        });
+        mainWindow.webContents.send('runtime-download-progress', {
+          runtimeId: 'whisper',
+          ...progress,
+        });
+      }
+    });
+
+    logDiag(`[RuntimeManager] Successfully installed runtime binary executable to ${info.executablePath}`);
+    return { success: true, executablePath: info.executablePath };
+  }
+
+  // Legacy fallback for unmigrated engines
   if (!localEngineManager) {
     throw new Error('LocalEngineManager is not initialized.');
   }
