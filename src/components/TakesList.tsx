@@ -437,11 +437,6 @@ const TakesList: React.FC<TakesListProps> = ({
     const selectedProvider = translationProvider || 'Gemini';
     const ollamaCfg = loadOllamaConfig();
 
-    console.log('[TakesList] suggestTranslation triggered:');
-    console.log(`  - Take ID          : ${take.id}`);
-    console.log(`  - Selected Provider: ${selectedProvider}`);
-    console.log(`  - Ollama Config    :`, ollamaCfg);
-
     try {
       const result = await getTranslationSuggestion({
         originalText: take.original,

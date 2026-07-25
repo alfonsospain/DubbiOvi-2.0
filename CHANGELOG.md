@@ -2,6 +2,12 @@
 
 All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be documented in this file.
 
+## [2.0.0-milestone8] - 2026-07-25
+
+### Added
+- **Milestone 8 — Ollama Local Translation Provider**:
+  - Added full support for local LLM-based translation through Ollama, including dynamic model discovery, provider configuration, generic completion interface, and the first fully offline AI workflow combining Whisper Local transcription with Ollama translation.
+
 ## [2.0.0-milestone7c] - 2026-07-25
 
 ### Added

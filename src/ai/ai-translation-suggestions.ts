@@ -42,17 +42,9 @@ import { OllamaTranslationProvider } from '@/lib/OllamaTranslationProvider';
 export async function getTranslationSuggestion(input: GetTranslationSuggestionInput): Promise<GetTranslationSuggestionOutput> {
   const providerName = input.provider || 'Gemini';
 
-  console.log('[getTranslationSuggestion] Server Action invoked:');
-  console.log(`  - Provider Name : ${providerName}`);
-  console.log(`  - Source Lang   : ${input.sourceLanguage}`);
-  console.log(`  - Target Lang   : ${input.targetLanguage}`);
-  console.log(`  - Text Length   : ${input.originalText?.length || 0} chars`);
-
   if (providerName.toLowerCase().includes('ollama')) {
     const baseUrl = input.ollamaConfig?.url || 'http://localhost:11434';
     const model = input.ollamaConfig?.model;
-
-    console.log(`  - Dispatching to OllamaTranslationProvider (URL: ${baseUrl}, Model: ${model || '(auto-detect)'})`);
 
     const provider = new OllamaTranslationProvider({
       baseUrl,

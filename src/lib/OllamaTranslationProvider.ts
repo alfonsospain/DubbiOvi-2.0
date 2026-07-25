@@ -38,23 +38,16 @@ export class OllamaTranslationProvider implements TranslationProvider {
     const startTime = Date.now();
     const client = new OllamaClient(this.baseUrl);
 
-    console.log('[OllamaTranslationProvider] translate() invoked:');
-    console.log(`  - Config Base URL : ${this.baseUrl}`);
-    console.log(`  - Config Model    : ${this.model || '(empty - auto-detecting)'}`);
-    console.log(`  - Request Language : ${request.sourceLanguage} -> ${request.targetLanguage}`);
-
     let modelToUse = request.options?.model || this.model;
 
     if (!modelToUse) {
-      console.log('[OllamaTranslationProvider] No active model specified in config. Attempting auto-discovery from daemon tags...');
       try {
         const availableModels = await client.listModels();
         if (availableModels.length > 0) {
           modelToUse = availableModels[0].name;
-          console.log(`  - Auto-discovered active model: ${modelToUse}`);
         }
       } catch (err) {
-        console.warn('  - Model auto-discovery failed:', err);
+        console.warn('[OllamaTranslationProvider] Model auto-discovery failed:', err);
       }
     }
 

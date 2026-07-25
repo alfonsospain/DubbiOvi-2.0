@@ -64,15 +64,7 @@ export class OllamaClient {
       payload.options = { temperature: options.temperature };
     }
 
-    console.log('[OllamaClient] Executing generateCompletion request:');
-    console.log(`  - Base URL : ${this.baseUrl}`);
-    console.log(`  - Endpoint : ${endpoint}`);
-    console.log(`  - Model    : ${model}`);
-    console.log(`  - Timeout  : ${timeoutMs}ms`);
-    console.log(`  - Payload  :`, JSON.stringify(payload, null, 2));
-
     try {
-      const startTime = Date.now();
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -84,15 +76,11 @@ export class OllamaClient {
 
       clearTimeout(timeoutId);
 
-      const durationMs = Date.now() - startTime;
-      console.log(`[OllamaClient] HTTP Response received in ${durationMs}ms:`);
-      console.log(`  - Status   : ${response.status} ${response.statusText}`);
-
       if (!response.ok) {
         let errorBody = '';
         try {
           errorBody = await response.text();
-          console.error(`  - Raw Error Response Body:`, errorBody);
+          console.error(`[OllamaClient] API HTTP ${response.status} Error Response:`, errorBody);
         } catch (_) {}
 
         if (response.status === 404) {
@@ -109,7 +97,6 @@ export class OllamaClient {
       }
 
       const data = await response.json();
-      console.log(`[OllamaClient] Response parsed successfully:`, JSON.stringify(data, null, 2));
 
       return {
         text: data.response || '',
