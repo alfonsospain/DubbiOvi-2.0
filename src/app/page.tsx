@@ -1052,6 +1052,7 @@ export default function DubbingStudioPro() {
                       onTakeDelete={handleTakeDelete}
                       glossary={glossary}
                       settings={settings}
+                      translationProvider={translationProvider}
                       videoRef={videoRef}
                       currentTime={currentTime}
                       selectedTakeIndex={currentIndex}
@@ -1197,6 +1198,7 @@ export default function DubbingStudioPro() {
                                 onTakeDelete={handleTakeDelete}
                                 glossary={glossary}
                                 settings={settings}
+                                translationProvider={translationProvider}
                                 videoRef={videoRef}
                                 currentTime={currentTime}
                                 selectedTakeIndex={currentIndex}

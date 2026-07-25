@@ -23,8 +23,16 @@ import {
   loadDeepLApiKey,
   saveDeepLApiKey,
   clearDeepLApiKey,
+  loadOllamaConfig,
+  saveOllamaConfig,
+  clearOllamaConfig,
 } from '@/lib/apiKeyStorage';
-import { testGeminiConnection, testDeepLConnection } from '@/app/actions';
+import {
+  testGeminiConnection,
+  testDeepLConnection,
+  testOllamaConnection,
+  fetchOllamaModelsAction,
+} from '@/app/actions';
 import {
   Eye,
   EyeOff,
@@ -35,6 +43,7 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function Providers() {
@@ -59,6 +68,14 @@ export default function Providers() {
   const [isDeepLTesting, setIsDeepLTesting] = useState(false);
   const [hasDeepLKey, setHasDeepLKey] = useState(false);
 
+  // Ollama State
+  const [ollamaUrlInput, setOllamaUrlInput] = useState('http://localhost:11434');
+  const [ollamaModelInput, setOllamaModelInput] = useState('');
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [isOllamaTesting, setIsOllamaTesting] = useState(false);
+  const [isOllamaFetching, setIsOllamaFetching] = useState(false);
+  const [hasOllamaConfig, setHasOllamaConfig] = useState(false);
+
   // Placeholders Expansion States
   const [expandedProviders, setExpandedProviders] = useState<{ [key: string]: boolean }>({
     openai: false,
@@ -78,6 +95,11 @@ export default function Providers() {
     const savedDeepL = loadDeepLApiKey() || '';
     setDeepLKeyInput(savedDeepL);
     setHasDeepLKey(!!savedDeepL);
+
+    const savedOllama = loadOllamaConfig();
+    if (savedOllama.url) setOllamaUrlInput(savedOllama.url);
+    if (savedOllama.model) setOllamaModelInput(savedOllama.model);
+    setHasOllamaConfig(!!(savedOllama.url && savedOllama.model));
   }, []);
 
   const handleGeminiSave = () => {
@@ -271,6 +293,105 @@ export default function Providers() {
       });
     } finally {
       setIsDeepLTesting(false);
+    }
+  };
+
+  const handleOllamaSave = () => {
+    const url = ollamaUrlInput.trim();
+    const model = ollamaModelInput.trim();
+    if (!url) {
+      toast({
+        title: 'Empty Connection URL',
+        description: 'Please input a valid Ollama base URL (e.g. http://localhost:11434).',
+        variant: 'destructive',
+      });
+      return;
+    }
+    saveOllamaConfig(url, model);
+    setHasOllamaConfig(!!(url && model));
+    toast({
+      title: 'Ollama Configuration Saved',
+      description: `Targeting ${url}${model ? ` with model '${model}'` : ''}.`,
+    });
+  };
+
+  const handleOllamaClear = () => {
+    clearOllamaConfig();
+    setOllamaUrlInput('http://localhost:11434');
+    setOllamaModelInput('');
+    setOllamaModels([]);
+    setHasOllamaConfig(false);
+    toast({
+      title: 'Ollama Configuration Cleared',
+      description: 'Ollama connection settings have been reset.',
+    });
+  };
+
+  const handleFetchOllamaModels = async () => {
+    const url = ollamaUrlInput.trim() || 'http://localhost:11434';
+    setIsOllamaFetching(true);
+    try {
+      const res = await fetchOllamaModelsAction(url);
+      if (res.success && res.models.length > 0) {
+        setOllamaModels(res.models);
+        if (!ollamaModelInput && res.models.length > 0) {
+          setOllamaModelInput(res.models[0]);
+        }
+        toast({
+          title: 'Models Discovered',
+          description: `Found ${res.models.length} installed model(s) in Ollama daemon.`,
+        });
+      } else if (res.success && res.models.length === 0) {
+        toast({
+          title: 'No Models Installed',
+          description: 'Ollama is running, but no models were found. Run `ollama pull llama3:8b` in your terminal.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Model Discovery Failed',
+          description: res.error || 'Unable to connect to Ollama daemon.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Discovery Error',
+        description: err.message || String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOllamaFetching(false);
+    }
+  };
+
+  const handleOllamaTest = async () => {
+    const url = ollamaUrlInput.trim() || 'http://localhost:11434';
+    setIsOllamaTesting(true);
+    try {
+      const res = await testOllamaConnection(url);
+      if (res.success) {
+        toast({
+          title: 'Connection Successful',
+          description: `Ollama daemon is active at ${url}.`,
+        });
+        // Auto-fetch models on successful test
+        await handleFetchOllamaModels();
+      } else {
+        toast({
+          title: 'Connection Failed',
+          description: res.error || 'Could not connect to Ollama daemon.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Connection Error',
+        description: err.message || String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOllamaTesting(false);
     }
   };
 
@@ -549,21 +670,27 @@ export default function Providers() {
       </Card>
 
 
-      {/* Ollama Local AI Placeholder Card */}
+      {/* Ollama Local AI Card (Fully Functional) */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Key className="h-4 w-4 text-muted-foreground" /> Ollama (Local AI Engine)
+              <Key className="h-4 w-4 text-primary" /> Ollama (Local LLM Engine)
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Offline local models for translation & transcription
+              Offline local models (Llama 3, Qwen 2.5, DeepSeek R1, Mistral, Gemma 2)
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-secondary text-muted-foreground border-border gap-1 px-2 py-0.5 text-[10px] font-bold">
-              Not Configured
-            </Badge>
+            {hasOllamaConfig ? (
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Configured
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-400" /> Not Configured
+              </Badge>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -578,16 +705,95 @@ export default function Providers() {
           <CardContent className="space-y-4 pt-0 text-xs">
             <div className="space-y-3 p-3 rounded-lg border border-border/55 bg-secondary/10">
               <div className="grid gap-1.5">
-                <Label htmlFor="ollama-url" className="text-[11px] font-bold text-muted-foreground">Ollama Connection URL</Label>
-                <Input id="ollama-url" placeholder="http://localhost:11434" disabled className="h-8 text-xs bg-secondary/20" />
+                <Label htmlFor="ollama-url" className="text-xs font-semibold text-muted-foreground">
+                  Ollama Connection Base URL
+                </Label>
+                <Input
+                  id="ollama-url"
+                  type="text"
+                  placeholder="http://localhost:11434"
+                  value={ollamaUrlInput}
+                  onChange={(e) => setOllamaUrlInput(e.target.value)}
+                  className="h-9 text-xs font-mono bg-background/50 border-border/80"
+                />
               </div>
+
               <div className="grid gap-1.5">
-                <Label htmlFor="ollama-model" className="text-[11px] font-bold text-muted-foreground">Active Model Name</Label>
-                <Input id="ollama-model" placeholder="llama3:8b" disabled className="h-8 text-xs bg-secondary/20" />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="ollama-model" className="text-xs font-semibold text-muted-foreground">
+                    Active Model Name
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleFetchOllamaModels}
+                    disabled={isOllamaFetching}
+                    className="h-6 text-[10px] font-bold gap-1 px-2 text-primary"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isOllamaFetching ? 'animate-spin' : ''}`} />
+                    Refresh Models
+                  </Button>
+                </div>
+                {ollamaModels.length > 0 ? (
+                  <select
+                    id="ollama-model"
+                    value={ollamaModelInput}
+                    onChange={(e) => setOllamaModelInput(e.target.value)}
+                    className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground"
+                  >
+                    {ollamaModels.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="ollama-model"
+                    type="text"
+                    placeholder="llama3:8b (or click Refresh Models)"
+                    value={ollamaModelInput}
+                    onChange={(e) => setOllamaModelInput(e.target.value)}
+                    className="h-9 text-xs font-mono bg-background/50 border-border/80"
+                  />
+                )}
               </div>
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" disabled className="h-8 font-bold text-xs">Save Configuration</Button>
-                <Button size="sm" variant="outline" disabled className="h-8 font-bold text-xs">Test Connection</Button>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  size="sm"
+                  onClick={handleOllamaSave}
+                  disabled={isOllamaTesting || isOllamaFetching}
+                  className="h-8 text-xs font-bold"
+                >
+                  Save Config
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOllamaTest}
+                  disabled={isOllamaTesting || isOllamaFetching}
+                  className="h-8 text-xs font-bold gap-1.5"
+                >
+                  {isOllamaTesting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      Testing...
+                    </>
+                  ) : (
+                    'Test Connection'
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleOllamaClear}
+                  disabled={isOllamaTesting || isOllamaFetching || !hasOllamaConfig}
+                  className="h-8 text-xs font-bold"
+                >
+                  Clear Config
+                </Button>
               </div>
             </div>
           </CardContent>

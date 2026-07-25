@@ -24,6 +24,11 @@ const GetTranslationSuggestionInputSchema = z.object({
   targetLanguage: z.string().describe('The language to translate the text into.'),
   glossary: z.array(GlossaryEntrySchema).optional().describe('A list of glossary terms to ensure consistent translation.'),
   apiKey: z.string().optional().describe('User provided Gemini API key.'),
+  provider: z.string().optional().describe('Selected translation provider (Gemini, Ollama, OpenAI, DeepL).'),
+  ollamaConfig: z.object({
+    url: z.string().optional(),
+    model: z.string().optional(),
+  }).optional().describe('Ollama configuration (url, model).'),
 });
 export type GetTranslationSuggestionInput = z.infer<typeof GetTranslationSuggestionInputSchema>;
 
@@ -32,7 +37,36 @@ const GetTranslationSuggestionOutputSchema = z.object({
 });
 export type GetTranslationSuggestionOutput = z.infer<typeof GetTranslationSuggestionOutputSchema>;
 
+import { OllamaTranslationProvider } from '@/lib/OllamaTranslationProvider';
+
 export async function getTranslationSuggestion(input: GetTranslationSuggestionInput): Promise<GetTranslationSuggestionOutput> {
+  const providerName = input.provider || 'Gemini';
+
+  console.log('[getTranslationSuggestion] Server Action invoked:');
+  console.log(`  - Provider Name : ${providerName}`);
+  console.log(`  - Source Lang   : ${input.sourceLanguage}`);
+  console.log(`  - Target Lang   : ${input.targetLanguage}`);
+  console.log(`  - Text Length   : ${input.originalText?.length || 0} chars`);
+
+  if (providerName.toLowerCase().includes('ollama')) {
+    const baseUrl = input.ollamaConfig?.url || 'http://localhost:11434';
+    const model = input.ollamaConfig?.model;
+
+    console.log(`  - Dispatching to OllamaTranslationProvider (URL: ${baseUrl}, Model: ${model || '(auto-detect)'})`);
+
+    const provider = new OllamaTranslationProvider({
+      baseUrl,
+      model,
+    });
+    const result = await provider.translate({
+      text: input.originalText,
+      sourceLanguage: input.sourceLanguage,
+      targetLanguage: input.targetLanguage,
+      glossary: input.glossary,
+    });
+    return { translation: result.translation };
+  }
+
   const activeKey = input.apiKey?.trim() || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || undefined;
   return getTranslationSuggestionFlow({
     ...input,

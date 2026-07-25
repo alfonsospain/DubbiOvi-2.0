@@ -68,6 +68,45 @@ export async function testDeepLConnection(
   }
 }
 
+import { OllamaClient } from '@/lib/OllamaClient';
+
+export async function testOllamaConnection(
+  baseUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const client = new OllamaClient(baseUrl || 'http://localhost:11434');
+    const healthy = await client.checkHealth();
+    if (healthy) {
+      return { success: true };
+    }
+    return {
+      success: false,
+      error: `Could not connect to Ollama daemon at ${baseUrl || 'http://localhost:11434'}. Ensure Ollama is running.`,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || String(err) };
+  }
+}
+
+export async function fetchOllamaModelsAction(
+  baseUrl: string
+): Promise<{ success: boolean; models: string[]; error?: string }> {
+  try {
+    const client = new OllamaClient(baseUrl || 'http://localhost:11434');
+    const models = await client.listModels();
+    return {
+      success: true,
+      models: models.map((m) => m.name),
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      models: [],
+      error: err.message || String(err),
+    };
+  }
+}
+
 export async function getSentiment(
   text: string,
   apiKey?: string

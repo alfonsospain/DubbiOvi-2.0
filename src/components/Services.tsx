@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Cloud, Cpu, Keyboard, Shuffle, ArrowDown } from 'lucide-react';
+import { Cloud, Cpu, Keyboard, Shuffle, ArrowDown, CheckCircle2 } from 'lucide-react';
 
 interface ServicesProps {
   workflowMode: string;
@@ -39,6 +39,10 @@ const Services: React.FC<ServicesProps> = ({
   speechProvider,
   setSpeechProvider,
 }) => {
+  const isTranscriptionActive = transcriptionProvider !== 'None';
+  const isTranslationActive = translationProvider !== 'None';
+  const isSpeechActive = speechProvider !== 'None';
+
   const workflowOptions = [
     {
       id: 'manual',
@@ -118,15 +122,30 @@ const Services: React.FC<ServicesProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Transcription Stage */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="transcription-prov" className="text-xs font-semibold text-muted-foreground">
-              Transcription Provider (ASR)
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="transcription-prov" className="text-xs font-semibold text-muted-foreground">
+                Transcription Provider (ASR)
+              </Label>
+              {isTranscriptionActive && (
+                <span className="text-[10px] font-bold text-primary flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                  <CheckCircle2 className="h-3 w-3 text-primary" /> Active
+                </span>
+              )}
+            </div>
             <Select
               value={transcriptionProvider}
               onValueChange={setTranscriptionProvider}
             >
-              <SelectTrigger id="transcription-prov" className="h-9 text-xs">
+              <SelectTrigger
+                id="transcription-prov"
+                className={`h-9 text-xs transition-all duration-200 ${
+                  isTranscriptionActive
+                    ? 'border-primary/60 bg-primary/5 text-foreground font-semibold shadow-sm focus:ring-primary/40'
+                    : 'border-border/80'
+                }`}
+              >
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
@@ -138,15 +157,30 @@ const Services: React.FC<ServicesProps> = ({
             </Select>
           </div>
 
+          {/* Translation Stage */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="translation-prov" className="text-xs font-semibold text-muted-foreground">
-              Translation Provider (MT)
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="translation-prov" className="text-xs font-semibold text-muted-foreground">
+                Translation Provider (MT)
+              </Label>
+              {isTranslationActive && (
+                <span className="text-[10px] font-bold text-primary flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                  <CheckCircle2 className="h-3 w-3 text-primary" /> Active
+                </span>
+              )}
+            </div>
             <Select
               value={translationProvider}
               onValueChange={setTranslationProvider}
             >
-              <SelectTrigger id="translation-prov" className="h-9 text-xs">
+              <SelectTrigger
+                id="translation-prov"
+                className={`h-9 text-xs transition-all duration-200 ${
+                  isTranslationActive
+                    ? 'border-primary/60 bg-primary/5 text-foreground font-semibold shadow-sm focus:ring-primary/40'
+                    : 'border-border/80'
+                }`}
+              >
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
@@ -159,15 +193,30 @@ const Services: React.FC<ServicesProps> = ({
             </Select>
           </div>
 
+          {/* Speech Stage */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="speech-prov" className="text-xs font-semibold text-muted-foreground">
-              Speech Provider (TTS)
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="speech-prov" className="text-xs font-semibold text-muted-foreground">
+                Speech Provider (TTS)
+              </Label>
+              {isSpeechActive && (
+                <span className="text-[10px] font-bold text-primary flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                  <CheckCircle2 className="h-3 w-3 text-primary" /> Active
+                </span>
+              )}
+            </div>
             <Select
               value={speechProvider}
               onValueChange={setSpeechProvider}
             >
-              <SelectTrigger id="speech-prov" className="h-9 text-xs">
+              <SelectTrigger
+                id="speech-prov"
+                className={`h-9 text-xs transition-all duration-200 ${
+                  isSpeechActive
+                    ? 'border-primary/60 bg-primary/5 text-foreground font-semibold shadow-sm focus:ring-primary/40'
+                    : 'border-border/80'
+                }`}
+              >
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
@@ -197,9 +246,24 @@ const Services: React.FC<ServicesProps> = ({
           <ArrowDown className="h-4 w-4 text-muted-foreground/60 animate-pulse" />
 
           {/* Transcription Node */}
-          <div className="flex flex-col items-center justify-center bg-background text-foreground text-xs font-medium px-4 py-2 rounded-lg border border-border/80 min-w-[180px] text-center shadow-sm">
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Transcription</span>
-            <span className="font-semibold text-foreground mt-0.5">
+          <div
+            className={`flex flex-col items-center justify-center text-xs font-medium px-4 py-2 rounded-lg border min-w-[180px] text-center transition-all duration-200 ${
+              isTranscriptionActive
+                ? 'border-primary/60 bg-primary/10 text-foreground shadow-sm shadow-primary/5'
+                : 'border-border/80 bg-background text-foreground'
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                Transcription
+              </span>
+              {isTranscriptionActive && <CheckCircle2 className="h-3 w-3 text-primary" />}
+            </div>
+            <span
+              className={`font-semibold mt-0.5 ${
+                isTranscriptionActive ? 'text-primary font-bold' : 'text-foreground'
+              }`}
+            >
               {transcriptionProvider === 'None' ? '✍️ Manual' : `🎙️ ${transcriptionProvider}`}
             </span>
           </div>
@@ -207,9 +271,24 @@ const Services: React.FC<ServicesProps> = ({
           <ArrowDown className="h-4 w-4 text-muted-foreground/60 animate-pulse" />
 
           {/* Translation Node */}
-          <div className="flex flex-col items-center justify-center bg-background text-foreground text-xs font-medium px-4 py-2 rounded-lg border border-border/80 min-w-[180px] text-center shadow-sm">
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Translation</span>
-            <span className="font-semibold text-foreground mt-0.5">
+          <div
+            className={`flex flex-col items-center justify-center text-xs font-medium px-4 py-2 rounded-lg border min-w-[180px] text-center transition-all duration-200 ${
+              isTranslationActive
+                ? 'border-primary/60 bg-primary/10 text-foreground shadow-sm shadow-primary/5'
+                : 'border-border/80 bg-background text-foreground'
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                Translation
+              </span>
+              {isTranslationActive && <CheckCircle2 className="h-3 w-3 text-primary" />}
+            </div>
+            <span
+              className={`font-semibold mt-0.5 ${
+                isTranslationActive ? 'text-primary font-bold' : 'text-foreground'
+              }`}
+            >
               {translationProvider === 'None' ? '✍️ Manual' : `🌐 ${translationProvider}`}
             </span>
           </div>
@@ -217,9 +296,24 @@ const Services: React.FC<ServicesProps> = ({
           <ArrowDown className="h-4 w-4 text-muted-foreground/60 animate-pulse" />
 
           {/* Speech Node */}
-          <div className="flex flex-col items-center justify-center bg-background text-foreground text-xs font-medium px-4 py-2 rounded-lg border border-border/80 min-w-[180px] text-center shadow-sm">
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Speech (TTS)</span>
-            <span className="font-semibold text-foreground mt-0.5">
+          <div
+            className={`flex flex-col items-center justify-center text-xs font-medium px-4 py-2 rounded-lg border min-w-[180px] text-center transition-all duration-200 ${
+              isSpeechActive
+                ? 'border-primary/60 bg-primary/10 text-foreground shadow-sm shadow-primary/5'
+                : 'border-border/80 bg-background text-foreground'
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                Speech (TTS)
+              </span>
+              {isSpeechActive && <CheckCircle2 className="h-3 w-3 text-primary" />}
+            </div>
+            <span
+              className={`font-semibold mt-0.5 ${
+                isSpeechActive ? 'text-primary font-bold' : 'text-foreground'
+              }`}
+            >
               {speechProvider === 'None' ? '✍️ Manual' : `🔊 ${speechProvider}`}
             </span>
           </div>

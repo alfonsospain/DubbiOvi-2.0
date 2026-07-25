@@ -85,3 +85,40 @@ export function clearDeepLApiKey(): void {
     console.error('Failed to clear DeepL API key from localStorage:', error);
   }
 }
+
+const OLLAMA_URL_STORAGE_KEY = 'dubbiovi_ollama_url';
+const OLLAMA_MODEL_STORAGE_KEY = 'dubbiovi_ollama_model';
+
+export function loadOllamaConfig(): { url: string; model: string } {
+  if (typeof window === 'undefined') {
+    return { url: 'http://localhost:11434', model: '' };
+  }
+  try {
+    const url = localStorage.getItem(OLLAMA_URL_STORAGE_KEY) || 'http://localhost:11434';
+    const model = localStorage.getItem(OLLAMA_MODEL_STORAGE_KEY) || '';
+    return { url, model };
+  } catch (error) {
+    console.error('Failed to load Ollama config from localStorage:', error);
+    return { url: 'http://localhost:11434', model: '' };
+  }
+}
+
+export function saveOllamaConfig(url: string, model: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(OLLAMA_URL_STORAGE_KEY, url.trim());
+    localStorage.setItem(OLLAMA_MODEL_STORAGE_KEY, model.trim());
+  } catch (error) {
+    console.error('Failed to save Ollama config to localStorage:', error);
+  }
+}
+
+export function clearOllamaConfig(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(OLLAMA_URL_STORAGE_KEY);
+    localStorage.removeItem(OLLAMA_MODEL_STORAGE_KEY);
+  } catch (error) {
+    console.error('Failed to clear Ollama config from localStorage:', error);
+  }
+}

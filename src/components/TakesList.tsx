@@ -37,7 +37,7 @@ import {
 } from './ui/dialog';
 import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
 import { useToast } from '@/hooks/use-toast';
-import { loadApiKey } from '@/lib/apiKeyStorage';
+import { loadApiKey, loadOllamaConfig } from '@/lib/apiKeyStorage';
 import {
   Sparkles,
   Trash2,
@@ -57,6 +57,7 @@ interface TakesListProps {
   onTakeDelete: (id: string) => void;
   glossary: GlossaryEntry[];
   settings: ProjectSettings;
+  translationProvider?: string;
   videoRef: React.RefObject<HTMLVideoElement>;
   currentTime: number;
   selectedTakeIndex?: number;
@@ -378,6 +379,7 @@ const TakesList: React.FC<TakesListProps> = ({
   onTakeDelete,
   glossary,
   settings,
+  translationProvider,
   videoRef,
   currentTime,
   selectedTakeIndex,
@@ -432,6 +434,14 @@ const TakesList: React.FC<TakesListProps> = ({
 
   const suggestTranslation = async (take: Take) => {
     setIsSuggesting(take.id);
+    const selectedProvider = translationProvider || 'Gemini';
+    const ollamaCfg = loadOllamaConfig();
+
+    console.log('[TakesList] suggestTranslation triggered:');
+    console.log(`  - Take ID          : ${take.id}`);
+    console.log(`  - Selected Provider: ${selectedProvider}`);
+    console.log(`  - Ollama Config    :`, ollamaCfg);
+
     try {
       const result = await getTranslationSuggestion({
         originalText: take.original,
@@ -439,6 +449,8 @@ const TakesList: React.FC<TakesListProps> = ({
         targetLanguage: settings.targetLang,
         glossary,
         apiKey: loadApiKey() || undefined,
+        provider: selectedProvider,
+        ollamaConfig: ollamaCfg,
       });
 
       if (result.translation) {
@@ -452,13 +464,13 @@ const TakesList: React.FC<TakesListProps> = ({
           description: 'AI-powered suggestion has been generated.',
         });
       } else {
-        throw new Error('No translation returned.');
+        throw new Error('No translation returned from provider.');
       }
-    } catch (error) {
-      console.error('Translation suggestion failed', error);
+    } catch (error: any) {
+      console.error('[TakesList] Translation suggestion failed:', error);
       toast({
         title: 'Translation Failed',
-        description: 'Could not get a translation suggestion. Please try again.',
+        description: error.message || String(error),
         variant: 'destructive',
       });
     } finally {
