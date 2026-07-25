@@ -22,14 +22,25 @@ export interface WhisperExecutionResult {
  */
 export class WhisperLocalParser {
   public static parse(rawResult: any): TranscriptResult {
-    const transcription = rawResult.result.transcription;
-    const detectedLanguage = rawResult.result.language || 'en';
+    // If conversion happened inside the Main Process, return TranscriptResult directly
+    if (rawResult && Array.isArray(rawResult.takes)) {
+      return rawResult as TranscriptResult;
+    }
+
+    // Support both whisper-cli top-level rawResult.transcription and nested rawResult.result.transcription
+    const transcription = Array.isArray(rawResult?.transcription)
+      ? rawResult.transcription
+      : Array.isArray(rawResult?.result?.transcription)
+      ? rawResult.result.transcription
+      : [];
+
+    const detectedLanguage = rawResult?.result?.language || rawResult?.params?.language || rawResult?.language || 'en';
 
     const takes = transcription.map((segment: any) => {
       // whisper.cpp output timestamps can be e.g. "00:00:02,300"
       // Replace commas with dots for parseTimestampToSeconds compatibility
-      const fromTime = segment.timestamps.from.replace(',', '.');
-      const toTime = segment.timestamps.to.replace(',', '.');
+      const fromTime = (segment.timestamps?.from || '00:00:00.000').replace(',', '.');
+      const toTime = (segment.timestamps?.to || '00:00:00.000').replace(',', '.');
 
       return {
         id: uuidv4(),
@@ -37,7 +48,7 @@ export class WhisperLocalParser {
         time: `${fromTime} - ${toTime}`,
         startSeconds: parseTimestampToSeconds(fromTime),
         endSeconds: parseTimestampToSeconds(toTime),
-        original: segment.text.trim(),
+        original: (segment.text || '').trim(),
         translation: '',
         notes: '',
         status: 'Pending' as const,
@@ -48,7 +59,7 @@ export class WhisperLocalParser {
       detectedLanguage: detectedLanguage.toUpperCase(),
       takes,
       metadata: {
-        modelName: rawResult.model || 'local-whisper-model',
+        modelName: typeof rawResult?.model === 'string' ? rawResult.model : rawResult?.model?.type || 'local-whisper-model',
       }
     };
   }

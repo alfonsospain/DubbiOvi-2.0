@@ -13,14 +13,20 @@ export class WhisperLocalParser {
       return rawResult as TranscriptResult;
     }
 
-    const transcription = rawResult?.result?.transcription || [];
-    const detectedLanguage = rawResult?.result?.language || 'en';
+    // Support both whisper-cli top-level rawResult.transcription and nested rawResult.result.transcription
+    const transcription = Array.isArray(rawResult?.transcription)
+      ? rawResult.transcription
+      : Array.isArray(rawResult?.result?.transcription)
+      ? rawResult.result.transcription
+      : [];
+
+    const detectedLanguage = rawResult?.result?.language || rawResult?.params?.language || rawResult?.language || 'en';
 
     const takes = transcription.map((segment: any) => {
       // whisper.cpp output timestamps can be e.g. "00:00:02,300"
       // Replace commas with dots for parseTimestampToSeconds compatibility
-      const fromTime = segment.timestamps.from.replace(',', '.');
-      const toTime = segment.timestamps.to.replace(',', '.');
+      const fromTime = (segment.timestamps?.from || '00:00:00.000').replace(',', '.');
+      const toTime = (segment.timestamps?.to || '00:00:00.000').replace(',', '.');
 
       return {
         id: uuidv4(),
@@ -28,7 +34,7 @@ export class WhisperLocalParser {
         time: `${fromTime} - ${toTime}`,
         startSeconds: parseTimestampToSeconds(fromTime),
         endSeconds: parseTimestampToSeconds(toTime),
-        original: segment.text.trim(),
+        original: (segment.text || '').trim(),
         translation: '',
         notes: '',
         status: 'Pending' as const,
@@ -39,7 +45,7 @@ export class WhisperLocalParser {
       detectedLanguage: detectedLanguage.toUpperCase(),
       takes,
       metadata: {
-        modelName: rawResult.model || 'local-whisper-model',
+        modelName: typeof rawResult?.model === 'string' ? rawResult.model : rawResult?.model?.type || 'local-whisper-model',
       }
     };
   }
@@ -174,7 +180,11 @@ export class WhisperLocalClientProvider implements TranscriptionProvider {
       throw new Error(`Whisper Local Error: ${err.message || String(err)}`);
     }
 
-    if (!rawResult || !rawResult.result || !rawResult.result.transcription) {
+    const hasTranscription = Array.isArray(rawResult?.transcription)
+      || Array.isArray(rawResult?.result?.transcription)
+      || Array.isArray(rawResult?.takes);
+
+    if (!rawResult || !hasTranscription) {
       throw new Error('Whisper Local failed to generate a valid transcription result.');
     }
 
