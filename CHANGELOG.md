@@ -2,6 +2,14 @@
 
 All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be documented in this file.
 
+## [2.0.0-milestone7c] - 2026-07-25
+
+### Added
+- **First End-to-End Whisper Local Transcription**:
+  - Successfully executed local Whisper speech recognition through the new Runtime Execution Framework (`RuntimeRepository`, `RuntimeDownloader`, `RuntimeInstaller`, `RuntimeManager`, `RuntimeExecutor`).
+  - Integrated automatic JSON parsing from `whisper-cli` into domain `TranscriptResult` objects with timeline segment generation.
+  - Verified 100% offline transcription capability without cloud API keys.
+
 ---
 
 ## [1.3.1] - 2026-06-15
