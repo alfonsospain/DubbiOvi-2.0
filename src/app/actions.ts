@@ -34,6 +34,40 @@ export async function testGeminiConnection(
   }
 }
 
+export async function testDeepLConnection(
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!apiKey || !apiKey.trim()) {
+    return { success: false, error: 'API key is required.' };
+  }
+  const key = apiKey.trim();
+  const host = key.endsWith(':fx') ? 'https://api-free.deepl.com' : 'https://api.deepl.com';
+  try {
+    const res = await fetch(`${host}/v2/usage`, {
+      method: 'GET',
+      headers: {
+        Authorization: `DeepL-Auth-Key ${key}`,
+      },
+    });
+
+    if (res.ok) {
+      return { success: true };
+    }
+
+    let errorDetails = `HTTP ${res.status} ${res.statusText}`;
+    try {
+      const errJson = await res.json();
+      if (errJson?.message) {
+        errorDetails = errJson.message;
+      }
+    } catch (_) {}
+
+    return { success: false, error: errorDetails };
+  } catch (err: any) {
+    return { success: false, error: err.message || String(err) };
+  }
+}
+
 export async function getSentiment(
   text: string,
   apiKey?: string

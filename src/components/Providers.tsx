@@ -13,8 +13,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { loadApiKey, saveApiKey, clearApiKey } from '@/lib/apiKeyStorage';
-import { testGeminiConnection } from '@/app/actions';
+import {
+  loadApiKey,
+  saveApiKey,
+  clearApiKey,
+  loadOpenAiApiKey,
+  saveOpenAiApiKey,
+  clearOpenAiApiKey,
+  loadDeepLApiKey,
+  saveDeepLApiKey,
+  clearDeepLApiKey,
+} from '@/lib/apiKeyStorage';
+import { testGeminiConnection, testDeepLConnection } from '@/app/actions';
 import {
   Eye,
   EyeOff,
@@ -37,18 +47,37 @@ export default function Providers() {
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isGeminiExpanded, setIsGeminiExpanded] = useState(true);
 
+  // OpenAI State
+  const [openAiKeyInput, setOpenAiKeyInput] = useState('');
+  const [showOpenAiKey, setShowOpenAiKey] = useState(false);
+  const [isOpenAiTesting, setIsOpenAiTesting] = useState(false);
+  const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
+
+  // DeepL State
+  const [deepLKeyInput, setDeepLKeyInput] = useState('');
+  const [showDeepLKey, setShowDeepLKey] = useState(false);
+  const [isDeepLTesting, setIsDeepLTesting] = useState(false);
+  const [hasDeepLKey, setHasDeepLKey] = useState(false);
+
   // Placeholders Expansion States
   const [expandedProviders, setExpandedProviders] = useState<{ [key: string]: boolean }>({
     openai: false,
     deepl: false,
-    whisper: false,
     ollama: false,
   });
 
   useEffect(() => {
-    const savedKey = loadApiKey() || '';
-    setGeminiKeyInput(savedKey);
-    setHasGeminiKey(!!savedKey);
+    const savedGemini = loadApiKey() || '';
+    setGeminiKeyInput(savedGemini);
+    setHasGeminiKey(!!savedGemini);
+
+    const savedOpenAi = loadOpenAiApiKey() || '';
+    setOpenAiKeyInput(savedOpenAi);
+    setHasOpenAiKey(!!savedOpenAi);
+
+    const savedDeepL = loadDeepLApiKey() || '';
+    setDeepLKeyInput(savedDeepL);
+    setHasDeepLKey(!!savedDeepL);
   }, []);
 
   const handleGeminiSave = () => {
@@ -112,6 +141,136 @@ export default function Providers() {
       });
     } finally {
       setIsGeminiTesting(false);
+    }
+  };
+
+  const handleOpenAiSave = () => {
+    const trimmed = openAiKeyInput.trim();
+    if (!trimmed) {
+      toast({
+        title: 'Empty API Key',
+        description: 'Please input a valid key or clear existing configurations.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    saveOpenAiApiKey(trimmed);
+    setHasOpenAiKey(true);
+    toast({
+      title: 'OpenAI API Key Saved',
+      description: 'Your OpenAI API Key has been saved locally.',
+    });
+  };
+
+  const handleOpenAiClear = () => {
+    clearOpenAiApiKey();
+    setOpenAiKeyInput('');
+    setHasOpenAiKey(false);
+    toast({
+      title: 'OpenAI API Key Cleared',
+      description: 'Your OpenAI API Key has been removed from local storage.',
+    });
+  };
+
+  const handleOpenAiTest = async () => {
+    const trimmed = openAiKeyInput.trim();
+    if (!trimmed) {
+      toast({
+        title: 'Test Failed',
+        description: 'Please enter an API Key to test.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsOpenAiTesting(true);
+    try {
+      const res = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${trimmed}` },
+      });
+      if (res.ok) {
+        toast({
+          title: 'Connection Successful',
+          description: 'OpenAI API Key is valid and working.',
+        });
+      } else {
+        toast({
+          title: 'Connection Failed',
+          description: `HTTP ${res.status}: Invalid OpenAI API Key or quota error.`,
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Connection Error',
+        description: err.message || String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOpenAiTesting(false);
+    }
+  };
+
+  const handleDeepLSave = () => {
+    const trimmed = deepLKeyInput.trim();
+    if (!trimmed) {
+      toast({
+        title: 'Empty API Key',
+        description: 'Please input a valid key or clear existing configurations.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    saveDeepLApiKey(trimmed);
+    setHasDeepLKey(true);
+    toast({
+      title: 'DeepL API Key Saved',
+      description: 'Your DeepL API Key has been saved locally.',
+    });
+  };
+
+  const handleDeepLClear = () => {
+    clearDeepLApiKey();
+    setDeepLKeyInput('');
+    setHasDeepLKey(false);
+    toast({
+      title: 'DeepL API Key Cleared',
+      description: 'Your DeepL API Key has been removed from local storage.',
+    });
+  };
+
+  const handleDeepLTest = async () => {
+    const trimmed = deepLKeyInput.trim();
+    if (!trimmed) {
+      toast({
+        title: 'Test Failed',
+        description: 'Please enter an API Key to test.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsDeepLTesting(true);
+    try {
+      const res = await testDeepLConnection(trimmed);
+      if (res.success) {
+        toast({
+          title: 'Connection Successful',
+          description: 'DeepL API Key is valid and working.',
+        });
+      } else {
+        toast({
+          title: 'Connection Failed',
+          description: res.error || 'Invalid DeepL API Key or connection error.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Connection Error',
+        description: err.message || String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeepLTesting(false);
     }
   };
 
@@ -229,21 +388,27 @@ export default function Providers() {
         )}
       </Card>
 
-      {/* OpenAI Placeholder Card */}
+      {/* OpenAI Card (Fully Functional) */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Key className="h-4 w-4 text-muted-foreground" /> OpenAI (GPT & Whisper Cloud)
+              <Key className="h-4 w-4 text-primary" /> OpenAI (Whisper Cloud & GPT)
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              API connections for GPT models & cloud Whisper transcription
+              Configure your cloud Whisper transcription & GPT API key
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-secondary text-muted-foreground border-border gap-1 px-2 py-0.5 text-[10px] font-bold">
-              Not Configured
-            </Badge>
+            {hasOpenAiKey ? (
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Configured
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-400" /> Not Configured
+              </Badge>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -256,45 +421,74 @@ export default function Providers() {
         </CardHeader>
         {expandedProviders.openai && (
           <CardContent className="space-y-4 pt-0 text-xs">
-            <div className="space-y-3 p-3 rounded-lg border border-border/55 bg-secondary/10">
-              <div className="grid gap-1.5">
-                <Label htmlFor="openai-key" className="text-[11px] font-bold text-muted-foreground">API Key</Label>
-                <Input id="openai-key" type="password" placeholder="sk-..." disabled className="h-8 text-xs bg-secondary/20" />
+            <div className="space-y-1.5">
+              <Label htmlFor="openai-api-key" className="text-xs font-semibold text-muted-foreground">
+                OpenAI API Key
+              </Label>
+              <div className="relative flex items-center">
+                <Input
+                  id="openai-api-key"
+                  type={showOpenAiKey ? 'text' : 'password'}
+                  placeholder="sk-..."
+                  value={openAiKeyInput}
+                  onChange={(e) => setOpenAiKeyInput(e.target.value)}
+                  className="pr-10 text-xs font-mono h-9 bg-background/50 border-border/80 focus-visible:ring-primary"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 h-9 w-9 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowOpenAiKey(!showOpenAiKey)}
+                >
+                  {showOpenAiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="openai-model" className="text-[11px] font-bold text-muted-foreground">Default Model</Label>
-                  <Input id="openai-model" placeholder="gpt-4o" disabled className="h-8 text-xs bg-secondary/20" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="openai-temp" className="text-[11px] font-bold text-muted-foreground">Temperature</Label>
-                  <Input id="openai-temp" placeholder="0.3" disabled className="h-8 text-xs bg-secondary/20" />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" disabled className="h-8 font-bold text-xs">Save Configuration</Button>
-                <Button size="sm" variant="outline" disabled className="h-8 font-bold text-xs">Test Connection</Button>
-              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button size="sm" onClick={handleOpenAiSave} disabled={isOpenAiTesting} className="h-8 text-xs font-bold">
+                Save Key
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleOpenAiTest} disabled={isOpenAiTesting || !openAiKeyInput.trim()} className="h-8 text-xs font-bold gap-1.5">
+                {isOpenAiTesting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    Testing...
+                  </>
+                ) : (
+                  'Test Connection'
+                )}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleOpenAiClear} disabled={isOpenAiTesting || !hasOpenAiKey} className="h-8 text-xs font-bold">
+                Clear Key
+              </Button>
             </div>
           </CardContent>
         )}
       </Card>
 
-      {/* DeepL Placeholder Card */}
+      {/* DeepL Card (Fully Functional) */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Key className="h-4 w-4 text-muted-foreground" /> DeepL Translation
+              <Key className="h-4 w-4 text-primary" /> DeepL Translation
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
               API access credentials for high-fidelity machine translation
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-secondary text-muted-foreground border-border gap-1 px-2 py-0.5 text-[10px] font-bold">
-              Not Configured
-            </Badge>
+            {hasDeepLKey ? (
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Configured
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-400" /> Not Configured
+              </Badge>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -307,60 +501,53 @@ export default function Providers() {
         </CardHeader>
         {expandedProviders.deepl && (
           <CardContent className="space-y-4 pt-0 text-xs">
-            <div className="space-y-3 p-3 rounded-lg border border-border/55 bg-secondary/10">
-              <div className="grid gap-1.5">
-                <Label htmlFor="deepl-key" className="text-[11px] font-bold text-muted-foreground">API Key</Label>
-                <Input id="deepl-key" type="password" placeholder="DeepL API Key..." disabled className="h-8 text-xs bg-secondary/20" />
+            <div className="space-y-1.5">
+              <Label htmlFor="deepl-api-key" className="text-xs font-semibold text-muted-foreground">
+                DeepL API Key
+              </Label>
+              <div className="relative flex items-center">
+                <Input
+                  id="deepl-api-key"
+                  type={showDeepLKey ? 'text' : 'password'}
+                  placeholder="DeepL API Key (e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx)"
+                  value={deepLKeyInput}
+                  onChange={(e) => setDeepLKeyInput(e.target.value)}
+                  className="pr-10 text-xs font-mono h-9 bg-background/50 border-border/80 focus-visible:ring-primary"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 h-9 w-9 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowDeepLKey(!showDeepLKey)}
+                >
+                  {showDeepLKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" disabled className="h-8 font-bold text-xs">Save Configuration</Button>
-                <Button size="sm" variant="outline" disabled className="h-8 font-bold text-xs">Test Connection</Button>
-              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button size="sm" onClick={handleDeepLSave} disabled={isDeepLTesting} className="h-8 text-xs font-bold">
+                Save Key
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleDeepLTest} disabled={isDeepLTesting || !deepLKeyInput.trim()} className="h-8 text-xs font-bold gap-1.5">
+                {isDeepLTesting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    Testing...
+                  </>
+                ) : (
+                  'Test Connection'
+                )}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleDeepLClear} disabled={isDeepLTesting || !hasDeepLKey} className="h-8 text-xs font-bold">
+                Clear Key
+              </Button>
             </div>
           </CardContent>
         )}
       </Card>
 
-      {/* Whisper Local/Cloud Placeholder Card */}
-      <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Key className="h-4 w-4 text-muted-foreground" /> Whisper Transcription
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Offline local models or high-fidelity cloud endpoints
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-secondary text-muted-foreground border-border gap-1 px-2 py-0.5 text-[10px] font-bold">
-              Not Configured
-            </Badge>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => toggleExpand('whisper')}
-            >
-              {expandedProviders.whisper ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </div>
-        </CardHeader>
-        {expandedProviders.whisper && (
-          <CardContent className="space-y-4 pt-0 text-xs">
-            <div className="space-y-3 p-3 rounded-lg border border-border/55 bg-secondary/10">
-              <div className="grid gap-1.5">
-                <Label htmlFor="whisper-endpoint" className="text-[11px] font-bold text-muted-foreground">Custom Endpoint</Label>
-                <Input id="whisper-endpoint" placeholder="http://localhost:9000/asr" disabled className="h-8 text-xs bg-secondary/20" />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" disabled className="h-8 font-bold text-xs">Save Configuration</Button>
-                <Button size="sm" variant="outline" disabled className="h-8 font-bold text-xs">Test Connection</Button>
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
 
       {/* Ollama Local AI Placeholder Card */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm">

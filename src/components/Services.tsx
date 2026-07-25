@@ -130,9 +130,9 @@ const Services: React.FC<ServicesProps> = ({
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Whisper">Whisper (OpenAI/Local)</SelectItem>
+                <SelectItem value="Whisper Local">Whisper Local (Offline)</SelectItem>
                 <SelectItem value="Gemini">Gemini (Google Cloud)</SelectItem>
-                <SelectItem value="Ollama">Ollama (Local)</SelectItem>
+                <SelectItem value="OpenAI">OpenAI (Cloud Whisper)</SelectItem>
                 <SelectItem value="None">None (Manual)</SelectItem>
               </SelectContent>
             </Select>

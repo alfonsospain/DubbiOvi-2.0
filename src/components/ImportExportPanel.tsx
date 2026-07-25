@@ -38,7 +38,7 @@ import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
 import { AudioPreparationService } from '@/lib/AudioPreparationService';
 import { providerRegistry } from '@/lib/ProviderRegistry';
-import { loadApiKey } from '@/lib/apiKeyStorage';
+import { loadApiKey, loadOpenAiApiKey } from '@/lib/apiKeyStorage';
 import { SUPPORTED_LANGUAGES } from '@/lib/data';
 import { ModelDownloadDialog } from './ModelDownloadDialog';
 
@@ -198,7 +198,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
 
       setTranscriptionStage('uploading');
       setTranscriptionStage('transcribing');
-      const userApiKey = loadApiKey() || undefined;
+      const userApiKey = (activeProvider.id === 'openai-asr' ? loadOpenAiApiKey() : loadApiKey()) || undefined;
       const result = await activeProvider.transcribe(preparedAudio, selectedAsrLang, userApiKey);
 
       if (!result.takes || result.takes.length === 0) {

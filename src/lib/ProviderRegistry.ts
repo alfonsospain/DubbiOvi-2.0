@@ -1,6 +1,7 @@
 import { TranscriptionProvider } from './transcription-types';
 import { GeminiProvider } from './GeminiProvider';
 import { WhisperLocalClientProvider } from './WhisperLocalClientProvider';
+import { OpenAITranscriptionProvider } from './OpenAITranscriptionProvider';
 
 export class ProviderRegistry {
   private static instance: ProviderRegistry | null = null;
@@ -10,6 +11,7 @@ export class ProviderRegistry {
     // Auto-register default client providers (browser/Turbopack safe)
     this.register(new GeminiProvider());
     this.register(new WhisperLocalClientProvider());
+    this.register(new OpenAITranscriptionProvider());
   }
 
   public static getInstance(): ProviderRegistry {
@@ -34,13 +36,20 @@ export class ProviderRegistry {
     if (
       normalized === 'whisper' ||
       normalized === 'whisper local' ||
-      normalized === 'whisper-local' ||
-      normalized.includes('whisper')
+      normalized === 'whisper-local'
     ) {
       return this.providers.get('whisper-local');
     }
     if (normalized === 'gemini' || normalized.includes('gemini')) {
       return this.providers.get('gemini');
+    }
+    if (
+      normalized === 'openai' ||
+      normalized === 'openai-asr' ||
+      normalized === 'openai whisper' ||
+      normalized.includes('openai')
+    ) {
+      return this.providers.get('openai-asr');
     }
 
     return this.providers.get(id);

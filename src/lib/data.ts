@@ -3,8 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
-  projectName: 'Courtroom Drama - The Verdict',
-  title: 'Courtroom Drama - The Verdict',
+  projectName: 'Untitled Project',
+  title: 'Untitled Project',
   sourceLang: 'EN',
   targetLang: 'ES',
   translator: 'Your Name',
