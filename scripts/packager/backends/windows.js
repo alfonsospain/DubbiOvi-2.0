@@ -23,6 +23,21 @@ class WindowsPackager extends BasePlatformPackager {
         fs.copyFileSync(path.join(srcDir, f), path.join(stagingDir, f));
       }
     }
+
+    // Copy LICENSE and VERSION if present
+    for (const docFile of ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'VERSION']) {
+      const candidates = [
+        path.join(srcDir, docFile),
+        path.join(path.dirname(srcDir), docFile),
+        path.join(path.dirname(path.dirname(srcDir)), docFile),
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+          fs.copyFileSync(cand, path.join(stagingDir, docFile));
+          break;
+        }
+      }
+    }
   }
 
   processRelocation() {

@@ -24,6 +24,21 @@ class MacOSPackager extends BasePlatformPackager {
     }
     fs.copyFileSync(srcExec, destExec);
 
+    // Copy LICENSE and VERSION if present in srcDir or parent dirs
+    for (const docFile of ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'VERSION']) {
+      const candidates = [
+        path.join(srcDir, docFile),
+        path.join(path.dirname(srcDir), docFile),
+        path.join(path.dirname(path.dirname(srcDir)), docFile),
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+          fs.copyFileSync(cand, path.join(stagingDir, docFile));
+          break;
+        }
+      }
+    }
+
     // Strict Recursive Mach-O Dependency Resolution
     const visited = new Set();
     const queue = [srcExec];

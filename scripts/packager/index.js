@@ -25,38 +25,48 @@ function parseArgs() {
     executable: '',
     srcDir: '',
     outDir: './dist',
+    targetPlatform: '',
+    targetArch: '',
     minimumDubbiOviVersion: '2.0.0',
   };
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--engine-id' && args[i + 1]) spec.engineId = args[++i];
+    if ((arg === '--engine-id' || arg === '--engine') && args[i + 1]) spec.engineId = args[++i];
     else if (arg === '--engine-name' && args[i + 1]) spec.engineName = args[++i];
     else if (arg === '--category' && args[i + 1]) spec.category = args[++i];
     else if (arg === '--version' && args[i + 1]) spec.version = args[++i];
-    else if (arg === '--exec' && args[i + 1]) spec.executable = args[++i];
-    else if (arg === '--src-dir' && args[i + 1]) spec.srcDir = path.resolve(args[++i]);
-    else if (arg === '--out-dir' && args[i + 1]) spec.outDir = path.resolve(args[++i]);
+    else if ((arg === '--exec' || arg === '--binary') && args[i + 1]) spec.executable = args[++i];
+    else if ((arg === '--src-dir' || arg === '--src') && args[i + 1]) spec.srcDir = path.resolve(args[++i]);
+    else if ((arg === '--out-dir' || arg === '--out') && args[i + 1]) spec.outDir = path.resolve(args[++i]);
+    else if (arg === '--target-platform' && args[i + 1]) spec.targetPlatform = args[++i];
+    else if (arg === '--target-arch' && args[i + 1]) spec.targetArch = args[++i];
     else if (arg === '--min-app-version' && args[i + 1]) spec.minimumDubbiOviVersion = args[++i];
     else if (arg === '--help') {
       console.log(`
 Usage: package-runtime [options]
 
 Options:
-  --engine-id        Engine ID (e.g. whisper, piper, kokoro, xtts) [Required]
-  --engine-name      Engine display name [Required]
-  --category         Category (asr, tts, llm, mt) [Required]
-  --version          Engine version (e.g. 1.9.1) [Required]
-  --exec             Executable filename (e.g. whisper-cli) [Required]
-  --src-dir          Source build directory [Required]
-  --out-dir          Output folder (default: ./dist)
-  --min-app-version  Minimum DubbiOvi version required (default: 2.0.0)
+  --engine-id, --engine   Engine ID (e.g. whisper, piper, kokoro, xtts) [Required]
+  --engine-name           Engine display name (default: derived from engine ID)
+  --category              Category (asr, tts, llm, mt) [Required]
+  --version               Engine version (e.g. 1.9.1) [Required]
+  --exec, --binary        Executable filename (e.g. whisper-cli) [Required]
+  --src-dir, --src        Source build directory [Required]
+  --out-dir, --out        Output folder (default: ./dist)
+  --target-platform       Target OS platform (default: current process.platform)
+  --target-arch           Target CPU architecture (default: current process.arch)
+  --min-app-version       Minimum DubbiOvi version required (default: 2.0.0)
 `);
       process.exit(0);
     }
   }
 
-  if (!spec.engineId || !spec.engineName || !spec.category || !spec.version || !spec.executable || !spec.srcDir) {
+  if (!spec.engineName && spec.engineId) {
+    spec.engineName = `${spec.engineId.charAt(0).toUpperCase()}${spec.engineId.slice(1)} Engine`;
+  }
+
+  if (!spec.engineId || !spec.category || !spec.version || !spec.executable || !spec.srcDir) {
     console.error('Error: Missing required packaging arguments. Use --help for usage details.');
     process.exit(1);
   }
@@ -90,12 +100,12 @@ function getRelativeFiles(dir, baseDir = dir) {
 
 async function run() {
   const spec = parseArgs();
-  const platform = process.platform;
-  const arch = process.arch;
+  const platform = spec.targetPlatform || process.platform;
+  const arch = spec.targetArch || process.arch;
   const platformKey = `${platform}_${arch}`;
 
   const packageName = `${spec.engineId}-${platformKey}`;
-  spec.stagingDir = path.join(spec.outDir, packageName);
+  spec.stagingDir = path.join(spec.outDir, '.staging', packageName);
   spec.zipPath = path.join(spec.outDir, `${packageName}.zip`);
   spec.platform = platform;
   spec.arch = arch;
@@ -166,21 +176,12 @@ async function run() {
 
   const zipCmd = platform === 'win32'
     ? `powershell -Command "Compress-Archive -Path '${spec.stagingDir}\\*' -DestinationPath '${spec.zipPath}' -Force"`
-    : `cd "${spec.outDir}" && zip -q -r "${path.basename(spec.zipPath)}" "${packageName}"`;
+    : `cd "${spec.stagingDir}" && zip -q -r "${spec.zipPath}" .`;
 
   spawnSync(zipCmd, { shell: true, stdio: 'inherit' });
 
   if (fs.existsSync(spec.zipPath)) {
-    const initialChecksum = computeSha256(spec.zipPath);
-    manifestData.checksumSha256 = initialChecksum;
-    fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2), 'utf8');
-
-    // Re-archive so manifest.json inside the zip contains the checksum
-    spawnSync(zipCmd, { shell: true, stdio: 'inherit' });
     const finalChecksum = computeSha256(spec.zipPath);
-    manifestData.checksumSha256 = finalChecksum;
-    fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2), 'utf8');
-
     const checksumFilePath = `${spec.zipPath}.sha256`;
     fs.writeFileSync(checksumFilePath, `${finalChecksum}  ${path.basename(spec.zipPath)}\n`, 'utf8');
 

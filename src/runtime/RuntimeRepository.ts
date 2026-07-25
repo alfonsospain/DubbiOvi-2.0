@@ -3,6 +3,25 @@ import { RuntimeDescriptor } from './RuntimeTypes';
 export class RuntimeRepository {
   private descriptors: Map<string, RuntimeDescriptor> = new Map();
 
+  /**
+   * Centralized platform resolution helper mapping platform and architecture to platform keys.
+   * Format: ${platform}_${arch} (e.g. darwin_arm64, darwin_x64, win32_x64, linux_x64, linux_arm64)
+   */
+  public static resolvePlatformKey(platform = process.platform, arch = process.arch): string {
+    const cleanPlatform = (platform || process.platform).toLowerCase();
+    const cleanArch = (arch || process.arch).toLowerCase();
+    return `${cleanPlatform}_${cleanArch}`;
+  }
+
+  /**
+   * Centralized resolution helper for engine release package filenames matching github release assets.
+   * Format: ${engineId}-${platform}_${arch}.zip (e.g. whisper-darwin_arm64.zip, whisper-win32_x64.zip)
+   */
+  public static resolveReleaseFilename(engineId: string, platform = process.platform, arch = process.arch): string {
+    const platformKey = RuntimeRepository.resolvePlatformKey(platform, arch);
+    return `${engineId}-${platformKey}.zip`;
+  }
+
   constructor() {
     this.registerDefaultDescriptors();
   }
@@ -11,7 +30,7 @@ export class RuntimeRepository {
    * Helper to make internal lookup key: id@version_platform_arch or id_platform_arch
    */
   private makeKey(id: string, version?: string, platform = process.platform, arch = process.arch): string {
-    const platKey = `${platform}_${arch}`;
+    const platKey = RuntimeRepository.resolvePlatformKey(platform, arch);
     return version ? `${id}@${version}_${platKey}` : `${id}_${platKey}`;
   }
 

@@ -1,15 +1,15 @@
 import { TranscriptionProvider } from './transcription-types';
 import { GeminiProvider } from './GeminiProvider';
-import { WhisperLocalProvider } from './WhisperLocalProvider';
+import { WhisperLocalClientProvider } from './WhisperLocalClientProvider';
 
 export class ProviderRegistry {
   private static instance: ProviderRegistry | null = null;
   private providers: Map<string, TranscriptionProvider> = new Map();
 
   public constructor() {
-    // Auto-register default providers
+    // Auto-register default client providers (browser/Turbopack safe)
     this.register(new GeminiProvider());
-    this.register(new WhisperLocalProvider());
+    this.register(new WhisperLocalClientProvider());
   }
 
   public static getInstance(): ProviderRegistry {

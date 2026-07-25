@@ -78,7 +78,8 @@ export function toVTT(takes: Take[]): string {
 }
 
 /**
- * Parses a timestamp in HH:MM:SS.mmm (or HH:MM:SS,mmm) format into absolute decimal seconds.
+ * Parses a timestamp in HH:MM:SS.mmm (or HH:MM:SS,mmm or MM:SS.mmm) format into absolute decimal seconds.
+ * Supports mathematical overflow normalization (e.g. "00:24:65.050" -> 1505.05s).
  * 
  * @param timestamp The timestamp string.
  * @returns The absolute time in decimal seconds.
@@ -89,46 +90,39 @@ export function parseTimestampToSeconds(timestamp: string): number {
   }
 
   // Normalize comma to dot for decimal milliseconds and trim surrounding whitespace
-  const normalized = timestamp.trim().replace(',', '.');
+  const trimmed = timestamp.trim().replace(',', '.');
 
-  // Parse and normalize segments to ensure double digits (or single-digit padding)
-  const parts = normalized.split(':').map(p => p.trim());
-  let finalTimestamp = normalized;
+  // Split into colon-separated segments: e.g. ["00", "24", "65.050"] or ["24", "65.050"]
+  const parts = trimmed.split(':').map(p => p.trim());
 
-  if (parts.length === 2) {
-    // Format: MM:SS.mmm
-    const minutes = parts[0].padStart(2, '0');
-    const secondsWithMs = parts[1];
-    const secParts = secondsWithMs.split('.').map(s => s.trim());
-    const seconds = secParts[0].padStart(2, '0');
-    const ms = secParts[1] || '000';
-    finalTimestamp = `00:${minutes}:${seconds}.${ms}`;
-  } else if (parts.length === 3) {
-    // Format: HH:MM:SS.mmm
-    const hours = parts[0].padStart(2, '0');
-    const minutes = parts[1].padStart(2, '0');
-    const secondsWithMs = parts[2];
-    const secParts = secondsWithMs.split('.').map(s => s.trim());
-    const seconds = secParts[0].padStart(2, '0');
-    const ms = secParts[1] || '000';
-    finalTimestamp = `${hours}:${minutes}:${seconds}.${ms}`;
-  }
-
-  // Regex to match HH:MM:SS.mmm format (HH can be 1 or more digits)
-  const regex = /^(\d+):([0-5]\d):([0-5]\d)\.(\d+)$/;
-  const match = finalTimestamp.match(regex);
-
-  if (!match) {
+  if (parts.length < 1 || parts.length > 3) {
     throw new Error(`Malformed timestamp: "${timestamp}". Expected format HH:MM:SS.mmm or MM:SS.mmm`);
   }
 
-  const hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const seconds = parseInt(match[3], 10);
-  
-  // Convert milliseconds fractional part (e.g. "250" -> 0.250, "4" -> 0.004)
-  const msStr = match[4];
-  const milliseconds = parseInt(msStr, 10) / Math.pow(10, msStr.length);
+  let hours = 0;
+  let minutes = 0;
+  let secondsWithMs = '';
+
+  if (parts.length === 3) {
+    hours = parseInt(parts[0], 10);
+    minutes = parseInt(parts[1], 10);
+    secondsWithMs = parts[2];
+  } else if (parts.length === 2) {
+    minutes = parseInt(parts[0], 10);
+    secondsWithMs = parts[1];
+  } else {
+    secondsWithMs = parts[0];
+  }
+
+  // Split seconds and decimal milliseconds part
+  const secParts = secondsWithMs.split('.');
+  const seconds = parseInt(secParts[0], 10);
+
+  let milliseconds = 0;
+  if (secParts.length > 1 && secParts[1].length > 0) {
+    const msStr = secParts[1].trim();
+    milliseconds = parseInt(msStr, 10) / Math.pow(10, msStr.length);
+  }
 
   if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) || isNaN(milliseconds)) {
     throw new Error(`Malformed timestamp: "${timestamp}". Numbers could not be parsed`);

@@ -19,14 +19,17 @@ export type RuntimeStatus =
  * DubbiOvi Runtime Manifest Schema v2.0.0
  */
 export interface RuntimeManifest {
+  manifestVersion?: string; // e.g. "2.0.0"
   schemaVersion: string; // e.g. "2.0.0"
   minimumDubbiOviVersion: string; // e.g. "2.0.0"
   runtimeApiVersion: string; // e.g. "2.0.0"
   id: string; // e.g. "whisper"
+  engine?: string; // e.g. "whisper"
   name: string; // e.g. "Whisper.cpp Engine"
   category: RuntimeCategory;
   version: string; // e.g. "1.9.1"
   executable: string; // e.g. "bin/whisper-cli"
+  binary?: string; // e.g. "bin/whisper-cli"
   platform: string; // e.g. "darwin"
   arch: string; // e.g. "arm64"
   packagedAt: string; // ISO 8601 string

@@ -1,6 +1,20 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { TranscriptionProvider, ProviderCapabilities, TranscriptResult, PreparedAudio } from './transcription-types';
 import { parseTimestampToSeconds } from './utils';
+import { RuntimeExecutionResult } from '../runtime/RuntimeExecutionResult';
+import { RuntimeExecutionOptions } from '../runtime/RuntimeExecution';
+import { RuntimeExecutor } from '../runtime/RuntimeExecutor';
+
+/**
+ * Execution result returned by WhisperLocalProvider.transcribeAudio.
+ */
+export interface WhisperExecutionResult {
+  rawOutput: string;
+  execution: RuntimeExecutionResult;
+}
 
 /**
  * Parser responsible for converting the JSON output from whisper-cli
@@ -64,13 +78,15 @@ export class WhisperLocalProvider implements TranscriptionProvider {
 
   private activeModelName?: string;
   private targetVersion: string = '1.9.1';
+  private executor?: RuntimeExecutor;
 
   /**
-   * Constructs the provider with an optional model name and target version.
+   * Constructs the provider with optional active model name, target version, and RuntimeExecutor.
    */
-  constructor(activeModelName?: string, targetVersion = '1.9.1') {
+  constructor(activeModelName?: string, targetVersion = '1.9.1', executor?: RuntimeExecutor) {
     this.activeModelName = activeModelName;
     this.targetVersion = targetVersion;
+    this.executor = executor;
   }
 
   /**
@@ -175,5 +191,125 @@ export class WhisperLocalProvider implements TranscriptionProvider {
     }
 
     return WhisperLocalParser.parse(rawResult);
+  }
+
+  /**
+   * Milestone 7B — Direct execution of Whisper runtime against a local WAV audio file.
+   *
+   * Executes Whisper via RuntimeExecutor against a WAV audio file and returns the raw output
+   * string without parsing, mapping, or inspecting domain data structures.
+   *
+   * @param audioPath Path to input WAV audio file.
+   * @param modelPath Path to input Whisper model file.
+   * @param options Runtime execution options (args, env, cwd, timeoutMs, signal, onStdout, onStderr, executor).
+   */
+  public async transcribeAudio(
+    audioPath: string,
+    modelPath: string,
+    options?: Partial<RuntimeExecutionOptions> & { executor?: RuntimeExecutor }
+  ): Promise<WhisperExecutionResult> {
+    // 1. Validate input parameters
+    if (!audioPath || typeof audioPath !== 'string') {
+      throw new Error('Invalid parameter: audioPath is required and must be a string.');
+    }
+    if (!fs.existsSync(audioPath)) {
+      throw new Error(`Audio file not found at path: ${audioPath}`);
+    }
+    const audioStat = fs.statSync(audioPath);
+    if (!audioStat.isFile()) {
+      throw new Error(`Audio path is not a file: ${audioPath}`);
+    }
+
+    if (!modelPath || typeof modelPath !== 'string') {
+      throw new Error('Invalid parameter: modelPath is required and must be a string.');
+    }
+    if (!fs.existsSync(modelPath)) {
+      throw new Error(`Whisper model file not found at path: ${modelPath}`);
+    }
+    const modelStat = fs.statSync(modelPath);
+    if (!modelStat.isFile()) {
+      throw new Error(`Model path is not a file: ${modelPath}`);
+    }
+
+    // 2. Resolve RuntimeExecutor instance
+    const executor = options?.executor || this.executor;
+    if (!executor) {
+      throw new Error('RuntimeExecutor instance is required to execute Whisper local runtime.');
+    }
+
+    // 3. Prepare temporary output file prefix
+    const tempDir = os.tmpdir();
+    const outputPrefix = path.join(tempDir, `whisper_out_${uuidv4()}`);
+    const expectedJsonFile = `${outputPrefix}.json`;
+
+    // 4. Build command line arguments compatible with Whisper CLI
+    const whisperArgs: string[] = [
+      '-m', modelPath,
+      '-f', audioPath,
+      '-oj',
+      '-of', outputPrefix
+    ];
+
+    if (options?.args && Array.isArray(options.args)) {
+      whisperArgs.push(...options.args);
+    }
+
+    // 5. Invoke RuntimeExecutor
+    let executionResult: RuntimeExecutionResult;
+    try {
+      executionResult = await executor.execute({
+        runtimeId: this.runtimeId,
+        version: options?.version || this.targetVersion,
+        args: whisperArgs,
+        cwd: options?.cwd,
+        env: options?.env,
+        timeoutMs: options?.timeoutMs,
+        signal: options?.signal,
+        onStdout: options?.onStdout,
+        onStderr: options?.onStderr,
+      });
+    } catch (err: any) {
+      throw new Error(`Whisper runtime execution exception: ${err.message || String(err)}`);
+    }
+
+    // 6. Validate process execution outcome
+    if (!executionResult.success || executionResult.exitCode !== 0) {
+      const detail = executionResult.error || executionResult.stderr || `Exit code ${executionResult.exitCode}`;
+      throw new Error(`Whisper runtime process execution failed: ${detail}`);
+    }
+
+    // 7. Read & clean up output JSON payload
+    let rawOutput = '';
+    const targetJsonPath = fs.existsSync(expectedJsonFile)
+      ? expectedJsonFile
+      : fs.existsSync(`${audioPath}.json`)
+      ? `${audioPath}.json`
+      : null;
+
+    if (!targetJsonPath) {
+      throw new Error(`Whisper output JSON file missing after process completion. Expected: ${expectedJsonFile}`);
+    }
+
+    try {
+      rawOutput = fs.readFileSync(targetJsonPath, 'utf8');
+    } catch (readErr: any) {
+      throw new Error(`Failed to read Whisper output file: ${readErr.message}`);
+    } finally {
+      try {
+        if (fs.existsSync(targetJsonPath)) {
+          fs.unlinkSync(targetJsonPath);
+        }
+      } catch (_) {}
+    }
+
+    // Opaque payload validation: must exist and be non-empty string
+    if (!rawOutput || typeof rawOutput !== 'string' || rawOutput.trim().length === 0) {
+      throw new Error('Whisper runtime produced an empty output file.');
+    }
+
+    return {
+      rawOutput,
+      execution: executionResult,
+    };
   }
 }

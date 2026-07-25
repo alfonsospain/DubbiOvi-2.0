@@ -14,6 +14,7 @@
     "electron:build": "npm run generate-icon && npm run build:next && electron-builder --mac",
     "electron:build:win": "npm run generate-icon && npm run build:next && electron-builder --win",
     "start": "next start",
+    "package:runtime": "node scripts/package-runtimes.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
