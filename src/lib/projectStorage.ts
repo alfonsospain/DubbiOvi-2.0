@@ -1,9 +1,11 @@
 import type { ProjectSettings, Take, GlossaryEntry } from './types';
+import type { VoiceAsset } from './types/voice-types';
 
 export interface WorkspaceState {
   settings: ProjectSettings;
   takes: Take[];
   glossary: GlossaryEntry[];
+  voiceAssets?: VoiceAsset[];
   videoFileName?: string | null;
   activeFilePath?: string | null;
 }

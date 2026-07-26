@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { formatTimeForDisplay } from '@/lib/utils';
+import { VoiceTimelineTrack } from './VoiceTimelineTrack';
 
 interface TimelineProps {
   takes: Take[];
@@ -92,11 +93,12 @@ const Timeline: React.FC<TimelineProps> = ({
         >
           {/* Zoomed Timeline Track Width */}
           <div
-            className="relative h-12 cursor-pointer bg-secondary/30 rounded-lg select-none"
+            className="relative cursor-pointer bg-secondary/30 rounded-lg select-none p-1 flex flex-col gap-1.5"
             style={{ width: timelineWidth }}
             onClick={handleTimebarClick}
           >
-            <div className="relative h-full w-full">
+            {/* Row 1: Take Timeline Track */}
+            <div className="relative h-10 w-full">
               {duration > 0 &&
                 takes.map((take, index) => {
                   const left = (take.startSeconds / duration) * 100;
@@ -105,11 +107,11 @@ const Timeline: React.FC<TimelineProps> = ({
                     <Tooltip key={take.id} delayDuration={100}>
                       <TooltipTrigger asChild>
                         <div
-                          ref={el => {
+                          ref={(el) => {
                             segmentRefs.current[index] = el;
                           }}
                           className={cn(
-                            'absolute top-1 bottom-1 rounded-sm transition-all duration-150 ease-linear',
+                            'absolute top-0.5 bottom-0.5 rounded-sm transition-all duration-150 ease-linear',
                             getTakeColor(take.status),
                             {
                               'ring-2 ring-offset-2 ring-primary ring-offset-background z-10':
@@ -121,11 +123,11 @@ const Timeline: React.FC<TimelineProps> = ({
                             left: `${left}%`,
                             width: `${width}%`,
                           }}
-                          onClick={e => {
+                          onClick={(e) => {
                             e.stopPropagation();
                             onTakeClick(index);
                           }}
-                          onDoubleClick={e => {
+                          onDoubleClick={(e) => {
                             e.stopPropagation();
                             if (onTakeDoubleClick) {
                               onTakeDoubleClick(index);
@@ -156,9 +158,20 @@ const Timeline: React.FC<TimelineProps> = ({
                   );
                 })}
             </div>
+
+            {/* Row 2: Voice Timeline Track */}
+            <VoiceTimelineTrack
+              takes={takes}
+              duration={duration}
+              currentIndex={currentIndex}
+              onTakeClick={onTakeClick}
+              onTakeDoubleClick={onTakeDoubleClick}
+            />
+
+            {/* Playhead Vertical Overlay */}
             {duration > 0 && (
               <div
-                className="absolute top-0 h-full w-1 -translate-x-1/2 rounded-full bg-[#00FF88] pointer-events-none z-20"
+                className="absolute top-0 bottom-0 w-1 -translate-x-1/2 rounded-full bg-[#00FF88] pointer-events-none z-20"
                 style={{ left: `${(currentTime / duration) * 100}%` }}
               />
             )}
