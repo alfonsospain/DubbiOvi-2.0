@@ -3,6 +3,7 @@ import { Take } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface RegisterVoiceAssetInput {
+  id?: string;
   takeId: string;
   relativePath: string;
   filename: string;
@@ -41,7 +42,7 @@ export class VoiceAssetManager {
     }
 
     const asset: VoiceAsset = {
-      id: uuidv4(),
+      id: input.id || uuidv4(),
       takeId: input.takeId,
       relativePath: input.relativePath,
       filename: input.filename || input.relativePath.split('/').pop() || 'voice.wav',

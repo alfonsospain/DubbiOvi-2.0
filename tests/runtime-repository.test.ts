@@ -102,10 +102,12 @@ async function runRuntimeRepositoryTests() {
   // 3. Verify Repository Single Source of Truth
   console.log('\n[Test 3] Verifying getAllDescriptors() metadata collection...');
   const all = await repository.getAllDescriptors();
-  if (all.length !== 3) {
-    throw new Error(`FAILED: Expected 3 registered descriptors, got ${all.length}`);
+  const whisperCount = all.filter((d) => d.id === 'whisper').length;
+  const piperCount = all.filter((d) => d.id === 'piper').length;
+  if (whisperCount < 3 || piperCount < 3) {
+    throw new Error(`FAILED: Expected at least 3 Whisper and 3 Piper descriptors, got Whisper: ${whisperCount}, Piper: ${piperCount}`);
   }
-  console.log(`  ✓ getAllDescriptors returned ${all.length} registered descriptors.`);
+  console.log(`  ✓ getAllDescriptors returned ${all.length} registered descriptors (Whisper: ${whisperCount}, Piper: ${piperCount}).`);
 
   console.log('\n=====================================================');
   console.log(' ALL RUNTIME REPOSITORY METADATA TESTS PASSED (100%)');

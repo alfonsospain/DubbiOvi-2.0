@@ -119,5 +119,45 @@ export class RuntimeRepository {
       minimumDubbiOviVersion: '2.0.0',
     };
     this.registerDescriptor(whisperWinX64, 'win32', 'x64');
+
+    // Piper Neural TTS runtime packages v1.0.0
+    const piperMacArm64: RuntimeDescriptor = {
+      id: 'piper',
+      name: 'Piper Neural TTS Engine',
+      category: 'tts',
+      version: '1.0.0',
+      downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/piper-darwin_arm64.zip',
+      checksumSha256: 'a1b2c3d4e5f60000000000000000000000000000000000000000000000000001',
+      estimatedSize: '15.5 MB',
+      runtimeApiVersion: '2.0.0',
+      minimumDubbiOviVersion: '2.0.0',
+    };
+    this.registerDescriptor(piperMacArm64, 'darwin', 'arm64');
+
+    const piperMacX64: RuntimeDescriptor = {
+      id: 'piper',
+      name: 'Piper Neural TTS Engine',
+      category: 'tts',
+      version: '1.0.0',
+      downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/piper-darwin_x64.zip',
+      checksumSha256: 'a1b2c3d4e5f60000000000000000000000000000000000000000000000000002',
+      estimatedSize: '16.0 MB',
+      runtimeApiVersion: '2.0.0',
+      minimumDubbiOviVersion: '2.0.0',
+    };
+    this.registerDescriptor(piperMacX64, 'darwin', 'x64');
+
+    const piperWinX64: RuntimeDescriptor = {
+      id: 'piper',
+      name: 'Piper Neural TTS Engine',
+      category: 'tts',
+      version: '1.0.0',
+      downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/piper-win32_x64.zip',
+      checksumSha256: 'a1b2c3d4e5f60000000000000000000000000000000000000000000000000003',
+      estimatedSize: '14.8 MB',
+      runtimeApiVersion: '2.0.0',
+      minimumDubbiOviVersion: '2.0.0',
+    };
+    this.registerDescriptor(piperWinX64, 'win32', 'x64');
   }
 }

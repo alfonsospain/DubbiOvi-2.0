@@ -44,4 +44,7 @@ contextBridge.exposeInMainWorld('electron', {
   // App Settings IPC Endpoints
   getAppSetting: (key, defaultValue) => ipcRenderer.invoke('get-app-setting', { key, defaultValue }),
   setAppSetting: (key, value) => ipcRenderer.invoke('set-app-setting', { key, value }),
+  // Piper Voice Provider IPC Endpoints
+  runPiperLocal: (params) => ipcRenderer.invoke('run-piper-local', params),
+  listModels: (engineId) => ipcRenderer.invoke('list-models', engineId),
 });
