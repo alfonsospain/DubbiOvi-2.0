@@ -6,6 +6,8 @@ import { parseTimestampToSeconds } from './utils';
  * Parser responsible for converting the raw JSON output from whisper-cli / IPC
  * into a strongly typed TranscriptResult conforming to the domain definition.
  */
+import { WhisperModelManager } from './WhisperModelManager';
+
 export class WhisperLocalParser {
   public static parse(rawResult: any): TranscriptResult {
     // If conversion happened inside the Main Process, return TranscriptResult directly
@@ -171,10 +173,11 @@ export class WhisperLocalClientProvider implements TranscriptionProvider {
     }
 
     const arrayBuffer = await audio.blob.arrayBuffer();
+    const modelToUse = this.activeModelName || (await WhisperModelManager.getActiveModelName());
 
     let rawResult;
     try {
-      rawResult = await (window as any).electron.runWhisperLocal(arrayBuffer, this.activeModelName);
+      rawResult = await (window as any).electron.runWhisperLocal(arrayBuffer, modelToUse);
     } catch (err: any) {
       console.error('Whisper Local transcription error:', err);
       throw new Error(`Whisper Local Error: ${err.message || String(err)}`);

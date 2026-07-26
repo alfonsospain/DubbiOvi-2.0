@@ -41,6 +41,11 @@ import { providerRegistry } from '@/lib/ProviderRegistry';
 import { loadApiKey, loadOpenAiApiKey } from '@/lib/apiKeyStorage';
 import { SUPPORTED_LANGUAGES } from '@/lib/data';
 import { ModelDownloadDialog } from './ModelDownloadDialog';
+import { WhisperModelManager } from '@/lib/WhisperModelManager';
+import { WhisperModelSelector } from './WhisperModelSelector';
+import { ExecutionProgressTracker } from '@/runtime/progress/ExecutionProgressTracker';
+import { ExecutionProgressDialog } from './ExecutionProgressDialog';
+import { ExecutionJob } from '@/runtime/progress/ProgressTypes';
 
 interface ImportExportPanelProps {
   takes: Take[];
@@ -117,6 +122,10 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
     estimatedSize: string;
   } | null>(null);
 
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [progressJob, setProgressJob] = useState<ExecutionJob | null>(null);
+  const trackerRef = React.useRef<ExecutionProgressTracker | null>(null);
+
   React.useEffect(() => {
     setHasApiKey(!!loadApiKey());
   }, []);
@@ -171,8 +180,9 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         return;
       }
 
-      // Phase 2: Check engine model file
-      const targetModel = 'ggml-tiny.bin';
+      // Phase 2: Check engine model file for active selected model
+      const targetModel = await WhisperModelManager.getActiveModelName();
+      const modelDesc = WhisperModelManager.getModelDescriptor(targetModel);
       const modelRes = await (window as any).electron.checkEngineModel('whisper', targetModel);
       if (modelRes && !modelRes.exists) {
         setMissingResourceDetails({
@@ -180,7 +190,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
           engineId: 'whisper',
           engineName: activeProvider.name,
           modelName: targetModel,
-          estimatedSize: '~75 MB',
+          estimatedSize: modelDesc?.estimatedSize || '~75 MB',
         });
         setDownloadDialogOpen(true);
         return;
@@ -188,16 +198,34 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
     }
 
     setIsTranscribing(true);
-    setTranscriptionStage('preparing');
+
+    const tracker = new ExecutionProgressTracker({
+      title: 'Speech Recognition',
+      provider: activeProvider.name,
+      canCancel: true,
+      steps: [
+        { id: 'runtime-check', label: 'Runtime ready' },
+        { id: 'model-check', label: 'Model loaded' },
+        { id: 'audio-prep', label: 'Audio extracted & normalized' },
+        { id: 'transcribing', label: 'Transcribing audio' },
+        { id: 'generating-takes', label: 'Creating takes' },
+      ],
+    });
+
+    trackerRef.current = tracker;
+    tracker.subscribe((job) => setProgressJob(job));
+    setProgressDialogOpen(true);
+    tracker.start();
 
     try {
+      tracker.setStep('runtime-check');
+      tracker.setStep('model-check');
+
+      tracker.setStep('audio-prep');
       const prepService = new AudioPreparationService();
       const preparedAudio = await prepService.prepareAudio(videoFile, activeProvider.capabilities);
 
-      setTranscriptionStage('optimizing');
-
-      setTranscriptionStage('uploading');
-      setTranscriptionStage('transcribing');
+      tracker.setStep('transcribing');
       const userApiKey = (activeProvider.id === 'openai-asr' ? loadOpenAiApiKey() : loadApiKey()) || undefined;
       const result = await activeProvider.transcribe(preparedAudio, selectedAsrLang, userApiKey);
 
@@ -205,16 +233,17 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         throw new Error('No speech segments detected in this video.');
       }
 
-      setTranscriptionStage('generating');
-
+      tracker.setStep('generating-takes');
       onImport(result.takes);
-      setTranscriptionStage('completed');
+
+      tracker.complete();
       toast({
         title: 'Transcription Complete',
         description: `Imported ${result.takes.length} segments using ${activeProvider.name}.`,
       });
     } catch (err: any) {
       console.error(err);
+      tracker.fail(err.message || String(err));
       toast({
         title: 'Transcription Failed',
         description: err.message || String(err),
@@ -222,7 +251,6 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
       });
     } finally {
       setIsTranscribing(false);
-      setTranscriptionStage(null);
     }
   };
 
@@ -501,6 +529,23 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                   </Select>
                 </div>
 
+                {activeProvider && activeProvider.id === 'whisper-local' && (
+                  <div className="pt-2 border-t border-border/40">
+                    <WhisperModelSelector
+                      onRequestDownload={(modelFilename, estimatedSize) => {
+                        setMissingResourceDetails({
+                          resourceType: 'model',
+                          engineId: 'whisper',
+                          engineName: activeProvider.name,
+                          modelName: modelFilename,
+                          estimatedSize,
+                        });
+                        setDownloadDialogOpen(true);
+                      }}
+                    />
+                  </div>
+                )}
+
                 {transcriptionProvider === 'None' ? (
                   <div className="p-2.5 rounded border border-amber-500/20 bg-amber-500/5 text-[10.5px] text-amber-400 leading-normal">
                     ⚠️ Transcription provider is set to <strong>None (Manual)</strong> in the <strong>Services</strong> tab. Select a provider (e.g. <strong>Whisper Local</strong> or <strong>Gemini</strong>) to transcribe automatically.
@@ -705,6 +750,20 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
           setTimeout(() => {
             handleAsrTranscription();
           }, 300);
+        }}
+      />
+
+      {/* Generic Execution Progress Dialog (Milestone 8C & 8D) */}
+      <ExecutionProgressDialog
+        open={progressDialogOpen}
+        job={progressJob}
+        onCancelRequested={() => {
+          if (trackerRef.current) {
+            trackerRef.current.requestCancel();
+          }
+        }}
+        onClose={() => {
+          setProgressDialogOpen(false);
         }}
       />
     </div>

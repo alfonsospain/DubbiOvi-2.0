@@ -41,4 +41,7 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('runtime-output-stream', subscription);
     return () => ipcRenderer.removeListener('runtime-output-stream', subscription);
   },
+  // App Settings IPC Endpoints
+  getAppSetting: (key, defaultValue) => ipcRenderer.invoke('get-app-setting', { key, defaultValue }),
+  setAppSetting: (key, value) => ipcRenderer.invoke('set-app-setting', { key, value }),
 });

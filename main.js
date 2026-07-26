@@ -9,11 +9,13 @@ const { RuntimeManager, RuntimeRepository, RuntimeExecutor } = require('./src/ru
 const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers');
 const EngineRegistry = require('./engine-registry');
 const LocalEngineManager = require('./local-engine-manager');
+const AppSettingsService = require('./app-settings-service');
 
 let nextProcess = null;
 let mainWindow = null;
 let engineRegistry = null;
 let localEngineManager = null;
+let appSettingsService = null;
 let runtimeManager = null;
 let runtimeRepository = null;
 let runtimeExecutor = null;
@@ -343,6 +345,14 @@ async function createWindow() {
 }
 
 app.whenReady().then(() => {
+  try {
+    appSettingsService = new AppSettingsService(app);
+    app.settingsService = appSettingsService;
+    logDiag('[AppSettingsService] Initialized AppSettingsService successfully.');
+  } catch (err) {
+    logDiag(`[AppSettingsService] Initialization error: ${err.message}`);
+  }
+
   try {
     engineRegistry = new EngineRegistry();
     engineRegistry.registerDefaults();
@@ -742,6 +752,19 @@ ipcMain.handle('execute-runtime', async (event, options) => {
     },
   });
 });
+
+// App Settings IPC Handlers
+ipcMain.handle('get-app-setting', async (event, { key, defaultValue }) => {
+  if (!appSettingsService) return defaultValue !== undefined ? defaultValue : null;
+  return appSettingsService.getSetting(key, defaultValue);
+});
+
+ipcMain.handle('set-app-setting', async (event, { key, value }) => {
+  if (!appSettingsService) throw new Error('AppSettingsService is not initialized.');
+  appSettingsService.setSetting(key, value);
+  return { success: true };
+});
+
 
 
 
