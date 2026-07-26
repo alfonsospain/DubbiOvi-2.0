@@ -9,7 +9,19 @@ export class RuntimeInstaller {
    */
   async extractToStaging(archivePath: string, stagingDir: string): Promise<void> {
     if (!fs.existsSync(archivePath)) {
-      throw new Error(`Archive file not found: ${archivePath}`);
+      const cleanCheck = archivePath.replace(/\.tmp$/i, '');
+      if (fs.existsSync(cleanCheck)) {
+        archivePath = cleanCheck;
+      } else {
+        throw new Error(`Archive file not found: ${archivePath}`);
+      }
+    }
+
+    // Rename temporary archive (.zip.tmp) to clean archive extension (.zip) for Expand-Archive compatibility
+    const cleanPath = archivePath.replace(/\.tmp$/i, '');
+    if (archivePath !== cleanPath && fs.existsSync(archivePath)) {
+      fs.renameSync(archivePath, cleanPath);
+      archivePath = cleanPath;
     }
 
     if (fs.existsSync(stagingDir)) {
@@ -19,9 +31,8 @@ export class RuntimeInstaller {
 
     // 1. Perform Unpacking
     await new Promise<void>((resolve, reject) => {
-      const cleanPath = archivePath.replace(/\.tmp$/i, '');
-      const isZip = cleanPath.endsWith('.zip');
-      const isTar = cleanPath.endsWith('.tar.gz') || cleanPath.endsWith('.tgz');
+      const isZip = archivePath.endsWith('.zip');
+      const isTar = archivePath.endsWith('.tar.gz') || archivePath.endsWith('.tgz');
 
       let cmd = '';
       let args: string[] = [];
@@ -94,7 +105,7 @@ export class RuntimeInstaller {
     const items = fs.readdirSync(stagingDir);
     if (items.length === 1) {
       const subFolder = path.join(stagingDir, items[0]);
-      if (fs.statSync(subFolder).isDirectory() && fs.existsSync(path.join(subFolder, 'manifest.json'))) {
+      if (fs.statSync(subFolder).isDirectory()) {
         const subItems = fs.readdirSync(subFolder);
         for (const item of subItems) {
           fs.renameSync(path.join(subFolder, item), path.join(stagingDir, item));
@@ -179,15 +190,18 @@ export class RuntimeInstaller {
    */
   cleanup(targetPaths: string[]): void {
     for (const targetPath of targetPaths) {
-      if (fs.existsSync(targetPath)) {
-        try {
-          const stat = fs.statSync(targetPath);
-          if (stat.isDirectory()) {
-            fs.rmSync(targetPath, { recursive: true, force: true });
-          } else {
-            fs.unlinkSync(targetPath);
-          }
-        } catch (_) {}
+      const candidates = Array.from(new Set([targetPath, targetPath.replace(/\.tmp$/i, '')]));
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          try {
+            const stat = fs.statSync(p);
+            if (stat.isDirectory()) {
+              fs.rmSync(p, { recursive: true, force: true });
+            } else {
+              fs.unlinkSync(p);
+            }
+          } catch (_) {}
+        }
       }
     }
   }

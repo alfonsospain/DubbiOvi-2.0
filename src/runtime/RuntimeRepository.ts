@@ -74,6 +74,10 @@ export class RuntimeRepository {
    * Populates default catalog entries for DubbiOvi official releases.
    */
   private registerDefaultDescriptors(): void {
+    // Whisper runtime packages
+    // Built from whisper.cpp v1.9.1
+    // GitHub Release: v2.0.0-runtimes
+
     // Official Whisper.cpp v1.9.1 macOS ARM64 release package
     const whisperMacArm64: RuntimeDescriptor = {
       id: 'whisper',
@@ -88,14 +92,14 @@ export class RuntimeRepository {
     };
     this.registerDescriptor(whisperMacArm64, 'darwin', 'arm64');
 
-    // Official Whisper.cpp v1.9.1 macOS x64 release package placeholder
+    // Official Whisper.cpp v1.9.1 macOS x64 release package
     const whisperMacX64: RuntimeDescriptor = {
       id: 'whisper',
       name: 'Whisper.cpp Engine',
       category: 'asr',
       version: '1.9.1',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/whisper-darwin_x64.zip',
-      checksumSha256: 'd622207debfe2b91d0f4eba2b16915303497ecc737cdab8982a99ce2da4d5f1e',
+      checksumSha256: '5aada9b0345efd95751eab8f38d9d3bcf98d52bda6d6c06be72b5537aba72bbe',
       estimatedSize: '1.5 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
@@ -109,7 +113,7 @@ export class RuntimeRepository {
       category: 'asr',
       version: '1.9.1',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/whisper-win32_x64.zip',
-      checksumSha256: 'd622207debfe2b91d0f4eba2b16915303497ecc737cdab8982a99ce2da4d5f1e',
+      checksumSha256: 'c111a21521b1e3551ad3cfd40ed96ae8e7d29b89e43771f8a5e78d2295e8496a',
       estimatedSize: '2.0 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
