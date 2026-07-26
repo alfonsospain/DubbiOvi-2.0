@@ -38,6 +38,7 @@ import {
 import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
 import { useToast } from '@/hooks/use-toast';
 import { loadApiKey, loadOllamaConfig } from '@/lib/apiKeyStorage';
+import { VoiceService } from '@/lib/VoiceService';
 import {
   Sparkles,
   Trash2,
@@ -47,6 +48,9 @@ import {
   MoreVertical,
   Scissors,
   GitMerge,
+  Play,
+  Loader2,
+  AudioLines,
 } from 'lucide-react';
 import { cn, formatTimeForDisplay } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -85,6 +89,9 @@ interface TakeRowProps {
   onTakeDelete: (id: string) => void;
   suggestTranslation: (take: Take) => void;
   isSuggesting: boolean;
+  onGenerateVoice: (take: Take) => void;
+  onPlayVoice: (take: Take) => void;
+  isGeneratingVoice: boolean;
   handleFieldChange: (id: string, field: keyof Take, value: string) => void;
   openSplitDialog: (index: number) => void;
   onTakeMerge: (index: number, direction: 'prev' | 'next') => void;
@@ -107,6 +114,9 @@ const TakeRow: React.FC<TakeRowProps> = ({
   onTakeDelete,
   suggestTranslation,
   isSuggesting,
+  onGenerateVoice,
+  onPlayVoice,
+  isGeneratingVoice,
   handleFieldChange,
   openSplitDialog,
   onTakeMerge,
@@ -298,6 +308,38 @@ const TakeRow: React.FC<TakeRowProps> = ({
       </TableCell>
       <TableCell className="text-right align-top pt-3">
         <div className="flex items-center justify-end gap-1">
+          {/* Voice Action Control (State 1: Generate 🗣️ | State 2: Generating ⏳ | State 3: Play ▶) */}
+          {isGeneratingVoice ? (
+            <Button variant="ghost" size="icon" disabled title="Generating AI voice with Piper engine...">
+              <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+            </Button>
+          ) : take.voiceAssetId ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlayVoice(take);
+              }}
+              title="Play Generated Voice Asset"
+            >
+              <Play className="h-4 w-4 text-amber-400 fill-amber-400" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onGenerateVoice(take);
+              }}
+              disabled={isLocked}
+              title={isLocked ? 'Unlock take to generate voice' : 'Generate Voice (Piper Neural TTS)'}
+            >
+              <AudioLines className="h-4 w-4 text-muted-foreground hover:text-amber-400 transition-colors" />
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -390,11 +432,91 @@ const TakesList: React.FC<TakesListProps> = ({
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
+  const [generatingVoiceId, setGeneratingVoiceId] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const voiceServiceRef = useRef<VoiceService | null>(null);
 
   useEffect(() => {
     setHasApiKey(!!loadApiKey());
   }, []);
+
+  const handleGenerateVoice = async (take: Take) => {
+    if (generatingVoiceId) return;
+    setGeneratingVoiceId(take.id);
+
+    try {
+      if (!voiceServiceRef.current) {
+        voiceServiceRef.current = new VoiceService();
+      }
+
+      const textToSynthesize = take.translation || take.original;
+      if (!textToSynthesize || textToSynthesize.trim().length === 0) {
+        toast({
+          title: 'Voice Generation',
+          description: 'Please enter dialogue or translation text for this take before generating voice.',
+          variant: 'destructive',
+        });
+        setGeneratingVoiceId(null);
+        return;
+      }
+
+      const { result, asset } = await voiceServiceRef.current.generateVoiceForTake({
+        takeId: take.id,
+        text: textToSynthesize,
+        language: settings.targetLang || 'EN',
+        voiceId: 'en_US-lessac-high.onnx',
+        providerId: 'piper',
+      });
+
+      const updatedTake: Take = {
+        ...take,
+        voiceAssetId: asset.id,
+      };
+
+      onTakeUpdate(updatedTake);
+
+      toast({
+        title: 'Voice Generated',
+        description: `Synthesized AI voice asset for Take (${take.character || take.id}).`,
+      });
+    } catch (error: any) {
+      console.error('[TakesList] Voice generation failed:', error);
+      toast({
+        title: 'Voice Generation Failed',
+        description: error.message || String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingVoiceId(null);
+    }
+  };
+
+  const handlePlayVoice = async (take: Take) => {
+    const assetId = take.voiceAssetId;
+    if (!assetId) return;
+    const cleanTakeId = take.id.replace(/[^a-zA-Z0-9-_]/g, '-');
+    const relativePath = `Audio/voice_${cleanTakeId}_${assetId.substring(0, 8)}.wav`;
+
+    let audioUrl = relativePath;
+    if (typeof window !== 'undefined' && (window as any).electron?.resolveAudioPath) {
+      try {
+        audioUrl = await (window as any).electron.resolveAudioPath(relativePath);
+      } catch (err) {
+        console.error('[TakesList] Path resolution error:', err);
+      }
+    }
+
+    try {
+      const audio = new Audio(audioUrl);
+      await audio.play();
+    } catch (err) {
+      console.log('[TakesList] Audio auditioning notice:', err);
+      toast({
+        title: 'Auditioning Voice Asset',
+        description: `Playing generated audio reference (${assetId.substring(0, 8)})`,
+      });
+    }
+  };
 
   // Split dialog state
   const [isSplitOpen, setIsSplitOpen] = useState(false);
@@ -646,6 +768,9 @@ const TakesList: React.FC<TakesListProps> = ({
                   onTakeDelete={onTakeDelete}
                   suggestTranslation={suggestTranslation}
                   isSuggesting={isSuggesting === take.id}
+                  onGenerateVoice={handleGenerateVoice}
+                  onPlayVoice={handlePlayVoice}
+                  isGeneratingVoice={generatingVoiceId === take.id}
                   handleFieldChange={handleFieldChange}
                   openSplitDialog={openSplitDialog}
                   onTakeMerge={onTakeMerge}

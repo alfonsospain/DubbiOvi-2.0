@@ -47,4 +47,5 @@ contextBridge.exposeInMainWorld('electron', {
   // Piper Voice Provider IPC Endpoints
   runPiperLocal: (params) => ipcRenderer.invoke('run-piper-local', params),
   listModels: (engineId) => ipcRenderer.invoke('list-models', engineId),
+  resolveAudioPath: (relativePath, projectPath) => ipcRenderer.invoke('resolve-audio-path', { relativePath, projectPath }),
 });

@@ -220,6 +220,7 @@ const Services: React.FC<ServicesProps> = ({
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="Piper Local TTS">Piper Local TTS (Offline)</SelectItem>
                 <SelectItem value="Google TTS">Google Speech Synthesis</SelectItem>
                 <SelectItem value="OpenAI">OpenAI Audio TTS</SelectItem>
                 <SelectItem value="Ollama">Ollama (Local TTS)</SelectItem>

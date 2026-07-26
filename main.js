@@ -557,9 +557,11 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
 ipcMain.handle('check-engine-binary', async (event, { engineId }) => {
   const targetEngine = engineId || 'whisper';
 
-  // Use new Runtime Framework for 'whisper' engine
-  if (runtimeManager && (targetEngine === 'whisper' || targetEngine === 'whisper-local')) {
-    const info = runtimeManager.getRuntime('whisper', '1.9.1');
+  // Use new Runtime Framework for 'whisper' and 'piper' engines
+  if (runtimeManager && (targetEngine === 'whisper' || targetEngine === 'whisper-local' || targetEngine === 'piper' || targetEngine === 'piper-local')) {
+    const runtimeId = targetEngine.includes('piper') ? 'piper' : 'whisper';
+    const version = runtimeId === 'piper' ? '1.0.0' : '1.9.1';
+    const info = runtimeManager.getRuntime(runtimeId, version);
     const installed = !!info && fs.existsSync(info.executablePath);
     return { installed, executablePath: installed ? info.executablePath : null };
   }
@@ -592,22 +594,24 @@ ipcMain.handle('check-engine-binary', async (event, { engineId }) => {
 ipcMain.handle('download-engine-binary', async (event, { engineId }) => {
   const targetEngine = engineId || 'whisper';
 
-  // Use new Runtime Framework for 'whisper' engine
-  if (runtimeManager && runtimeRepository && (targetEngine === 'whisper' || targetEngine === 'whisper-local')) {
-    logDiag(`[RuntimeManager] Downloading & installing runtime package for engine 'whisper'...`);
-    const descriptor = await runtimeRepository.getDescriptor('whisper', '1.9.1', process.platform, process.arch);
+  // Use new Runtime Framework for 'whisper' and 'piper' engines
+  if (runtimeManager && runtimeRepository && (targetEngine === 'whisper' || targetEngine === 'whisper-local' || targetEngine === 'piper' || targetEngine === 'piper-local')) {
+    const runtimeId = targetEngine.includes('piper') ? 'piper' : 'whisper';
+    const version = runtimeId === 'piper' ? '1.0.0' : '1.9.1';
+    logDiag(`[RuntimeManager] Downloading & installing runtime package for engine '${runtimeId}'...`);
+    const descriptor = await runtimeRepository.getDescriptor(runtimeId, version, process.platform, process.arch);
     if (!descriptor) {
-      throw new Error(`Catalog descriptor not found for runtime 'whisper' (${process.platform}_${process.arch}).`);
+      throw new Error(`Catalog descriptor not found for runtime '${runtimeId}' (${process.platform}_${process.arch}).`);
     }
 
     const info = await runtimeManager.installRuntime(descriptor, (progress) => {
       if (mainWindow) {
         mainWindow.webContents.send('engine-download-progress', {
-          engineId: 'whisper',
+          engineId: runtimeId,
           ...progress,
         });
         mainWindow.webContents.send('runtime-download-progress', {
-          runtimeId: 'whisper',
+          runtimeId,
           ...progress,
         });
       }
@@ -841,4 +845,14 @@ ipcMain.handle('run-piper-local', async (event, { text, modelName, outputFilenam
     executionId: `piper-${Date.now()}`,
     executionTimeMs: 120,
   };
+});
+
+ipcMain.handle('resolve-audio-path', async (event, { relativePath, projectPath }) => {
+  if (!relativePath) return '';
+  if (relativePath.startsWith('file://') || relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+  const baseDir = projectPath ? projectPath : app.getPath('userData');
+  const fullPath = path.isAbsolute(relativePath) ? relativePath : path.join(baseDir, relativePath);
+  return `file://${fullPath.replace(/\\/g, '/')}`;
 });

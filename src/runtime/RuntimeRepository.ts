@@ -127,8 +127,8 @@ export class RuntimeRepository {
       category: 'tts',
       version: '1.0.0',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/piper-darwin_arm64.zip',
-      checksumSha256: 'a1b2c3d4e5f60000000000000000000000000000000000000000000000000001',
-      estimatedSize: '15.5 MB',
+      checksumSha256: '88d9a643f26464d8131975d85e99e9496dbe07ff2c908550c9fc28ad9ba33c61',
+      estimatedSize: '34.2 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
     };

@@ -44,7 +44,10 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Cpu,
+  Download,
 } from 'lucide-react';
+import { PiperModelSelector } from './PiperModelSelector';
 
 export default function Providers() {
   const { toast } = useToast();
@@ -76,6 +79,44 @@ export default function Providers() {
   const [isOllamaFetching, setIsOllamaFetching] = useState(false);
   const [hasOllamaConfig, setHasOllamaConfig] = useState(false);
 
+  // Piper Local TTS State
+  const [isPiperExpanded, setIsPiperExpanded] = useState(true);
+  const [isPiperInstalled, setIsPiperInstalled] = useState(false);
+  const [isPiperInstalling, setIsPiperInstalling] = useState(false);
+
+  const checkPiperRuntime = async () => {
+    if (typeof window !== 'undefined' && (window as any).electron?.checkEngineBinary) {
+      try {
+        const res = await (window as any).electron.checkEngineBinary('piper');
+        setIsPiperInstalled(!!res?.installed);
+      } catch (err) {
+        console.error('[Providers] Error checking Piper runtime:', err);
+      }
+    }
+  };
+
+  const handleInstallPiperRuntime = async () => {
+    if (typeof window !== 'undefined' && (window as any).electron?.downloadEngineBinary) {
+      setIsPiperInstalling(true);
+      try {
+        await (window as any).electron.downloadEngineBinary('piper');
+        setIsPiperInstalled(true);
+        toast({
+          title: 'Piper Runtime Installed',
+          description: 'Successfully installed Piper Neural TTS runtime.',
+        });
+      } catch (err: any) {
+        toast({
+          title: 'Runtime Download Failed',
+          description: err.message || String(err),
+          variant: 'destructive',
+        });
+      } finally {
+        setIsPiperInstalling(false);
+      }
+    }
+  };
+
   // Placeholders Expansion States
   const [expandedProviders, setExpandedProviders] = useState<{ [key: string]: boolean }>({
     openai: false,
@@ -84,6 +125,7 @@ export default function Providers() {
   });
 
   useEffect(() => {
+    checkPiperRuntime();
     const savedGemini = loadApiKey() || '';
     setGeminiKeyInput(savedGemini);
     setHasGeminiKey(!!savedGemini);
@@ -796,6 +838,83 @@ export default function Providers() {
                 </Button>
               </div>
             </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Piper Local TTS Provider Card */}
+      <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
+        <CardHeader
+          className="py-3 px-4 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          onClick={() => setIsPiperExpanded(!isPiperExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <Cpu className="h-4 w-4 text-primary" />
+            <div>
+              <CardTitle className="text-sm font-bold text-foreground">Piper Local TTS (Offline)</CardTitle>
+              <CardDescription className="text-[11px] text-muted-foreground">
+                Fast, local neural text-to-speech engine running 100% offline
+              </CardDescription>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isPiperInstalled ? (
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] gap-1 font-semibold">
+                <CheckCircle2 className="h-3 w-3" /> Runtime Ready
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px] font-semibold">
+                Runtime Not Installed
+              </Badge>
+            )}
+            {isPiperExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </div>
+        </CardHeader>
+
+        {isPiperExpanded && (
+          <CardContent className="pt-0 p-4 border-t border-border/40 space-y-4">
+            {/* Runtime Header Action Bar */}
+            <div className="p-3 rounded-lg border bg-secondary/10 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-foreground block">Piper Engine Runtime (v1.0.0)</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {isPiperInstalled
+                    ? 'Engine binary is installed and registered in Runtime Framework.'
+                    : 'Download native Piper engine binary to run TTS offline.'}
+                </span>
+              </div>
+              {!isPiperInstalled && (
+                <Button
+                  size="sm"
+                  onClick={handleInstallPiperRuntime}
+                  disabled={isPiperInstalling}
+                  className="h-8 text-xs font-bold gap-1.5 shrink-0"
+                >
+                  {isPiperInstalling ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Installing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-3.5 w-3.5" /> Install Runtime
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* Voice Model Management */}
+            <PiperModelSelector
+              onRequestDownload={(filename, size) => {
+                if (typeof window !== 'undefined' && (window as any).electron?.downloadEngineModel) {
+                  (window as any).electron.downloadEngineModel('piper', filename);
+                  toast({
+                    title: 'Downloading Voice Model',
+                    description: `Started downloading ${filename} (${size}).`,
+                  });
+                }
+              }}
+            />
           </CardContent>
         )}
       </Card>
