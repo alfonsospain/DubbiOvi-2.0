@@ -106,6 +106,9 @@ async function testOpenAIProvider() {
     duration: 5.0,
     sampleRate: 16000,
     channels: 1,
+    sourceFileName: 'test.wav',
+    mimeType: 'audio/wav',
+    normalizationApplied: false,
   };
 
   try {

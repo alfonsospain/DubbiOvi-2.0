@@ -85,7 +85,7 @@ export class RuntimeRepository {
       category: 'asr',
       version: '1.9.1',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/whisper-darwin_arm64.zip',
-      checksumSha256: '12308c4e5c79cad09709ccaf34accae46e2bec23ee80e2c0c7af9f2a77b86701',
+      checksumSha256: 'ec25ef55bb79cbaffcab72ce0f65b9d825c3dff7c2b44021b107bb91583b3afc',
       estimatedSize: '1.26 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
@@ -99,22 +99,22 @@ export class RuntimeRepository {
       category: 'asr',
       version: '1.9.1',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/whisper-darwin_x64.zip',
-      checksumSha256: '5aada9b0345efd95751eab8f38d9d3bcf98d52bda6d6c06be72b5537aba72bbe',
+      checksumSha256: 'd1b2ede0ba03eb8e5456483e476772b99c1e4227d62682369de433230c750b7f',
       estimatedSize: '1.5 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
     };
     this.registerDescriptor(whisperMacX64, 'darwin', 'x64');
 
-    // Official Whisper.cpp v1.9.1 Windows x64 release package placeholder
+    // Official Whisper.cpp v1.9.1 Windows x64 release package
     const whisperWinX64: RuntimeDescriptor = {
       id: 'whisper',
       name: 'Whisper.cpp Engine',
       category: 'asr',
       version: '1.9.1',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/whisper-win32_x64.zip',
-      checksumSha256: 'c111a21521b1e3551ad3cfd40ed96ae8e7d29b89e43771f8a5e78d2295e8496a',
-      estimatedSize: '2.0 MB',
+      checksumSha256: 'f967f4ceb5a703c86a58d3b7036f24f5b260053d698c7b6063e3dc059fcd7413',
+      estimatedSize: '1.25 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
     };
