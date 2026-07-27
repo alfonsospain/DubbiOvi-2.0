@@ -61,15 +61,9 @@ export const DEFAULT_TAKES: Take[] = [
   },
 ];
 
-export const SUPPORTED_LANGUAGES: Language[] = [
-    { code: 'EN', name: 'English' },
-    { code: 'ES', name: 'Spanish' },
-    { code: 'FR', name: 'French' },
-    { code: 'DE', name: 'German' },
-    { code: 'IT', name: 'Italian' },
-    { code: 'PT', name: 'Portuguese' },
-    { code: 'JA', name: 'Japanese' },
-    { code: 'ZH', name: 'Chinese' },
-    { code: 'RU', name: 'Russian' },
-    { code: 'AR', name: 'Arabic' },
-];
+import { LanguageRegistry } from './languages/LanguageRegistry';
+
+export const SUPPORTED_LANGUAGES: Language[] = LanguageRegistry.getAllLanguages().map((l) => ({
+  code: l.code.toUpperCase(),
+  name: LanguageRegistry.formatDisplay(l.code),
+}));

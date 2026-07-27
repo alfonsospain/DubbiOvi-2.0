@@ -1,112 +1,87 @@
+const path = require('path');
+
 /**
- * Central registry managing EngineDescriptor definitions across the application.
+ * Registry of supported native engine runtimes in DubbiOvi 2.0.
+ * Defines versions, binaries, and platform targets for execution.
  */
 class EngineRegistry {
   constructor() {
-    /** @type {Map<string, import('./src/lib/types/engine-types').EngineDescriptor>} */
-    this.descriptors = new Map();
+    this.engines = new Map();
+    this.registerDefaults();
   }
 
-  /**
-   * Registers an engine descriptor into the registry.
-   *
-   * @param {Object} descriptor Engine descriptor definition.
-   * @param {string} descriptor.id Unique engine identifier.
-   * @param {string} descriptor.name Human-readable engine name.
-   * @param {'asr'|'mt'|'tts'|'llm'} descriptor.category Engine domain category.
-   * @param {string} descriptor.executableName Platform-specific binary filename.
-   * @param {string[]} descriptor.supportedModelExtensions Model file extensions for dynamic discovery.
-   * @param {string} [descriptor.description] Brief description.
-   */
-  register(descriptor) {
-    if (!descriptor || !descriptor.id || !descriptor.name || !descriptor.category || !descriptor.executableName) {
-      throw new Error('Invalid EngineDescriptor. Required fields: id, name, category, executableName.');
+  register(engineDescriptor) {
+    if (!engineDescriptor.id) {
+      throw new Error('Engine descriptor must have an id');
     }
-
-    this.descriptors.set(descriptor.id, {
-      ...descriptor,
-      supportedModelExtensions: descriptor.supportedModelExtensions || [],
-    });
+    this.engines.set(engineDescriptor.id, engineDescriptor);
   }
 
-  /**
-   * Retrieves an engine descriptor by ID.
-   *
-   * @param {string} engineId Unique engine identifier.
-   * @returns {Object|undefined} Engine descriptor or undefined.
-   */
-  get(engineId) {
-    return this.descriptors.get(engineId);
+  get(id) {
+    return this.engines.get(id);
   }
 
-  /**
-   * Returns all registered engine descriptors.
-   *
-   * @returns {Object[]} List of all engine descriptors.
-   */
+  getEngine(id) {
+    return this.engines.get(id);
+  }
+
   getAll() {
-    return Array.from(this.descriptors.values());
+    return Array.from(this.engines.values());
   }
 
-  /**
-   * Returns engine descriptors matching a specific domain category.
-   *
-   * @param {'asr'|'mt'|'tts'|'llm'} category Domain category.
-   * @returns {Object[]} Matching engine descriptors.
-   */
-  getByCategory(category) {
-    return this.getAll().filter((desc) => desc.category === category);
+  getAllEngines() {
+    return Array.from(this.engines.values());
   }
 
-  /**
-   * Registers default known engines into the registry.
-   */
   registerDefaults() {
     const isWin = process.platform === 'win32';
 
-    // 1. Whisper.cpp Engine (ASR)
+    // 1. Whisper Engine (ASR)
     this.register({
       id: 'whisper',
-      name: 'Whisper.cpp Engine',
+      name: 'Whisper C++ ASR Engine',
       category: 'asr',
-      executableName: isWin ? 'whisper-cli.exe' : 'whisper-cli',
+      executableName: isWin ? 'main.exe' : 'main',
       supportedModelExtensions: ['.bin'],
-      description: 'High performance local speech recognition powered by whisper.cpp',
+      description: 'High-performance offline C++ speech recognition engine',
       knownModels: [
         {
           filename: 'ggml-tiny.bin',
-          name: 'Tiny (75 MB)',
+          name: 'Whisper Tiny (39 MB)',
           downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
-          estimatedSize: '~75 MB',
+          estimatedSize: '39 MB',
         },
         {
           filename: 'ggml-base.bin',
-          name: 'Base (142 MB)',
+          name: 'Whisper Base (142 MB)',
           downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin',
-          estimatedSize: '~142 MB',
+          estimatedSize: '142 MB',
         },
         {
           filename: 'ggml-small.bin',
-          name: 'Small (466 MB)',
+          name: 'Whisper Small (466 MB)',
           downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
-          estimatedSize: '~466 MB',
+          estimatedSize: '466 MB',
+        },
+        {
+          filename: 'ggml-medium.bin',
+          name: 'Whisper Medium (1.5 GB)',
+          downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin',
+          estimatedSize: '1.5 GB',
+        },
+        {
+          filename: 'ggml-large-v3.bin',
+          name: 'Whisper Large v3 (3.1 GB)',
+          downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin',
+          estimatedSize: '3.1 GB',
         },
       ],
-      release: {
-        version: '1.5.4',
-        estimatedSize: '~12 MB',
-        downloads: {
-          darwin_arm64: 'https://github.com/ggerganov/whisper.cpp/releases/download/v1.5.4/whisper-bin-x64.zip',
-          darwin_x64: 'https://github.com/ggerganov/whisper.cpp/releases/download/v1.5.4/whisper-bin-x64.zip',
-          win32_x64: 'https://github.com/ggerganov/whisper.cpp/releases/download/v1.5.4/whisper-bin-x64.zip',
-        },
-      },
     });
 
-    // 2. Ollama Engine (MT / LLM)
+    // 2. Ollama Engine (LLM / Translation)
     this.register({
       id: 'ollama',
-      name: 'Ollama Engine',
+      name: 'Ollama Local LLM',
       category: 'llm',
       executableName: isWin ? 'ollama.exe' : 'ollama',
       supportedModelExtensions: ['.gguf', '.bin'],
@@ -130,6 +105,20 @@ class EngineRegistry {
           estimatedSize: '~102 MB',
         },
         {
+          filename: 'en_US-amy-medium.onnx',
+          name: 'English (US) - Amy Medium',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json',
+          estimatedSize: '~60 MB',
+        },
+        {
+          filename: 'en_GB-alan-medium.onnx',
+          name: 'English (UK) - Alan Medium',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json',
+          estimatedSize: '~64 MB',
+        },
+        {
           filename: 'es_ES-davefx-medium.onnx',
           name: 'Spanish (ES) - Dave FX Medium',
           downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx',
@@ -137,11 +126,46 @@ class EngineRegistry {
           estimatedSize: '~65 MB',
         },
         {
+          filename: 'es_MX-ald-medium.onnx',
+          name: 'Spanish (MX) - Ald Medium',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx.json',
+          estimatedSize: '~58 MB',
+        },
+        {
           filename: 'fr_FR-upmc-medium.onnx',
           name: 'French (FR) - UPMC Medium',
           downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
           configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx.json',
           estimatedSize: '~63 MB',
+        },
+        {
+          filename: 'de_DE-thorsten-high.onnx',
+          name: 'German (DE) - Thorsten High',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/high/de_DE-thorsten-high.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/high/de_DE-thorsten-high.onnx.json',
+          estimatedSize: '~115 MB',
+        },
+        {
+          filename: 'it_IT-riccardo-x_low.onnx',
+          name: 'Italian (IT) - Riccardo Low',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/riccardo/x_low/it_IT-riccardo-x_low.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/riccardo/x_low/it_IT-riccardo-x_low.onnx.json',
+          estimatedSize: '~28 MB',
+        },
+        {
+          filename: 'pt_BR-edresson-low.onnx',
+          name: 'Portuguese (BR) - Edresson Low',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/edresson/low/pt_BR-edresson-low.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/edresson/low/pt_BR-edresson-low.onnx.json',
+          estimatedSize: '~29 MB',
+        },
+        {
+          filename: 'zh_CN-huayan-medium.onnx',
+          name: 'Chinese (CN) - Huayan Medium',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json',
+          estimatedSize: '~66 MB',
         },
       ],
     });

@@ -1011,13 +1011,25 @@ export default function AiPlatforms() {
 
             {/* Voice Model Management */}
             <PiperModelSelector
-              onRequestDownload={(filename, size) => {
+              onRequestDownload={async (filename, size) => {
                 if (typeof window !== 'undefined' && (window as any).electron?.downloadEngineModel) {
-                  (window as any).electron.downloadEngineModel('piper', filename);
                   toast({
                     title: 'Downloading Voice Model',
                     description: `Started downloading ${filename} (${size}).`,
                   });
+                  try {
+                    await (window as any).electron.downloadEngineModel('piper', filename);
+                    toast({
+                      title: 'Voice Model Installed',
+                      description: `Successfully downloaded and installed ${filename}.`,
+                    });
+                  } catch (err: any) {
+                    toast({
+                      title: 'Download Failed',
+                      description: err.message || String(err),
+                      variant: 'destructive',
+                    });
+                  }
                 }
               }}
             />

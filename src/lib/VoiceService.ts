@@ -1,29 +1,31 @@
-import {
-  VoiceGenerationRequest,
-  VoiceGenerationResult,
-  VoiceProvider,
-} from './types/voice-provider-types';
 import { providerRegistry } from './ProviderRegistry';
-import { ProviderServiceManager } from './ProviderServiceManager';
 import { VoiceAssetManager } from './VoiceAssetManager';
 import { VoiceAsset } from './types/voice-types';
+import {
+  VoiceProvider,
+  VoiceGenerationRequest,
+  VoiceGenerationResult,
+} from './types/voice-provider-types';
+import { ProviderServiceManager } from './ProviderServiceManager';
+import { ServiceCategory } from './types/ProviderServiceTypes';
+import { PiperModelManager } from './PiperModelManager';
 
 export interface GenerateVoiceForTakeOptions {
   takeId: string;
   text: string;
   language: string;
-  voiceId: string;
+  voiceId?: string;
   providerId: string;
   apiKey?: string;
-  format?: 'wav' | 'mp3' | 'ogg';
+  format?: string;
   sampleRate?: number;
   speakingRate?: number;
   pitch?: number;
 }
 
 /**
- * Generic orchestration service managing Voice Providers, model resolution via ProviderServiceManager,
- * and registering output VoiceGenerationResults with VoiceAssetManager.
+ * High-level orchestration service managing Voice Providers, model resolution via ProviderServiceManager,
+ * stateless generation invocation, and VoiceAsset lifecycle registration.
  */
 export class VoiceService {
   private assetManager: VoiceAssetManager;
@@ -33,9 +35,9 @@ export class VoiceService {
   }
 
   /**
-   * Resolves a VoiceProvider by ID from the central ProviderRegistry.
+   * Resolves VoiceProvider instance from ProviderRegistry.
    */
-  public resolveProvider(providerId: string): VoiceProvider {
+  private resolveProvider(providerId: string): VoiceProvider {
     const provider = providerRegistry.getVoiceProvider(providerId);
     if (!provider) {
       throw new Error(`VoiceProvider with ID '${providerId}' not found in ProviderRegistry.`);
@@ -44,8 +46,9 @@ export class VoiceService {
   }
 
   /**
-   * Generates a voice clip for a Take, resolves the active TTS service model via ProviderServiceManager,
-   * invokes the stateless VoiceProvider, and registers the output VoiceAsset with VoiceAssetManager.
+   * Generates a voice clip for a Take. Resolves preferred voice by target language for Piper,
+   * or active TTS service model via ProviderServiceManager, invokes stateless VoiceProvider,
+   * and registers output VoiceAsset with VoiceAssetManager.
    */
   public async generateVoiceForTake(options: GenerateVoiceForTakeOptions): Promise<{
     result: VoiceGenerationResult;
@@ -53,16 +56,25 @@ export class VoiceService {
   }> {
     const provider = this.resolveProvider(options.providerId);
 
-    // Resolve active TTS model configured for this provider via ProviderServiceManager
-    const activeModel = await ProviderServiceManager.getServiceModel(options.providerId, 'tts');
+    // Resolve voice model for this request
+    let targetModel = options.voiceId;
+    if (!targetModel && options.providerId.toLowerCase() === 'piper') {
+      targetModel = await PiperModelManager.getVoiceForLanguage(options.language);
+    }
+    if (!targetModel) {
+      targetModel = await ProviderServiceManager.getServiceModel(options.providerId, 'tts');
+    }
+
+    const reqFormat: 'wav' | 'mp3' | 'ogg' =
+      options.format === 'mp3' ? 'mp3' : options.format === 'ogg' ? 'ogg' : 'wav';
 
     const request: VoiceGenerationRequest = {
       takeId: options.takeId,
       text: options.text,
       language: options.language,
-      voiceId: options.voiceId,
-      modelName: activeModel,
-      format: options.format || 'wav',
+      voiceId: options.voiceId || targetModel,
+      modelName: targetModel,
+      format: reqFormat,
       sampleRate: options.sampleRate || 24000,
       speakingRate: options.speakingRate,
       pitch: options.pitch,
@@ -71,13 +83,16 @@ export class VoiceService {
     // Invoke stateless VoiceProvider
     const result = await provider.generateVoice(request, options.apiKey);
 
+    const assetFormat: 'wav' | 'mp3' | 'ogg' =
+      result.format === 'mp3' ? 'mp3' : result.format === 'ogg' ? 'ogg' : 'wav';
+
     // Register generated result with VoiceAssetManager (preserves project-relative path)
     const asset = this.assetManager.registerAsset({
       id: result.id,
       takeId: result.takeId,
       relativePath: result.relativePath,
       filename: result.filename,
-      format: result.format,
+      format: assetFormat,
       sampleRate: result.sampleRate,
       durationSeconds: result.durationSeconds,
       metadata: result.metadata,

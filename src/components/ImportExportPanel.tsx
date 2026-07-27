@@ -40,6 +40,7 @@ import { AudioPreparationService } from '@/lib/AudioPreparationService';
 import { providerRegistry } from '@/lib/ProviderRegistry';
 import { loadApiKey, loadOpenAiApiKey } from '@/lib/apiKeyStorage';
 import { SUPPORTED_LANGUAGES } from '@/lib/data';
+import { LanguageRegistry } from '@/lib/languages/LanguageRegistry';
 import { ModelDownloadDialog } from './ModelDownloadDialog';
 import { WhisperModelManager } from '@/lib/WhisperModelManager';
 import { WhisperModelSelector } from './WhisperModelSelector';
@@ -520,9 +521,9 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Auto-Detect">Auto-Detect Language (AI)</SelectItem>
-                      {SUPPORTED_LANGUAGES.map(lang => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.name}
+                      {LanguageRegistry.getAllLanguages().map(lang => (
+                        <SelectItem key={lang.code} value={lang.code.toUpperCase()}>
+                          {LanguageRegistry.formatDisplay(lang.code)}
                         </SelectItem>
                       ))}
                     </SelectContent>

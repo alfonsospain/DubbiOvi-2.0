@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { SUPPORTED_LANGUAGES } from '@/lib/data';
+import { LanguageRegistry } from '@/lib/languages/LanguageRegistry';
 import { formatTimeForDisplay } from '@/lib/utils';
 import { FileVideo, BarChart2, Save, UserCheck, Shield } from 'lucide-react';
 
@@ -37,6 +37,8 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
   videoDuration = 0,
   takes = [],
 }) => {
+  const allLanguages = LanguageRegistry.getAllLanguages();
+
   const handleChange = (field: keyof ProjectSettings, value: string) => {
     if (field === 'projectName') {
       onSettingsChange({ ...settings, projectName: value, title: value });
@@ -66,6 +68,10 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
   const pendingPercentage = totalTakes ? Math.round((pendingCount / totalTakes) * 100) : 0;
   const reviewedPercentage = totalTakes ? Math.round((reviewedCount / totalTakes) * 100) : 0;
   const lockedPercentage = totalTakes ? Math.round((lockedCount / totalTakes) * 100) : 0;
+
+  // Normalized values for select components
+  const normalizedSource = LanguageRegistry.getLanguageByCode(settings.sourceLang)?.code.toUpperCase() || settings.sourceLang;
+  const normalizedTarget = LanguageRegistry.getLanguageByCode(settings.targetLang)?.code.toUpperCase() || settings.targetLang;
 
   return (
     <div className="space-y-6">
@@ -131,16 +137,16 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
             <div className="grid gap-1.5">
               <Label htmlFor="source-lang" className="text-xs font-semibold text-muted-foreground">Source Language</Label>
               <Select
-                value={settings.sourceLang}
+                value={normalizedSource}
                 onValueChange={value => handleChange('sourceLang', value)}
               >
                 <SelectTrigger id="source-lang" className="h-9 text-xs">
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SUPPORTED_LANGUAGES.map(lang => (
-                    <SelectItem key={lang.code} value={lang.code}>
-                      {lang.name}
+                  {allLanguages.map(lang => (
+                    <SelectItem key={lang.code} value={lang.code.toUpperCase()}>
+                      {LanguageRegistry.formatDisplay(lang.code)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -149,16 +155,16 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
             <div className="grid gap-1.5">
               <Label htmlFor="target-lang" className="text-xs font-semibold text-muted-foreground">Target Language</Label>
               <Select
-                value={settings.targetLang}
+                value={normalizedTarget}
                 onValueChange={value => handleChange('targetLang', value)}
               >
                 <SelectTrigger id="target-lang" className="h-9 text-xs">
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SUPPORTED_LANGUAGES.map(lang => (
-                    <SelectItem key={lang.code} value={lang.code}>
-                      {lang.name}
+                  {allLanguages.map(lang => (
+                    <SelectItem key={lang.code} value={lang.code.toUpperCase()}>
+                      {LanguageRegistry.formatDisplay(lang.code)}
                     </SelectItem>
                   ))}
                 </SelectContent>

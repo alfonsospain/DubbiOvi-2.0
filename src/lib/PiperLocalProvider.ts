@@ -45,7 +45,7 @@ export class PiperLocalProvider implements VoiceProvider {
       throw new Error('Invalid VoiceGenerationRequest: text parameter is required.');
     }
 
-    const rawModel = request.modelName || (await PiperModelManager.getActiveModelName());
+    const rawModel = request.voiceId || request.modelName || (await PiperModelManager.getActiveModelName());
     const modelToUse = PiperModelManager.normalizeModelName(rawModel);
     const resultId = uuidv4();
     const takeId = request.takeId || 'unassigned';

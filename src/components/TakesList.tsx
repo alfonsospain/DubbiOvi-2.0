@@ -464,7 +464,6 @@ const TakesList: React.FC<TakesListProps> = ({
         takeId: take.id,
         text: textToSynthesize,
         language: settings.targetLang || 'EN',
-        voiceId: 'en_US-lessac-high.onnx',
         providerId: 'piper',
       });
 

@@ -1,5 +1,6 @@
 import { ProviderServiceManager } from './ProviderServiceManager';
 import { VoiceDescriptor } from './types/voice-provider-types';
+import { LanguageRegistry } from './languages/LanguageRegistry';
 
 export interface PiperModelDescriptor {
   id: string;
@@ -11,8 +12,10 @@ export interface PiperModelDescriptor {
   description: string;
 }
 
+const PIPER_LANGUAGE_VOICES_STORAGE_KEY = 'dubbiovi_piper_language_voices';
+
 /**
- * Catalog of known Piper voice models.
+ * Catalog of known Piper voice models across multiple languages.
  * Used for catalog listing; dynamic filesystem discovery scans userData/models/piper/.
  */
 export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
@@ -26,6 +29,24 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     description: 'High quality American English female voice',
   },
   {
+    id: 'en_US-amy-medium.onnx',
+    name: 'English (US) - Amy Medium',
+    filename: 'en_US-amy-medium.onnx',
+    language: 'EN',
+    gender: 'female',
+    estimatedSize: '~60 MB',
+    description: 'Clear American English female voice',
+  },
+  {
+    id: 'en_GB-alan-medium.onnx',
+    name: 'English (UK) - Alan Medium',
+    filename: 'en_GB-alan-medium.onnx',
+    language: 'EN',
+    gender: 'male',
+    estimatedSize: '~64 MB',
+    description: 'Natural British English male voice',
+  },
+  {
     id: 'es_ES-davefx-medium.onnx',
     name: 'Spanish (ES) - Dave FX Medium',
     filename: 'es_ES-davefx-medium.onnx',
@@ -33,6 +54,15 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'male',
     estimatedSize: '~65 MB',
     description: 'Natural Castilian Spanish male voice',
+  },
+  {
+    id: 'es_MX-ald-medium.onnx',
+    name: 'Spanish (MX) - Ald Medium',
+    filename: 'es_MX-ald-medium.onnx',
+    language: 'ES',
+    gender: 'male',
+    estimatedSize: '~58 MB',
+    description: 'Mexican Spanish male voice',
   },
   {
     id: 'fr_FR-upmc-medium.onnx',
@@ -43,11 +73,47 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     estimatedSize: '~63 MB',
     description: 'Clear French female voice',
   },
+  {
+    id: 'de_DE-thorsten-high.onnx',
+    name: 'German (DE) - Thorsten High',
+    filename: 'de_DE-thorsten-high.onnx',
+    language: 'DE',
+    gender: 'male',
+    estimatedSize: '~115 MB',
+    description: 'High quality German male voice',
+  },
+  {
+    id: 'it_IT-riccardo-x_low.onnx',
+    name: 'Italian (IT) - Riccardo Low',
+    filename: 'it_IT-riccardo-x_low.onnx',
+    language: 'IT',
+    gender: 'male',
+    estimatedSize: '~28 MB',
+    description: 'Lightweight Italian male voice',
+  },
+  {
+    id: 'pt_BR-edresson-low.onnx',
+    name: 'Portuguese (BR) - Edresson Low',
+    filename: 'pt_BR-edresson-low.onnx',
+    language: 'PT',
+    gender: 'male',
+    estimatedSize: '~29 MB',
+    description: 'Brazilian Portuguese male voice',
+  },
+  {
+    id: 'zh_CN-huayan-medium.onnx',
+    name: 'Chinese (CN) - Huayan Medium',
+    filename: 'zh_CN-huayan-medium.onnx',
+    language: 'ZH',
+    gender: 'female',
+    estimatedSize: '~66 MB',
+    description: 'Standard Mandarin female voice',
+  },
 ];
 
 /**
  * Service managing Piper voice model metadata, dynamic discovery (*.onnx),
- * and active model configuration via ProviderServiceManager.
+ * Language -> Preferred Voice mapping, and active model configuration.
  */
 export class PiperModelManager {
   public static readonly DEFAULT_MODEL = 'en_US-lessac-high.onnx';
@@ -84,24 +150,152 @@ export class PiperModelManager {
   }
 
   /**
+   * Retrieves stored Language -> Preferred Voice map from localStorage.
+   */
+  public static getLanguageVoiceMapping(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem(PIPER_LANGUAGE_VOICES_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /**
+   * Sets preferred voice for a specific language (e.g., 'EN' -> 'en_US-lessac-high.onnx', 'IT' -> 'it_IT-riccardo-x_low.onnx').
+   */
+  public static async setPreferredVoiceForLanguage(language: string, modelName: string): Promise<boolean> {
+    const normLang = LanguageRegistry.normalizeCode(language).toUpperCase();
+    const normalizedModel = PiperModelManager.normalizeModelName(modelName);
+
+    // Verify model is installed
+    const installed = await PiperModelManager.listInstalledModels();
+    const isInstalled = installed.some((i) => i.filename.toLowerCase() === normalizedModel.toLowerCase());
+
+    if (!isInstalled) {
+      throw new Error(`Cannot set preferred voice '${normalizedModel}': model is not installed on disk. Please download it first.`);
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const mapping = PiperModelManager.getLanguageVoiceMapping();
+        mapping[normLang] = normalizedModel;
+        localStorage.setItem(PIPER_LANGUAGE_VOICES_STORAGE_KEY, JSON.stringify(mapping));
+      } catch (err) {
+        console.error('[PiperModelManager] Error saving language voice mapping:', err);
+      }
+    }
+
+    // Set as global active model for backward compatibility
+    await ProviderServiceManager.setServiceModel('piper', 'tts', normalizedModel);
+    return true;
+  }
+
+  /**
+   * Resolves the preferred Piper voice model for a given target language (e.g., 'IT', 'ES', 'EN').
+   * 1. Checks explicit Language -> Preferred Voice mapping in dubbiovi_piper_language_voices.
+   * 2. If unmapped, checks for any installed model matching that language code on disk.
+   * 3. Fallback: returns active installed model or default installed model.
+   */
+  public static async getVoiceForLanguage(targetLanguage?: string): Promise<string> {
+    const installed = await PiperModelManager.listInstalledModels();
+    if (installed.length === 0) {
+      return '';
+    }
+
+    const normLang = LanguageRegistry.normalizeCode(targetLanguage).toUpperCase();
+
+    // 1. Check explicit mapping
+    const mapping = PiperModelManager.getLanguageVoiceMapping();
+    const mappedModel = mapping[normLang];
+
+    if (mappedModel) {
+      const isMappedInstalled = installed.some((i) => i.filename.toLowerCase() === mappedModel.toLowerCase());
+      if (isMappedInstalled) {
+        return mappedModel;
+      }
+    }
+
+    // 2. Check installed models matching target language code
+    const matchingInstalled = installed.find((inst) => {
+      const desc = PiperModelManager.getModelDescriptor(inst.filename);
+      if (desc && desc.language.toUpperCase() === normLang) {
+        return true;
+      }
+      return inst.filename.toLowerCase().startsWith(normLang.toLowerCase());
+    });
+
+    if (matchingInstalled) {
+      return matchingInstalled.filename;
+    }
+
+    // 3. Fallback: default active installed model or first installed model
+    const globalActive = await PiperModelManager.getActiveModelName();
+    if (globalActive && installed.some((i) => i.filename.toLowerCase() === globalActive.toLowerCase())) {
+      return globalActive;
+    }
+
+    return installed[0].filename;
+  }
+
+  /**
    * Retrieves active Piper model filename from ProviderServiceManager ('piper', 'tts').
+   * Verifies that the returned model is installed on disk. If invalid or uninstalled,
+   * recovers safely by selecting a valid installed model or returning empty string ('').
    */
   public static async getActiveModelName(): Promise<string> {
     const raw = await ProviderServiceManager.getServiceModel('piper', 'tts');
     const normalized = PiperModelManager.normalizeModelName(raw);
-    if (normalized !== raw) {
-      await ProviderServiceManager.setServiceModel('piper', 'tts', normalized);
+
+    const installed = await PiperModelManager.listInstalledModels();
+    const isInstalled = (filename: string) =>
+      installed.some((i) => i.filename.toLowerCase() === filename.toLowerCase());
+
+    // If normalized model is installed on disk, keep it
+    if (normalized && isInstalled(normalized)) {
+      if (normalized !== raw) {
+        await ProviderServiceManager.setServiceModel('piper', 'tts', normalized);
+      }
+      return normalized;
     }
-    return normalized;
+
+    // Safe Recovery: Stored model is uninstalled or invalid
+    if (installed.length > 0) {
+      const validInstalled = installed[0].filename;
+      console.warn(`[PiperModelManager] Persisted active model '${raw}' is not installed on disk. Recovering with installed model '${validInstalled}'.`);
+      await ProviderServiceManager.setServiceModel('piper', 'tts', validInstalled);
+      return validInstalled;
+    }
+
+    return '';
   }
 
   /**
    * Persists active Piper model filename via ProviderServiceManager ('piper', 'tts').
+   * Ensures catalog-only/uninstalled models cannot be set active.
    */
   public static async setActiveModelName(modelName: string): Promise<boolean> {
     const normalized = PiperModelManager.normalizeModelName(modelName);
     const descriptor = PiperModelManager.getModelDescriptor(normalized);
     const targetFilename = descriptor ? descriptor.filename : normalized;
+
+    const installed = await PiperModelManager.listInstalledModels();
+    const isInstalled = installed.some((i) => i.filename.toLowerCase() === targetFilename.toLowerCase());
+
+    if (!isInstalled) {
+      throw new Error(`Cannot activate model '${targetFilename}': model is not installed on disk. Please download it first.`);
+    }
+
+    // Determine model language if known and save preference
+    if (descriptor && descriptor.language) {
+      const mapping = PiperModelManager.getLanguageVoiceMapping();
+      mapping[descriptor.language.toUpperCase()] = targetFilename;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(PIPER_LANGUAGE_VOICES_STORAGE_KEY, JSON.stringify(mapping));
+      }
+    }
+
     return await ProviderServiceManager.setServiceModel('piper', 'tts', targetFilename);
   }
 
@@ -132,7 +326,6 @@ export class PiperModelManager {
 
     const installedFilenames = new Set(installed.map((i) => i.filename.toLowerCase()));
 
-    // Merge known models with any dynamically discovered *.onnx files
     const availableDescriptors: VoiceDescriptor[] = [];
 
     for (const m of known) {
@@ -148,7 +341,6 @@ export class PiperModelManager {
       }
     }
 
-    // Include dynamically discovered models that weren't in default known list
     for (const inst of installed) {
       if (!known.some((k) => k.filename.toLowerCase() === inst.filename.toLowerCase())) {
         availableDescriptors.push({
