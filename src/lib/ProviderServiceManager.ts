@@ -100,7 +100,7 @@ export class ProviderServiceManager {
       providerId: 'piper',
       serviceType: 'tts',
       defaultModel: 'en_US-lessac-high.onnx',
-      supportedModels: ['en_US-lessac-high.onnx', 'es_ES-dave-medium.onnx'],
+      supportedModels: ['en_US-lessac-high.onnx', 'es_ES-davefx-medium.onnx', 'fr_FR-upmc-medium.onnx'],
       description: 'Piper neural fast local TTS model',
     });
   }

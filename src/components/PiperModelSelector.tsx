@@ -88,7 +88,34 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
       }
 
       const audio = new Audio(resolvedUrl);
-      await audio.play().catch((e) => console.log('Audio playback preview notice:', e));
+
+      const logAudioDiagnostics = (tag: string, errObj?: any) => {
+        console.log(`[Audio Diagnostics - ${tag}]`);
+        console.log('  audio.src          :', audio.src);
+        console.log('  audio.currentSrc   :', audio.currentSrc);
+        console.log('  audio.readyState   :', audio.readyState);
+        console.log('  audio.networkState :', audio.networkState);
+        console.log('  audio.error        :', audio.error);
+        if (audio.error) {
+          console.log('  audio.error.code   :', audio.error.code);
+          console.log('  audio.error.message:', audio.error.message);
+        }
+        if (errObj) {
+          console.log('  play error         :', errObj);
+        }
+      };
+
+      audio.onerror = (e) => logAudioDiagnostics('onerror event', e);
+      audio.oncanplaythrough = () => logAudioDiagnostics('oncanplaythrough event');
+
+      try {
+        logAudioDiagnostics('before play');
+        await audio.play();
+        logAudioDiagnostics('after play success');
+      } catch (audioErr: any) {
+        logAudioDiagnostics('play catch block', audioErr);
+        throw new Error(`Synthesized audio clip created, but playback failed: ${audioErr.message || String(audioErr)}`);
+      }
 
       toast({
         title: 'Voice Test Complete',

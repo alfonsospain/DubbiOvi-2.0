@@ -1,8 +1,7 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, protocol, net } = require('electron');
 const { fork, spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
-const net = require('net');
 const fs = require('fs');
 require('tsx/cjs');
 const { RuntimeManager, RuntimeRepository, RuntimeExecutor } = require('./src/runtime');
@@ -10,6 +9,13 @@ const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers
 const EngineRegistry = require('./engine-registry');
 const LocalEngineManager = require('./local-engine-manager');
 const AppSettingsService = require('./app-settings-service');
+
+// Register dubbiovi-file privileged scheme for local audio resource fetching from http:// origin
+try {
+  protocol.registerSchemesAsPrivileged([
+    { scheme: 'dubbiovi-file', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }
+  ]);
+} catch (_) {}
 
 let nextProcess = null;
 let mainWindow = null;
@@ -344,7 +350,39 @@ async function createWindow() {
   });
 }
 
+const { pathToFileURL } = require('url');
+
 app.whenReady().then(() => {
+  // Protocol handler for dubbiovi-file:// URIs allowing http:// origins to stream local audio
+  try {
+    protocol.handle('dubbiovi-file', (request) => {
+    try {
+      const parsed = new URL(request.url);
+      let filePath = decodeURIComponent(parsed.hostname + parsed.pathname);
+      if (!filePath.startsWith('/') && process.platform !== 'win32') {
+        filePath = '/' + filePath;
+      }
+      if (process.platform === 'win32' && filePath.startsWith('/')) {
+        filePath = filePath.substring(1);
+      }
+
+      if (!fs.existsSync(filePath)) {
+        logDiag(`[dubbiovi-file IPC] Error: Requested file not found at ${filePath}`);
+        return new Response('File Not Found', { status: 404 });
+      }
+
+      const fileUrl = pathToFileURL(filePath).toString();
+      logDiag(`[dubbiovi-file IPC] Serving audio file URL: ${fileUrl}`);
+      return net.fetch(fileUrl);
+    } catch (err) {
+      logDiag(`[dubbiovi-file IPC] URL parsing error: ${err.message}`);
+      return new Response('Bad Request', { status: 400 });
+    }
+  });
+  } catch (err) {
+    logDiag(`[protocol.handle] Error registering dubbiovi-file handler: ${err.message}`);
+  }
+
   try {
     appSettingsService = new AppSettingsService(app);
     app.settingsService = appSettingsService;
@@ -648,7 +686,17 @@ ipcMain.handle('check-engine-model', async (event, { engineId, modelName }) => {
     return { exists: false, modelPath: null };
   }
   const resolvedPath = localEngineManager.locateModel(targetEngine, targetName);
-  const exists = fs.existsSync(resolvedPath);
+  let exists = fs.existsSync(resolvedPath);
+
+  // For Piper ONNX models, BOTH .onnx and .onnx.json MUST exist on disk
+  if (exists && (targetEngine === 'piper' || targetName.endsWith('.onnx'))) {
+    const configPath = `${resolvedPath}.json`;
+    if (!fs.existsSync(configPath)) {
+      logDiag(`[check-engine-model IPC] Model ${targetName} exists but companion config ${configPath} is MISSING.`);
+      exists = false;
+    }
+  }
+
   return { exists, modelPath: resolvedPath, modelName: targetName };
 });
 
@@ -671,7 +719,21 @@ ipcMain.handle('download-engine-model', async (event, { engineId, modelName }) =
     }
   });
 
+  // Verify models directory contents on disk immediately after download
+  const targetDir = path.dirname(installedPath);
+  const dirFiles = fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [];
   logDiag(`[LocalEngineManager] Successfully installed model to ${installedPath}`);
+  logDiag(`[LocalEngineManager] Contents of ${targetDir} after download: [${dirFiles.join(', ')}]`);
+
+  if (targetEngine === 'piper' || targetName.endsWith('.onnx')) {
+    const configPath = `${installedPath}.json`;
+    const configExists = fs.existsSync(configPath);
+    logDiag(`[LocalEngineManager] Verification: .onnx exists=${fs.existsSync(installedPath)}, .onnx.json exists=${configExists}`);
+    if (!configExists) {
+      throw new Error(`Model installation failed: companion configuration file ${configPath} was not created on disk.`);
+    }
+  }
+
   return { success: true, modelPath: installedPath };
 });
 
@@ -795,8 +857,8 @@ ipcMain.handle('list-models', async (event, engineId) => {
 });
 
 ipcMain.handle('run-piper-local', async (event, { text, modelName, outputFilename, projectPath }) => {
-  if (!text || typeof text !== 'string') {
-    throw new Error('Missing parameter: text is required for Piper voice generation.');
+  if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    throw new Error('Missing parameter: non-empty text string is required for Piper voice generation.');
   }
 
   const targetModel = modelName || 'en_US-lessac-high.onnx';
@@ -811,48 +873,89 @@ ipcMain.handle('run-piper-local', async (event, { text, modelName, outputFilenam
   const outFilename = outputFilename || `voice_${Date.now()}.wav`;
   const absoluteOutputPath = path.join(audioDir, outFilename);
 
-  logDiag(`[PiperLocal IPC] Executing Piper TTS for model: ${targetModel}`);
-  logDiag(`[PiperLocal IPC] Target output path: ${absoluteOutputPath}`);
+  logDiag(`[PiperLocal IPC] Input Text: "${text}"`);
+  logDiag(`[PiperLocal IPC] Target Model: ${targetModel}`);
+  logDiag(`[PiperLocal IPC] Model Path: ${modelPath} (Exists: ${fs.existsSync(modelPath)})`);
+  logDiag(`[PiperLocal IPC] Target Output Path: ${absoluteOutputPath}`);
 
-  // Execute native Piper engine via RuntimeExecutor
-  if (runtimeExecutor && runtimeManager?.getRuntime('piper', '1.0.0')) {
-    const execResult = await runtimeExecutor.execute({
-      runtimeId: 'piper',
-      version: '1.0.0',
-      args: ['--model', modelPath, '--output_file', absoluteOutputPath],
-      inputData: text,
-    });
-
-    return {
-      success: execResult.exitCode === 0,
-      exitCode: execResult.exitCode,
-      outputPath: absoluteOutputPath,
-      filename: outFilename,
-      modelUsed: targetModel,
-      executionId: execResult.executionId,
-      executionTimeMs: execResult.durationMs,
-    };
+  // 1. Verify voice model file exists
+  if (!fs.existsSync(modelPath)) {
+    logDiag(`[PiperLocal IPC] Error: Voice model file not found at ${modelPath}`);
+    throw new Error(`Voice model file '${targetModel}' not found at ${modelPath}. Please download the voice model first.`);
   }
 
-  // Fallback for uninstalled environments or mock validation
-  logDiag(`[PiperLocal IPC] Note: Native runtime execution completed / validated.`);
+  // 1b. Verify accompanying .onnx.json config file exists (download if missing)
+  const configPath = `${modelPath}.json`;
+  if (!fs.existsSync(configPath)) {
+    logDiag(`[PiperLocal IPC] Warning: Accompanying config ${configPath} missing. Attempting auto-repair...`);
+    try {
+      if (localEngineManager) {
+        await localEngineManager.downloadModel('piper', targetModel);
+      }
+    } catch (repairErr) {
+      logDiag(`[PiperLocal IPC] Auto-repair failed: ${repairErr.message}`);
+    }
+
+    if (!fs.existsSync(configPath)) {
+      throw new Error(`Voice model configuration file '${targetModel}.json' is missing at ${configPath}. Please redownload the voice model.`);
+    }
+  }
+
+  // 2. Verify runtime installation
+  const installedRuntime = runtimeManager?.getRuntime('piper', '1.0.0');
+  if (!installedRuntime || !runtimeExecutor) {
+    logDiag(`[PiperLocal IPC] Error: Piper runtime is not installed or available.`);
+    throw new Error(`Piper Neural TTS engine runtime is not installed. Please download the Piper runtime from the Providers page.`);
+  }
+
+  // 3. Execute native Piper engine via RuntimeExecutor
+  logDiag(`[PiperLocal IPC] Spawning RuntimeExecutor for piper v1.0.0...`);
+  const execResult = await runtimeExecutor.execute({
+    runtimeId: 'piper',
+    version: '1.0.0',
+    args: ['--model', modelPath, '--output_file', absoluteOutputPath],
+    inputData: text,
+  });
+
+  logDiag(`[PiperLocal IPC] RuntimeExecutor Exit Code: ${execResult.exitCode} (Duration: ${execResult.durationMs} ms)`);
+  if (execResult.stdout) logDiag(`[PiperLocal IPC] Stdout: ${execResult.stdout}`);
+  if (execResult.stderr) logDiag(`[PiperLocal IPC] Stderr: ${execResult.stderr}`);
+
+  if (execResult.exitCode !== 0) {
+    throw new Error(`Piper TTS execution failed (exit code ${execResult.exitCode}): ${execResult.stderr || execResult.error || 'Unknown runtime error'}`);
+  }
+
+  // 4. Verify generated WAV file on disk
+  if (!fs.existsSync(absoluteOutputPath)) {
+    throw new Error(`Piper TTS execution completed with code 0 but failed to create output WAV file at ${absoluteOutputPath}`);
+  }
+
+  const stat = fs.statSync(absoluteOutputPath);
+  logDiag(`[PiperLocal IPC] Generated WAV size: ${stat.size} bytes`);
+  if (stat.size < 100) {
+    throw new Error(`Piper TTS produced invalid empty WAV file (${stat.size} bytes) at ${absoluteOutputPath}`);
+  }
+
   return {
     success: true,
     exitCode: 0,
     outputPath: absoluteOutputPath,
     filename: outFilename,
     modelUsed: targetModel,
-    executionId: `piper-${Date.now()}`,
-    executionTimeMs: 120,
+    executionId: execResult.executionId,
+    executionTimeMs: execResult.durationMs,
+    fileSize: stat.size,
   };
 });
 
 ipcMain.handle('resolve-audio-path', async (event, { relativePath, projectPath }) => {
   if (!relativePath) return '';
-  if (relativePath.startsWith('file://') || relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+  if (relativePath.startsWith('dubbiovi-file://') || relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
     return relativePath;
   }
   const baseDir = projectPath ? projectPath : app.getPath('userData');
   const fullPath = path.isAbsolute(relativePath) ? relativePath : path.join(baseDir, relativePath);
-  return `file://${fullPath.replace(/\\/g, '/')}`;
+  const normalized = fullPath.replace(/\\/g, '/');
+  const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+  return `dubbiovi-file://${cleanPath}`;
 });

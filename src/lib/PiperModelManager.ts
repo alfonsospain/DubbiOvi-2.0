@@ -26,9 +26,9 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     description: 'High quality American English female voice',
   },
   {
-    id: 'es_ES-dave-medium.onnx',
-    name: 'Spanish (ES) - Dave Medium',
-    filename: 'es_ES-dave-medium.onnx',
+    id: 'es_ES-davefx-medium.onnx',
+    name: 'Spanish (ES) - Dave FX Medium',
+    filename: 'es_ES-davefx-medium.onnx',
     language: 'ES',
     gender: 'male',
     estimatedSize: '~65 MB',
@@ -60,10 +60,22 @@ export class PiperModelManager {
   }
 
   /**
+   * Normalizes legacy model names to canonical model filenames.
+   */
+  public static normalizeModelName(filenameOrId: string): string {
+    const clean = (filenameOrId || '').toLowerCase().trim();
+    if (clean === 'es_ES-dave-medium.onnx' || clean === 'es_es-dave-medium.onnx') {
+      return 'es_ES-davefx-medium.onnx';
+    }
+    return filenameOrId;
+  }
+
+  /**
    * Resolves a voice model descriptor by filename or ID.
    */
   public static getModelDescriptor(filenameOrId: string): PiperModelDescriptor | null {
-    const clean = (filenameOrId || '').toLowerCase().trim();
+    const target = PiperModelManager.normalizeModelName(filenameOrId);
+    const clean = target.toLowerCase().trim();
     return (
       KNOWN_PIPER_MODELS.find(
         (m) => m.filename.toLowerCase() === clean || m.id.toLowerCase() === clean
@@ -75,15 +87,21 @@ export class PiperModelManager {
    * Retrieves active Piper model filename from ProviderServiceManager ('piper', 'tts').
    */
   public static async getActiveModelName(): Promise<string> {
-    return await ProviderServiceManager.getServiceModel('piper', 'tts');
+    const raw = await ProviderServiceManager.getServiceModel('piper', 'tts');
+    const normalized = PiperModelManager.normalizeModelName(raw);
+    if (normalized !== raw) {
+      await ProviderServiceManager.setServiceModel('piper', 'tts', normalized);
+    }
+    return normalized;
   }
 
   /**
    * Persists active Piper model filename via ProviderServiceManager ('piper', 'tts').
    */
   public static async setActiveModelName(modelName: string): Promise<boolean> {
-    const descriptor = PiperModelManager.getModelDescriptor(modelName);
-    const targetFilename = descriptor ? descriptor.filename : modelName;
+    const normalized = PiperModelManager.normalizeModelName(modelName);
+    const descriptor = PiperModelManager.getModelDescriptor(normalized);
+    const targetFilename = descriptor ? descriptor.filename : normalized;
     return await ProviderServiceManager.setServiceModel('piper', 'tts', targetFilename);
   }
 

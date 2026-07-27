@@ -34,7 +34,9 @@ class DownloadManager {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           fileStream.close();
           fs.unlink(targetPath, () => {});
-          return DownloadManager.downloadFile(response.headers.location, targetPath, onProgress)
+          const redirectUrl = new URL(response.headers.location, url).toString();
+          console.log(`[DownloadManager] HTTP ${response.statusCode} redirecting from '${url}' to '${redirectUrl}'...`);
+          return DownloadManager.downloadFile(redirectUrl, targetPath, onProgress)
             .then(resolve)
             .catch(reject);
         }

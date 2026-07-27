@@ -121,6 +121,29 @@ class EngineRegistry {
       executableName: isWin ? 'piper.exe' : 'piper',
       supportedModelExtensions: ['.onnx', '.json'],
       description: 'Fast, local neural text-to-speech engine',
+      knownModels: [
+        {
+          filename: 'en_US-lessac-high.onnx',
+          name: 'English (US) - Lessac High',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx.json',
+          estimatedSize: '~102 MB',
+        },
+        {
+          filename: 'es_ES-davefx-medium.onnx',
+          name: 'Spanish (ES) - Dave FX Medium',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json',
+          estimatedSize: '~65 MB',
+        },
+        {
+          filename: 'fr_FR-upmc-medium.onnx',
+          name: 'French (FR) - UPMC Medium',
+          downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+          configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx.json',
+          estimatedSize: '~63 MB',
+        },
+      ],
     });
 
     // 4. Kokoro Engine (TTS)

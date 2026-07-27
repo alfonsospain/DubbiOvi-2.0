@@ -247,6 +247,11 @@ class LocalEngineManager {
     try {
       const files = fs.readdirSync(targetFolder);
       for (const file of files) {
+        // Skip companion config files (.onnx.json) from listing as standalone models
+        if (file.endsWith('.onnx.json') || file.endsWith('.json')) {
+          continue;
+        }
+
         const ext = path.extname(file).toLowerCase();
         if (extensions.length === 0 || extensions.includes(ext)) {
           const fullPath = path.join(targetFolder, file);
@@ -400,8 +405,22 @@ class LocalEngineManager {
 
     try {
       await DownloadManager.downloadFile(url, tempPath, onProgress);
-      // Move downloaded file to target models directory
       fs.renameSync(tempPath, targetPath);
+
+      // Piper models MUST have an accompanying .onnx.json config file
+      if (engineId === 'piper' || modelName.endsWith('.onnx')) {
+        const descriptor = this.registry.get(engineId);
+        const modelMeta = descriptor?.knownModels?.find((m) => m.filename === modelName);
+        const configUrl = modelMeta?.configUrl || `${url}.json`;
+        const configFilename = `${modelName}.json`;
+        const configTargetPath = path.join(targetDir, configFilename);
+        const configTempPath = path.join(this.cacheDir, `${engineId}_${configFilename}.tmp`);
+
+        console.log(`[LocalEngineManager] Downloading required Piper config: ${configUrl} -> ${configTargetPath}...`);
+        await DownloadManager.downloadFile(configUrl, configTempPath);
+        fs.renameSync(configTempPath, configTargetPath);
+      }
+
       return targetPath;
     } catch (err) {
       if (fs.existsSync(tempPath)) {
