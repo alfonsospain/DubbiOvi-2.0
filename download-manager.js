@@ -27,13 +27,9 @@ class DownloadManager {
         fs.mkdirSync(targetDir, { recursive: true });
       }
 
-      const fileStream = fs.createWriteStream(targetPath);
-
       const request = client.get(url, (response) => {
         // Handle HTTP redirects (301, 302, 307, 308)
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-          fileStream.close();
-          fs.unlink(targetPath, () => {});
           const redirectUrl = new URL(response.headers.location, url).toString();
           console.log(`[DownloadManager] HTTP ${response.statusCode} redirecting from '${url}' to '${redirectUrl}'...`);
           return DownloadManager.downloadFile(redirectUrl, targetPath, onProgress)
@@ -42,11 +38,10 @@ class DownloadManager {
         }
 
         if (response.statusCode !== 200) {
-          fileStream.close();
-          fs.unlink(targetPath, () => {});
-          return reject(new Error(`HTTP Download failed with status code: ${response.statusCode}`));
+          return reject(new Error(`HTTP Download failed with status code ${response.statusCode} for URL: ${url}`));
         }
 
+        const fileStream = fs.createWriteStream(targetPath);
         const totalBytes = parseInt(response.headers['content-length'] || '0', 10);
         let loadedBytes = 0;
 
@@ -65,14 +60,17 @@ class DownloadManager {
 
         fileStream.on('error', (err) => {
           fileStream.close();
-          fs.unlink(targetPath, () => {});
+          if (fs.existsSync(targetPath)) {
+            try { fs.unlinkSync(targetPath); } catch (_) {}
+          }
           reject(err);
         });
       });
 
       request.on('error', (err) => {
-        fileStream.close();
-        fs.unlink(targetPath, () => {});
+        if (fs.existsSync(targetPath)) {
+          try { fs.unlinkSync(targetPath); } catch (_) {}
+        }
         reject(err);
       });
     });

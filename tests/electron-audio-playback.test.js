@@ -19,21 +19,27 @@ app.whenReady().then(async () => {
 
   // Protocol handler for dubbiovi-file:// URIs
   protocol.handle('dubbiovi-file', (request) => {
-    const parsed = new URL(request.url);
-    let filePath = decodeURIComponent(parsed.hostname + parsed.pathname);
-    if (!filePath.startsWith('/') && process.platform !== 'win32') {
-      filePath = '/' + filePath;
+    let rawPath = decodeURIComponent(request.url.replace(/^dubbiovi-file:\/\//i, ''));
+    if (process.platform === 'win32') {
+      if (rawPath.startsWith('/')) {
+        rawPath = rawPath.substring(1);
+      }
+      if (/^[a-zA-Z]\//.test(rawPath)) {
+        rawPath = rawPath[0] + ':' + rawPath.substring(1);
+      }
+    } else {
+      if (!rawPath.startsWith('/')) {
+        rawPath = '/' + rawPath;
+      }
     }
-    if (process.platform === 'win32' && filePath.startsWith('/')) {
-      filePath = filePath.substring(1);
-    }
+    const filePath = rawPath;
     const fileUrl = pathToFileURL(filePath).toString();
     console.log(`[dubbiovi-file IPC] Protocol request received for file: ${filePath}`);
     console.log(`[dubbiovi-file IPC] Delegating to native file URL: ${fileUrl}`);
     return net.fetch(fileUrl);
   });
 
-  const testWavPath = path.join(app.getPath('userData'), 'Audio', 'spanish_test_real.wav');
+  const testWavPath = path.join(app.getPath('userData'), 'Audio', 'voice_test-preview_50f924fa.wav');
   console.log(`[Test Setup] Target test WAV file path: ${testWavPath}`);
   console.log(`[Test Setup] Target file exists: ${fs.existsSync(testWavPath)}`);
 

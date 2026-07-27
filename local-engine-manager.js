@@ -426,6 +426,10 @@ class LocalEngineManager {
       if (fs.existsSync(tempPath)) {
         try { fs.unlinkSync(tempPath); } catch (_) {}
       }
+      const configTempPath = path.join(this.cacheDir, `${engineId}_${modelName}.json.tmp`);
+      if (fs.existsSync(configTempPath)) {
+        try { fs.unlinkSync(configTempPath); } catch (_) {}
+      }
       throw err;
     }
   }

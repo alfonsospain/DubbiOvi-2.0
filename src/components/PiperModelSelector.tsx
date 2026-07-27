@@ -90,18 +90,23 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
       const audio = new Audio(resolvedUrl);
 
       const logAudioDiagnostics = (tag: string, errObj?: any) => {
+        let protocolUsed = 'unknown';
+        try { protocolUsed = new URL(resolvedUrl).protocol; } catch (_) {}
         console.log(`[Audio Diagnostics - ${tag}]`);
-        console.log('  audio.src          :', audio.src);
-        console.log('  audio.currentSrc   :', audio.currentSrc);
-        console.log('  audio.readyState   :', audio.readyState);
-        console.log('  audio.networkState :', audio.networkState);
-        console.log('  audio.error        :', audio.error);
+        console.log('  Piper filesystem path :', result.relativePath || result.filename);
+        console.log('  URL generated from path:', resolvedUrl);
+        console.log('  Protocol used          :', protocolUsed);
+        console.log('  audio.src              :', audio.src);
+        console.log('  audio.currentSrc       :', audio.currentSrc);
+        console.log('  audio.readyState       :', audio.readyState);
+        console.log('  audio.networkState     :', audio.networkState);
+        console.log('  audio.error            :', audio.error);
         if (audio.error) {
-          console.log('  audio.error.code   :', audio.error.code);
-          console.log('  audio.error.message:', audio.error.message);
+          console.log('  audio.error.code       :', audio.error.code);
+          console.log('  audio.error.message    :', audio.error.message);
         }
         if (errObj) {
-          console.log('  play error         :', errObj);
+          console.log('  play error             :', errObj);
         }
       };
 

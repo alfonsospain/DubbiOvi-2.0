@@ -356,29 +356,35 @@ app.whenReady().then(() => {
   // Protocol handler for dubbiovi-file:// URIs allowing http:// origins to stream local audio
   try {
     protocol.handle('dubbiovi-file', (request) => {
-    try {
-      const parsed = new URL(request.url);
-      let filePath = decodeURIComponent(parsed.hostname + parsed.pathname);
-      if (!filePath.startsWith('/') && process.platform !== 'win32') {
-        filePath = '/' + filePath;
-      }
-      if (process.platform === 'win32' && filePath.startsWith('/')) {
-        filePath = filePath.substring(1);
-      }
+      try {
+        let rawPath = decodeURIComponent(request.url.replace(/^dubbiovi-file:\/\//i, ''));
+        if (process.platform === 'win32') {
+          if (rawPath.startsWith('/')) {
+            rawPath = rawPath.substring(1);
+          }
+          if (/^[a-zA-Z]\//.test(rawPath)) {
+            rawPath = rawPath[0] + ':' + rawPath.substring(1);
+          }
+        } else {
+          if (!rawPath.startsWith('/')) {
+            rawPath = '/' + rawPath;
+          }
+        }
+        const filePath = rawPath;
 
-      if (!fs.existsSync(filePath)) {
-        logDiag(`[dubbiovi-file IPC] Error: Requested file not found at ${filePath}`);
-        return new Response('File Not Found', { status: 404 });
-      }
+        if (!fs.existsSync(filePath)) {
+          logDiag(`[dubbiovi-file IPC] Error: Requested file not found at ${filePath}`);
+          return new Response('File Not Found', { status: 404 });
+        }
 
-      const fileUrl = pathToFileURL(filePath).toString();
-      logDiag(`[dubbiovi-file IPC] Serving audio file URL: ${fileUrl}`);
-      return net.fetch(fileUrl);
-    } catch (err) {
-      logDiag(`[dubbiovi-file IPC] URL parsing error: ${err.message}`);
-      return new Response('Bad Request', { status: 400 });
-    }
-  });
+        const fileUrl = pathToFileURL(filePath).toString();
+        logDiag(`[dubbiovi-file IPC] Serving audio file URL: ${fileUrl}`);
+        return net.fetch(fileUrl);
+      } catch (err) {
+        logDiag(`[dubbiovi-file IPC] URL parsing error: ${err.message}`);
+        return new Response('Bad Request', { status: 400 });
+      }
+    });
   } catch (err) {
     logDiag(`[protocol.handle] Error registering dubbiovi-file handler: ${err.message}`);
   }

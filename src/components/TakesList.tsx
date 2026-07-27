@@ -509,18 +509,23 @@ const TakesList: React.FC<TakesListProps> = ({
     const audio = new Audio(audioUrl);
 
     const logAudioDiagnostics = (tag: string, errObj?: any) => {
+      let protocolUsed = 'unknown';
+      try { protocolUsed = new URL(audioUrl).protocol; } catch (_) {}
       console.log(`[TakesList Audio Diagnostics - ${tag}]`);
-      console.log('  audio.src          :', audio.src);
-      console.log('  audio.currentSrc   :', audio.currentSrc);
-      console.log('  audio.readyState   :', audio.readyState);
-      console.log('  audio.networkState :', audio.networkState);
-      console.log('  audio.error        :', audio.error);
+      console.log('  Filesystem path        :', relativePath);
+      console.log('  URL generated from path:', audioUrl);
+      console.log('  Protocol used          :', protocolUsed);
+      console.log('  audio.src              :', audio.src);
+      console.log('  audio.currentSrc       :', audio.currentSrc);
+      console.log('  audio.readyState       :', audio.readyState);
+      console.log('  audio.networkState     :', audio.networkState);
+      console.log('  audio.error            :', audio.error);
       if (audio.error) {
-        console.log('  audio.error.code   :', audio.error.code);
-        console.log('  audio.error.message:', audio.error.message);
+        console.log('  audio.error.code       :', audio.error.code);
+        console.log('  audio.error.message    :', audio.error.message);
       }
       if (errObj) {
-        console.log('  play error         :', errObj);
+        console.log('  play error             :', errObj);
       }
     };
 
