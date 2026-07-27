@@ -355,7 +355,7 @@ const { pathToFileURL } = require('url');
 app.whenReady().then(() => {
   // Protocol handler for dubbiovi-file:// URIs allowing http:// origins to stream local audio
   try {
-    protocol.handle('dubbiovi-file', (request) => {
+    protocol.handle('dubbiovi-file', async (request) => {
       try {
         let rawPath = decodeURIComponent(request.url.replace(/^dubbiovi-file:\/\//i, ''));
         if (process.platform === 'win32') {
@@ -378,8 +378,30 @@ app.whenReady().then(() => {
         }
 
         const fileUrl = pathToFileURL(filePath).toString();
-        logDiag(`[dubbiovi-file IPC] Serving audio file URL: ${fileUrl}`);
-        return net.fetch(fileUrl);
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeTypes = {
+          '.mp3': 'audio/mpeg',
+          '.wav': 'audio/wav',
+          '.ogg': 'audio/ogg',
+          '.flac': 'audio/flac',
+          '.aac': 'audio/aac',
+          '.m4a': 'audio/mp4',
+        };
+        const mimeType = mimeTypes[ext] || 'audio/mpeg';
+
+        const res = await net.fetch(fileUrl);
+        const headers = new Headers(res.headers);
+        headers.set('Content-Type', mimeType);
+        headers.set('Access-Control-Allow-Origin', '*');
+
+        const stat = fs.statSync(filePath);
+        logDiag(`[dubbiovi-file IPC] Serving audio file: ${filePath} | Size: ${stat.size} bytes | Extension: ${ext} | MIME: ${mimeType} | Status: ${res.status}`);
+
+        return new Response(res.body, {
+          status: res.status,
+          statusText: res.statusText,
+          headers,
+        });
       } catch (err) {
         logDiag(`[dubbiovi-file IPC] URL parsing error: ${err.message}`);
         return new Response('Bad Request', { status: 400 });
@@ -452,11 +474,42 @@ ipcMain.handle('show-save-dialog', async (event, options) => {
   return await dialog.showSaveDialog(mainWindow, options);
 });
 
-ipcMain.handle('save-file', async (event, filePath, data) => {
+ipcMain.handle('save-file', async (event, filePath, data, projectPath) => {
   try {
-    fs.writeFileSync(filePath, data, 'utf8');
-    return { success: true };
+    const baseDir = projectPath ? projectPath : app.getPath('userData');
+    const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(baseDir, filePath);
+    const parentDir = path.dirname(absolutePath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+
+    let buffer;
+    if (Buffer.isBuffer(data)) {
+      buffer = data;
+    } else if (data instanceof Uint8Array || data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+      const u8 = data instanceof Uint8Array ? data : new Uint8Array(data.buffer || data);
+      buffer = Buffer.from(u8.buffer, u8.byteOffset, u8.byteLength);
+    } else if (typeof data === 'string') {
+      const trimmed = data.trim();
+      if (/^[A-Za-z0-9+/=\s]+$/.test(trimmed) && trimmed.length % 4 === 0 && trimmed.length > 50) {
+        buffer = Buffer.from(trimmed, 'base64');
+      } else {
+        buffer = Buffer.from(data, 'utf8');
+      }
+    } else if (data && typeof data === 'object' && Array.isArray(data.data)) {
+      buffer = Buffer.from(data.data);
+    } else if (data && typeof data === 'object' && data.type === 'Buffer' && Array.isArray(data.data)) {
+      buffer = Buffer.from(data.data);
+    } else {
+      buffer = Buffer.from(data);
+    }
+
+    fs.writeFileSync(absolutePath, buffer);
+    const hexHeader = buffer.subarray(0, 12).toString('hex');
+    logDiag(`[save-file IPC] Saved ${buffer.length} binary bytes to ${absolutePath}. Hex header: ${hexHeader}`);
+    return { success: true, length: buffer.length };
   } catch (error) {
+    logDiag(`[save-file IPC] Error saving file to ${filePath}: ${error.message}`);
     return { success: false, error: error.message };
   }
 });

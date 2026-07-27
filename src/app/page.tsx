@@ -69,9 +69,43 @@ export default function DubbingStudioPro() {
   const [activeTab, setActiveTab] = useState('takes');
   const [isDetached, setIsDetached] = useState(false);
   const [workflowMode, setWorkflowMode] = useState('manual');
-  const [transcriptionProvider, setTranscriptionProvider] = useState('None');
-  const [translationProvider, setTranslationProvider] = useState('None');
-  const [speechProvider, setSpeechProvider] = useState('None');
+  const [transcriptionProvider, setTranscriptionProviderState] = useState('None');
+  const [translationProvider, setTranslationProviderState] = useState('None');
+  const [speechProvider, setSpeechProviderState] = useState('None');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAsr = localStorage.getItem('dubbiovi_transcription_provider');
+      if (savedAsr) setTranscriptionProviderState(savedAsr);
+
+      const savedMt = localStorage.getItem('dubbiovi_translation_provider');
+      if (savedMt) setTranslationProviderState(savedMt);
+
+      const savedTts = localStorage.getItem('dubbiovi_speech_provider');
+      if (savedTts) setSpeechProviderState(savedTts);
+    }
+  }, []);
+
+  const setTranscriptionProvider = (prov: string) => {
+    setTranscriptionProviderState(prov);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dubbiovi_transcription_provider', prov);
+    }
+  };
+
+  const setTranslationProvider = (prov: string) => {
+    setTranslationProviderState(prov);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dubbiovi_translation_provider', prov);
+    }
+  };
+
+  const setSpeechProvider = (prov: string) => {
+    setSpeechProviderState(prov);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dubbiovi_speech_provider', prov);
+    }
+  };
 
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -1053,6 +1087,7 @@ export default function DubbingStudioPro() {
                       glossary={glossary}
                       settings={settings}
                       translationProvider={translationProvider}
+                      speechProvider={speechProvider}
                       videoRef={videoRef}
                       currentTime={currentTime}
                       selectedTakeIndex={currentIndex}
@@ -1199,6 +1234,7 @@ export default function DubbingStudioPro() {
                                 glossary={glossary}
                                 settings={settings}
                                 translationProvider={translationProvider}
+                                speechProvider={speechProvider}
                                 videoRef={videoRef}
                                 currentTime={currentTime}
                                 selectedTakeIndex={currentIndex}

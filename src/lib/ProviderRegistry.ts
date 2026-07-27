@@ -5,6 +5,8 @@ import { WhisperLocalClientProvider } from './WhisperLocalClientProvider';
 import { OpenAITranscriptionProvider } from './OpenAITranscriptionProvider';
 import { StubVoiceProvider } from './stubs/StubVoiceProvider';
 import { PiperLocalProvider } from './PiperLocalProvider';
+import { GeminiTTSProvider } from './GeminiTTSProvider';
+import { OpenAITTSProvider } from './OpenAITTSProvider';
 
 /**
  * Unified Provider Registry managing discovery for all provider categories (ASR, MT, Voice/TTS).
@@ -23,6 +25,8 @@ export class ProviderRegistry {
     // Auto-register default Voice Providers
     this.registerVoiceProvider(new StubVoiceProvider());
     this.registerVoiceProvider(new PiperLocalProvider());
+    this.registerVoiceProvider(new GeminiTTSProvider());
+    this.registerVoiceProvider(new OpenAITTSProvider());
   }
 
   public static getInstance(): ProviderRegistry {
@@ -99,12 +103,47 @@ export class ProviderRegistry {
     if (normalized === 'stub' || normalized.includes('stub')) {
       return this.voiceProviders.get('stub-voice-provider');
     }
+    if (
+      normalized === 'piper' ||
+      normalized === 'piper local' ||
+      normalized === 'piper local tts' ||
+      normalized === 'piper-local'
+    ) {
+      return this.voiceProviders.get('piper');
+    }
+    if (
+      normalized === 'gemini' ||
+      normalized === 'gemini tts' ||
+      normalized === 'gemini-tts' ||
+      normalized === 'google tts' ||
+      normalized.includes('gemini')
+    ) {
+      return this.voiceProviders.get('gemini');
+    }
+    if (
+      normalized === 'openai' ||
+      normalized === 'openai tts' ||
+      normalized === 'openai-tts' ||
+      normalized === 'openai audio tts' ||
+      normalized.includes('openai')
+    ) {
+      return this.voiceProviders.get('openai');
+    }
 
     return this.voiceProviders.get(id);
   }
 
   public getAllVoiceProviders(): VoiceProvider[] {
     return Array.from(this.voiceProviders.values());
+  }
+
+  /**
+   * Returns all Voice Providers that are registered and currently configured/available.
+   */
+  public getAvailableVoiceProviders(): VoiceProvider[] {
+    return Array.from(this.voiceProviders.values()).filter(
+      (p) => !p.isAvailable || p.isAvailable()
+    );
   }
 
   public clear(): void {

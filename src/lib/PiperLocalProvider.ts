@@ -26,6 +26,11 @@ export class PiperLocalProvider implements VoiceProvider {
     requiresApiKey: false,
   };
 
+  public isAvailable(): boolean {
+    // Piper local execution requires Electron environment or mock fallback
+    return typeof window !== 'undefined' || typeof process !== 'undefined';
+  }
+
   /**
    * Discovers available voice descriptors dynamically via PiperModelManager.
    */
@@ -34,10 +39,9 @@ export class PiperLocalProvider implements VoiceProvider {
   }
 
   /**
-   * Generates a voice synthesis result for a request using the configured active model.
-   * Outputs provider-neutral audio filename format: voice_<takeId>_<uuid>.wav.
+   * Canonical synthesis implementation for Piper Neural TTS.
    */
-  public async generateVoice(
+  public async synthesize(
     request: VoiceGenerationRequest,
     apiKey?: string
   ): Promise<VoiceGenerationResult> {
@@ -45,7 +49,14 @@ export class PiperLocalProvider implements VoiceProvider {
       throw new Error('Invalid VoiceGenerationRequest: text parameter is required.');
     }
 
-    const rawModel = request.voiceId || request.modelName || (await PiperModelManager.getActiveModelName());
+    let rawModel = request.voiceId || request.modelName;
+    if (!rawModel && request.language) {
+      rawModel = await PiperModelManager.getVoiceForLanguage(request.language);
+    }
+    if (!rawModel) {
+      rawModel = await PiperModelManager.getActiveModelName();
+    }
+
     const modelToUse = PiperModelManager.normalizeModelName(rawModel);
     const resultId = uuidv4();
     const takeId = request.takeId || 'unassigned';
@@ -87,5 +98,15 @@ export class PiperLocalProvider implements VoiceProvider {
         generatedAt: new Date().toISOString(),
       },
     };
+  }
+
+  /**
+   * Backwards-compatibility wrapper delegating to canonical synthesize().
+   */
+  public async generateVoice(
+    request: VoiceGenerationRequest,
+    apiKey?: string
+  ): Promise<VoiceGenerationResult> {
+    return this.synthesize(request, apiKey);
   }
 }

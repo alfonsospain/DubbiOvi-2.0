@@ -553,9 +553,9 @@ export default function AiPlatforms() {
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   <Globe className="h-3.5 w-3.5 text-primary" /> Translation
                 </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground opacity-60">
-                  <Clock className="h-3.5 w-3.5 shrink-0 text-amber-400/80" />
-                  <Volume2 className="h-3.5 w-3.5" /> Speech Synthesis (Planned)
+                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <Volume2 className="h-3.5 w-3.5 text-primary" /> Voice Synthesis
                 </div>
               </div>
             </div>
@@ -666,9 +666,9 @@ export default function AiPlatforms() {
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   <Globe className="h-3.5 w-3.5 text-primary" /> Translation
                 </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground opacity-60">
-                  <Clock className="h-3.5 w-3.5 shrink-0 text-amber-400/80" />
-                  <Volume2 className="h-3.5 w-3.5" /> Speech Synthesis (Planned)
+                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <Volume2 className="h-3.5 w-3.5 text-primary" /> Voice Synthesis
                 </div>
               </div>
             </div>

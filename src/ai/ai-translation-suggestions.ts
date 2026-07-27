@@ -37,29 +37,51 @@ const GetTranslationSuggestionOutputSchema = z.object({
 });
 export type GetTranslationSuggestionOutput = z.infer<typeof GetTranslationSuggestionOutputSchema>;
 
-import { OllamaTranslationProvider } from '@/lib/OllamaTranslationProvider';
+import { TranslationProviderRegistry } from '@/lib/TranslationProviderRegistry';
+import { loadApiKey, loadDeepLApiKey, loadOpenAiApiKey } from '@/lib/apiKeyStorage';
 
 export async function getTranslationSuggestion(input: GetTranslationSuggestionInput): Promise<GetTranslationSuggestionOutput> {
   const providerName = input.provider || 'Gemini';
 
-  if (providerName.toLowerCase().includes('ollama')) {
-    const baseUrl = input.ollamaConfig?.url || 'http://localhost:11434';
-    const model = input.ollamaConfig?.model;
+  console.log('[Translation Diagnostic] UI selection:', input.provider || '(None / Default)');
+  console.log('[Translation Diagnostic] Stored provider configuration:', providerName);
+  console.log('[Translation Diagnostic] Provider ID received by the service:', providerName);
 
-    const provider = new OllamaTranslationProvider({
-      baseUrl,
-      model,
-    });
-    const result = await provider.translate({
+  const resolvedProvider = TranslationProviderRegistry.getProvider(providerName);
+  console.log('[Translation Diagnostic] Provider resolved by ProviderRegistry:', resolvedProvider ? resolvedProvider.id : 'None (Fallback)');
+  console.log('[Translation Diagnostic] Actual provider instance invoked:', resolvedProvider ? `${resolvedProvider.constructor.name} (${resolvedProvider.name})` : 'Gemini Genkit Flow');
+
+  if (resolvedProvider) {
+    if (resolvedProvider.id === 'ollama-mt') {
+      const baseUrl = input.ollamaConfig?.url || 'http://localhost:11434';
+      const model = input.ollamaConfig?.model;
+      const result = await resolvedProvider.translate({
+        text: input.originalText,
+        sourceLanguage: input.sourceLanguage,
+        targetLanguage: input.targetLanguage,
+        glossary: input.glossary,
+        options: { baseUrl, model },
+      });
+      return { translation: result.translation };
+    }
+
+    const apiKey = input.apiKey || (
+      resolvedProvider.id === 'deepl' ? loadDeepLApiKey() :
+      resolvedProvider.id === 'openai-mt' ? loadOpenAiApiKey() :
+      loadApiKey()
+    ) || undefined;
+
+    const result = await resolvedProvider.translate({
       text: input.originalText,
       sourceLanguage: input.sourceLanguage,
       targetLanguage: input.targetLanguage,
       glossary: input.glossary,
-    });
+    }, apiKey);
+
     return { translation: result.translation };
   }
 
-  const activeKey = input.apiKey?.trim() || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || undefined;
+  const activeKey = input.apiKey?.trim() || loadApiKey() || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || undefined;
   return getTranslationSuggestionFlow({
     ...input,
     apiKey: activeKey,

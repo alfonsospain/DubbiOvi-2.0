@@ -127,16 +127,25 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   const [progressJob, setProgressJob] = useState<ExecutionJob | null>(null);
   const trackerRef = React.useRef<ExecutionProgressTracker | null>(null);
 
-  React.useEffect(() => {
-    setHasApiKey(!!loadApiKey());
-  }, []);
-
   const activeProvider = React.useMemo(() => {
     if (!transcriptionProvider || transcriptionProvider === 'None') {
       return null;
     }
     return providerRegistry.get(transcriptionProvider) || null;
   }, [transcriptionProvider]);
+
+  React.useEffect(() => {
+    const provId = (transcriptionProvider || '').toLowerCase().trim();
+    if (provId.includes('openai') || provId.includes('whisper-cloud')) {
+      setHasApiKey(!!loadOpenAiApiKey());
+    } else if (provId.includes('gemini') || provId.includes('google')) {
+      setHasApiKey(!!loadApiKey());
+    } else if (activeProvider && !activeProvider.capabilities.requiresApiKey) {
+      setHasApiKey(true);
+    } else {
+      setHasApiKey(!!loadApiKey());
+    }
+  }, [transcriptionProvider, activeProvider]);
 
   const handleAsrTranscription = async () => {
     if (!videoFile) {

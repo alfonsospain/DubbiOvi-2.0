@@ -37,7 +37,7 @@ import {
 } from './ui/dialog';
 import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
 import { useToast } from '@/hooks/use-toast';
-import { loadApiKey, loadOllamaConfig } from '@/lib/apiKeyStorage';
+import { loadApiKey, loadOpenAiApiKey, loadDeepLApiKey, loadOllamaConfig } from '@/lib/apiKeyStorage';
 import { VoiceService } from '@/lib/VoiceService';
 import {
   Sparkles,
@@ -62,6 +62,7 @@ interface TakesListProps {
   glossary: GlossaryEntry[];
   settings: ProjectSettings;
   translationProvider?: string;
+  speechProvider?: string;
   videoRef: React.RefObject<HTMLVideoElement>;
   currentTime: number;
   selectedTakeIndex?: number;
@@ -99,6 +100,7 @@ interface TakeRowProps {
   sourceTextRef: (el: HTMLTextAreaElement | null) => void;
   takesCount: number;
   hasApiKey: boolean;
+  translationProvider?: string;
   onEnterSyncMode: (index: number) => void;
 }
 
@@ -124,6 +126,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
   sourceTextRef,
   takesCount,
   hasApiKey,
+  translationProvider,
   onEnterSyncMode,
 }) => {
   const isLocked = take.status === 'Locked';
@@ -348,7 +351,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
               suggestTranslation(take);
             }}
             disabled={isSuggesting || isLocked || !hasApiKey}
-            title={!hasApiKey ? 'Configure Gemini API Key in Settings to suggest translations' : (isLocked ? 'Unlock to suggest translation' : 'Suggest Translation')}
+            title={!hasApiKey ? `Configure ${translationProvider || 'Gemini'} API Key in AI Platforms to suggest translations` : (isLocked ? 'Unlock to suggest translation' : 'Suggest Translation')}
           >
             <Sparkles
               className={cn('h-4 w-4', isSuggesting && 'animate-spin')}
@@ -422,6 +425,7 @@ const TakesList: React.FC<TakesListProps> = ({
   glossary,
   settings,
   translationProvider,
+  speechProvider,
   videoRef,
   currentTime,
   selectedTakeIndex,
@@ -433,12 +437,21 @@ const TakesList: React.FC<TakesListProps> = ({
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
   const [generatingVoiceId, setGeneratingVoiceId] = useState<string | null>(null);
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(true);
   const voiceServiceRef = useRef<VoiceService | null>(null);
 
   useEffect(() => {
-    setHasApiKey(!!loadApiKey());
-  }, []);
+    const prov = (translationProvider || 'Gemini').toLowerCase();
+    if (prov.includes('ollama')) {
+      setHasApiKey(true);
+    } else if (prov.includes('deepl')) {
+      setHasApiKey(!!loadDeepLApiKey());
+    } else if (prov.includes('openai')) {
+      setHasApiKey(!!loadOpenAiApiKey());
+    } else {
+      setHasApiKey(!!loadApiKey());
+    }
+  }, [translationProvider]);
 
   const handleGenerateVoice = async (take: Take) => {
     if (generatingVoiceId) return;
@@ -460,11 +473,25 @@ const TakesList: React.FC<TakesListProps> = ({
         return;
       }
 
+      const selectedProv = speechProvider || 'piper';
+      const storedProvSetting = typeof window !== 'undefined' ? localStorage.getItem('dubbiovi_speech_provider') : null;
+      console.log('[Voice Generation Diagnostic] UI selection:', speechProvider || '(None / Default)');
+      console.log('[Voice Generation Diagnostic] Stored provider configuration:', storedProvSetting || selectedProv);
+
+      const normalizedProviderId =
+        selectedProv === 'Piper Local TTS' || selectedProv === 'Piper Local' || selectedProv === 'piper'
+          ? 'piper'
+          : selectedProv === 'Google TTS' || selectedProv === 'Gemini' || selectedProv === 'gemini'
+          ? 'gemini'
+          : selectedProv === 'OpenAI Audio TTS' || selectedProv === 'OpenAI' || selectedProv === 'openai'
+          ? 'openai'
+          : selectedProv;
+
       const { result, asset } = await voiceServiceRef.current.generateVoiceForTake({
         takeId: take.id,
         text: textToSynthesize,
         language: settings.targetLang || 'EN',
-        providerId: 'piper',
+        providerId: normalizedProviderId,
       });
 
       const updatedTake: Take = {
@@ -493,8 +520,19 @@ const TakesList: React.FC<TakesListProps> = ({
   const handlePlayVoice = async (take: Take) => {
     const assetId = take.voiceAssetId;
     if (!assetId) return;
-    const cleanTakeId = take.id.replace(/[^a-zA-Z0-9-_]/g, '-');
-    const relativePath = `Audio/voice_${cleanTakeId}_${assetId.substring(0, 8)}.wav`;
+
+    let relativePath: string | undefined;
+    if (voiceServiceRef.current) {
+      const asset = voiceServiceRef.current.getAssetManager().getAsset(assetId);
+      if (asset) {
+        relativePath = asset.relativePath;
+      }
+    }
+
+    if (!relativePath) {
+      const cleanTakeId = take.id.replace(/[^a-zA-Z0-9-_]/g, '-');
+      relativePath = `Audio/voice_${cleanTakeId}_${assetId.substring(0, 8)}.mp3`;
+    }
 
     let audioUrl = relativePath;
     if (typeof window !== 'undefined' && (window as any).electron?.resolveAudioPath) {
@@ -596,7 +634,11 @@ const TakesList: React.FC<TakesListProps> = ({
         sourceLanguage: settings.sourceLang,
         targetLanguage: settings.targetLang,
         glossary,
-        apiKey: loadApiKey() || undefined,
+        apiKey: (
+          selectedProvider.toLowerCase().includes('deepl') ? loadDeepLApiKey() :
+          selectedProvider.toLowerCase().includes('openai') ? loadOpenAiApiKey() :
+          loadApiKey()
+        ) || undefined,
         provider: selectedProvider,
         ollamaConfig: ollamaCfg,
       });
@@ -813,6 +855,7 @@ const TakesList: React.FC<TakesListProps> = ({
                   }}
                   takesCount={takes.length}
                   hasApiKey={hasApiKey}
+                  translationProvider={translationProvider}
                   onEnterSyncMode={onEnterSyncMode}
                 />
               );

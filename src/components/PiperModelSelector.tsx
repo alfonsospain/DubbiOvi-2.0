@@ -174,17 +174,19 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
 
   const renderInstalledModelCard = (model: PiperModelDescriptor & { isInstalled: boolean }) => {
     const normLang = LanguageRegistry.normalizeCode(model.language).toUpperCase();
-    const isPreferredForLang = languageMapping[normLang] === model.filename;
     const isGlobalActive = activeModel === model.filename;
-    const isSelected = isPreferredForLang || isGlobalActive;
+    const isPreferredForLang = languageMapping[normLang] === model.filename;
+    const isSelected = isGlobalActive || isPreferredForLang;
     const langDisplay = LanguageRegistry.formatDisplay(model.language);
 
     return (
       <div
         key={model.filename}
         className={`p-3 rounded-lg border text-xs transition-all flex flex-col justify-between ${
-          isSelected
+          isGlobalActive
             ? 'border-primary bg-primary/10 shadow-sm'
+            : isPreferredForLang
+            ? 'border-primary/40 bg-primary/5'
             : 'border-border/60 bg-secondary/10 hover:bg-secondary/20'
         }`}
       >
@@ -197,11 +199,15 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
               </span>
             </span>
             <div className="flex items-center gap-1">
-              {isPreferredForLang && (
+              {isGlobalActive ? (
                 <Badge variant="default" className="text-[9px] py-0 px-1.5 font-bold bg-primary text-primary-foreground gap-0.5">
                   <Star className="h-2.5 w-2.5 fill-current" /> Active
                 </Badge>
-              )}
+              ) : isPreferredForLang ? (
+                <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-semibold border-primary/40 text-primary gap-0.5">
+                  <Star className="h-2.5 w-2.5 text-primary" /> Preferred ({normLang})
+                </Badge>
+              ) : null}
               <Badge variant="outline" className="text-[9.5px] font-mono bg-background/50">
                 <Globe className="h-2.5 w-2.5 mr-1 text-primary" /> {langDisplay}
               </Badge>
@@ -237,11 +243,11 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
 
             <Button
               size="sm"
-              variant={isSelected ? 'default' : 'secondary'}
+              variant={isGlobalActive ? 'default' : isPreferredForLang ? 'outline' : 'secondary'}
               className="h-6 text-[10px] px-2 font-semibold"
               onClick={() => handleSelectModel(model.filename, model.language)}
             >
-              {isSelected ? 'Active' : 'Select'}
+              {isGlobalActive ? 'Active' : isPreferredForLang ? 'Preferred' : 'Select'}
             </Button>
           </div>
         </div>

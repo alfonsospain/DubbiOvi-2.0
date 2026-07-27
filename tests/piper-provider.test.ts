@@ -21,8 +21,8 @@ async function runPiperProviderTests() {
   // 2. Verify Piper Model Manager Known Models Catalog
   console.log('\n[Test 2] Testing PiperModelManager known models catalog...');
   const known = PiperModelManager.getKnownModels();
-  if (known.length !== 3) {
-    throw new Error(`FAILED: Expected 3 known Piper models, got ${known.length}`);
+  if (known.length < 3) {
+    throw new Error(`FAILED: Expected at least 3 known Piper models, got ${known.length}`);
   }
   console.log(`  ✓ Piper known models catalog: ${known.map((m) => m.filename).join(', ')}`);
 

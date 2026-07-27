@@ -268,7 +268,7 @@ export class PiperModelManager {
       return validInstalled;
     }
 
-    return '';
+    return normalized || KNOWN_PIPER_MODELS[0].filename;
   }
 
   /**

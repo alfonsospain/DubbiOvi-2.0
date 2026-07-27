@@ -21,7 +21,7 @@ export interface VoiceDescriptor {
 export interface VoiceGenerationRequest {
   text: string;
   language: string;
-  voiceId: string;
+  voiceId?: string;
   takeId?: string;
   modelName?: string;
   format?: 'wav' | 'mp3' | 'ogg';
@@ -54,6 +54,20 @@ export interface VoiceProvider {
   readonly name: string;
   readonly capabilities: VoiceCapabilities;
 
+  /**
+   * Optional check indicating if provider is configured and ready for synthesis.
+   */
+  isAvailable?(): boolean;
+
   getAvailableVoices(language?: string): Promise<VoiceDescriptor[]>;
+
+  /**
+   * Canonical synthesis method transforming a VoiceGenerationRequest into a VoiceGenerationResult.
+   */
+  synthesize(request: VoiceGenerationRequest, apiKey?: string): Promise<VoiceGenerationResult>;
+
+  /**
+   * @deprecated Temporary backwards-compatibility wrapper delegating to synthesize().
+   */
   generateVoice(request: VoiceGenerationRequest, apiKey?: string): Promise<VoiceGenerationResult>;
 }

@@ -54,19 +54,23 @@ export class VoiceService {
     result: VoiceGenerationResult;
     asset: VoiceAsset;
   }> {
+    console.log('[Voice Generation Diagnostic] Provider ID received by the service:', options.providerId);
     const provider = this.resolveProvider(options.providerId);
+    console.log('[Voice Generation Diagnostic] Provider resolved by ProviderRegistry:', provider.id, `(${provider.name})`);
+    console.log('[Voice Generation Diagnostic] Actual provider instance invoked:', provider.constructor.name, `(${provider.name})`);
 
-    // Resolve voice model for this request
+    // Resolve voice model for this request using ProviderServiceManager or requested voiceId
     let targetModel = options.voiceId;
-    if (!targetModel && options.providerId.toLowerCase() === 'piper') {
-      targetModel = await PiperModelManager.getVoiceForLanguage(options.language);
-    }
     if (!targetModel) {
-      targetModel = await ProviderServiceManager.getServiceModel(options.providerId, 'tts');
+      targetModel = await ProviderServiceManager.getServiceModel(provider.id, 'tts');
     }
 
     const reqFormat: 'wav' | 'mp3' | 'ogg' =
-      options.format === 'mp3' ? 'mp3' : options.format === 'ogg' ? 'ogg' : 'wav';
+      options.format === 'wav' || options.format === 'mp3' || options.format === 'ogg'
+        ? options.format
+        : provider.id === 'piper'
+        ? 'wav'
+        : 'mp3';
 
     const request: VoiceGenerationRequest = {
       takeId: options.takeId,
@@ -80,8 +84,10 @@ export class VoiceService {
       pitch: options.pitch,
     };
 
-    // Invoke stateless VoiceProvider
-    const result = await provider.generateVoice(request, options.apiKey);
+    // Invoke stateless VoiceProvider via canonical synthesize() contract
+    const result = typeof provider.synthesize === 'function'
+      ? await provider.synthesize(request, options.apiKey)
+      : await provider.generateVoice(request, options.apiKey);
 
     const assetFormat: 'wav' | 'mp3' | 'ogg' =
       result.format === 'mp3' ? 'mp3' : result.format === 'ogg' ? 'ogg' : 'wav';

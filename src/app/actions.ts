@@ -17,20 +17,106 @@ function getActiveApiKey(clientKey?: string | null): string | undefined {
 export async function testGeminiConnection(
   apiKey: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (!apiKey || !apiKey.trim()) {
+    return { success: false, error: 'Gemini API key is required.' };
+  }
+  const key = apiKey.trim();
   try {
-    const activeKey = getActiveApiKey(apiKey);
-    const response = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
-      prompt: 'Respond with exactly the word "OK".',
-      config: { apiKey: activeKey },
-    });
-    if (response.text?.trim().toUpperCase().includes('OK')) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Respond with OK' }] }],
+        }),
+      }
+    );
+
+    if (res.ok) {
       return { success: true };
     }
-    return { success: false, error: 'Unexpected response from model.' };
+
+    const status = res.status;
+    let errMessage = `HTTP ${status} ${res.statusText}`;
+    try {
+      const errJson = await res.json();
+      if (errJson?.error?.message) {
+        errMessage = errJson.error.message;
+      }
+    } catch (_) {}
+
+    if (status === 429 || errMessage.includes('RESOURCE_EXHAUSTED') || errMessage.toLowerCase().includes('quota')) {
+      return {
+        success: false,
+        error: 'Gemini API key accepted, but the current API quota has been exhausted. Please wait for the quota to reset or review billing.',
+      };
+    }
+
+    if (status === 401 || status === 403 || errMessage.includes('API_KEY_INVALID') || errMessage.toLowerCase().includes('key')) {
+      return {
+        success: false,
+        error: `Authentication failed (HTTP ${status}): Invalid or unauthorized Gemini API key.`,
+      };
+    }
+
+    return {
+      success: false,
+      error: `Gemini API Error (HTTP ${status}): ${errMessage}`,
+    };
   } catch (error: any) {
-    console.error('Test connection failed:', error);
-    return { success: false, error: error.message || String(error) };
+    return {
+      success: false,
+      error: `Connection failure: Unable to reach Google Gemini API servers (${error.message || String(error)}).`,
+    };
+  }
+}
+
+export async function testOpenAiConnection(
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!apiKey || !apiKey.trim()) {
+    return { success: false, error: 'OpenAI API key is required.' };
+  }
+  const key = apiKey.trim();
+  try {
+    const res = await fetch('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${key}`,
+      },
+    });
+
+    if (res.ok) {
+      return { success: true };
+    }
+
+    const status = res.status;
+    let errDetail = `HTTP ${status} ${res.statusText}`;
+    try {
+      const errJson = await res.json();
+      if (errJson?.error?.message) {
+        errDetail = errJson.error.message;
+      }
+    } catch (_) {}
+
+    if (status === 429 || errDetail.includes('insufficient_quota') || errDetail.toLowerCase().includes('quota')) {
+      return {
+        success: false,
+        error: 'OpenAI API key accepted, but current API quota/credit limit has been exhausted. Please review your OpenAI billing.',
+      };
+    }
+
+    if (status === 401 || status === 403) {
+      return {
+        success: false,
+        error: `Authentication failed (HTTP ${status}): Invalid or unauthorized OpenAI API key.`,
+      };
+    }
+
+    return { success: false, error: `OpenAI API Error (HTTP ${status}): ${errDetail}` };
+  } catch (err: any) {
+    return { success: false, error: `Connection failure: ${err.message || String(err)}` };
   }
 }
 
@@ -38,7 +124,7 @@ export async function testDeepLConnection(
   apiKey: string
 ): Promise<{ success: boolean; error?: string }> {
   if (!apiKey || !apiKey.trim()) {
-    return { success: false, error: 'API key is required.' };
+    return { success: false, error: 'DeepL API key is required.' };
   }
   const key = apiKey.trim();
   const host = key.endsWith(':fx') ? 'https://api-free.deepl.com' : 'https://api.deepl.com';
@@ -54,7 +140,8 @@ export async function testDeepLConnection(
       return { success: true };
     }
 
-    let errorDetails = `HTTP ${res.status} ${res.statusText}`;
+    const status = res.status;
+    let errorDetails = `HTTP ${status} ${res.statusText}`;
     try {
       const errJson = await res.json();
       if (errJson?.message) {
@@ -62,9 +149,17 @@ export async function testDeepLConnection(
       }
     } catch (_) {}
 
+    if (status === 401 || status === 403) {
+      return { success: false, error: `Authentication failed (HTTP ${status}): Invalid or unauthorized DeepL API key.` };
+    }
+
+    if (status === 429 || status === 456) {
+      return { success: false, error: 'DeepL API key accepted, but translation quota has been reached.' };
+    }
+
     return { success: false, error: errorDetails };
   } catch (err: any) {
-    return { success: false, error: err.message || String(err) };
+    return { success: false, error: `Connection failure: ${err.message || String(err)}` };
   }
 }
 

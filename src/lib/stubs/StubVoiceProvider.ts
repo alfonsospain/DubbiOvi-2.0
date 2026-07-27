@@ -26,6 +26,10 @@ export class StubVoiceProvider implements VoiceProvider {
     requiresApiKey: false,
   };
 
+  public isAvailable(): boolean {
+    return true;
+  }
+
   /**
    * Returns a mock list of available voice descriptors.
    */
@@ -50,9 +54,9 @@ export class StubVoiceProvider implements VoiceProvider {
   }
 
   /**
-   * Generates a provider-independent VoiceGenerationResult referencing a relative audio path.
+   * Canonical synthesis implementation returning a provider-independent VoiceGenerationResult.
    */
-  public async generateVoice(
+  public async synthesize(
     request: VoiceGenerationRequest,
     apiKey?: string
   ): Promise<VoiceGenerationResult> {
@@ -81,5 +85,15 @@ export class StubVoiceProvider implements VoiceProvider {
         generatedAt: new Date().toISOString(),
       },
     };
+  }
+
+  /**
+   * Backwards-compatibility wrapper delegating to canonical synthesize().
+   */
+  public async generateVoice(
+    request: VoiceGenerationRequest,
+    apiKey?: string
+  ): Promise<VoiceGenerationResult> {
+    return this.synthesize(request, apiKey);
   }
 }

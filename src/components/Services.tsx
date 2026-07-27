@@ -206,7 +206,15 @@ const Services: React.FC<ServicesProps> = ({
               )}
             </div>
             <Select
-              value={speechProvider}
+              value={
+                speechProvider === 'Piper Local TTS' || speechProvider === 'piper'
+                  ? 'Piper Local'
+                  : speechProvider === 'Google TTS' || speechProvider === 'gemini'
+                  ? 'Gemini'
+                  : speechProvider === 'OpenAI Audio TTS' || speechProvider === 'openai'
+                  ? 'OpenAI'
+                  : speechProvider
+              }
               onValueChange={setSpeechProvider}
             >
               <SelectTrigger
@@ -220,10 +228,9 @@ const Services: React.FC<ServicesProps> = ({
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Piper Local TTS">Piper Local TTS (Offline)</SelectItem>
-                <SelectItem value="Google TTS">Google Speech Synthesis</SelectItem>
-                <SelectItem value="OpenAI">OpenAI Audio TTS</SelectItem>
-                <SelectItem value="Ollama">Ollama (Local TTS)</SelectItem>
+                <SelectItem value="Piper Local">Piper Local (Offline)</SelectItem>
+                <SelectItem value="Gemini">Gemini (Google Cloud)</SelectItem>
+                <SelectItem value="OpenAI">OpenAI (Cloud Audio)</SelectItem>
                 <SelectItem value="None">None (Manual)</SelectItem>
               </SelectContent>
             </Select>
