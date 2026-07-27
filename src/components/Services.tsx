@@ -118,7 +118,7 @@ const Services: React.FC<ServicesProps> = ({
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-bold text-foreground">Services Stages</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Choose the processing engine for each workflow stage
+            Choose which AI Platform performs each workflow stage (model selection is configured in AI Platforms tab)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

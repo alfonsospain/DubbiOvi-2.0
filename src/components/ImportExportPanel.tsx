@@ -556,7 +556,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                       <AlertTriangle className="h-3.5 w-3.5" /> API Key Missing
                     </p>
                     <p className="text-muted-foreground leading-normal">
-                      Please configure your API key for <strong>{activeProvider.name}</strong> in the <strong>Providers</strong> tab.
+                      Please configure your API key for <strong>{activeProvider.name}</strong> in the <strong>AI Platforms</strong> tab.
                     </p>
                   </div>
                 ) : !videoFile ? (

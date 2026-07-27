@@ -1041,7 +1041,7 @@ export default function DubbingStudioPro() {
                     <TabsTrigger value="takes" className="text-xs px-2.5 py-1.5"><FileText className="mr-1 h-3.5 w-3.5" /> Takes</TabsTrigger>
                     <TabsTrigger value="project" className="text-xs px-2.5 py-1.5"><Settings className="mr-1 h-3.5 w-3.5" /> Project</TabsTrigger>
                     <TabsTrigger value="services" className="text-xs px-2.5 py-1.5"><Cpu className="mr-1 h-3.5 w-3.5" /> Services</TabsTrigger>
-                    <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> Providers</TabsTrigger>
+                    <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> AI Platforms</TabsTrigger>
                     <TabsTrigger value="glossary" className="text-xs px-2.5 py-1.5"><BookMarked className="mr-1 h-3.5 w-3.5" /> Glossary</TabsTrigger>
                     <TabsTrigger value="data" className="text-xs px-2.5 py-1.5"><FolderOpen className="mr-1 h-3.5 w-3.5" /> Data</TabsTrigger>
                   </TabsList>
@@ -1187,7 +1187,7 @@ export default function DubbingStudioPro() {
                               <TabsTrigger value="takes" className="text-xs px-2.5 py-1.5"><FileText className="mr-1 h-3.5 w-3.5" /> Takes</TabsTrigger>
                               <TabsTrigger value="project" className="text-xs px-2.5 py-1.5"><Settings className="mr-1 h-3.5 w-3.5" /> Project</TabsTrigger>
                               <TabsTrigger value="services" className="text-xs px-2.5 py-1.5"><Cpu className="mr-1 h-3.5 w-3.5" /> Services</TabsTrigger>
-                              <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> Providers</TabsTrigger>
+                              <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> AI Platforms</TabsTrigger>
                               <TabsTrigger value="glossary" className="text-xs px-2.5 py-1.5"><BookMarked className="mr-1 h-3.5 w-3.5" /> Glossary</TabsTrigger>
                               <TabsTrigger value="data" className="text-xs px-2.5 py-1.5"><FolderOpen className="mr-1 h-3.5 w-3.5" /> Data</TabsTrigger>
                             </TabsList>
