@@ -60,6 +60,32 @@ async function runRuntimeRepositoryTests() {
     },
   ];
 
+  const piperPlatformsToTest: Array<{
+    platform: NodeJS.Platform;
+    arch: NodeJS.Architecture;
+    expectedAsset: string;
+    expectedSha256: string;
+  }> = [
+    {
+      platform: 'darwin',
+      arch: 'arm64',
+      expectedAsset: 'piper-darwin_arm64.zip',
+      expectedSha256: '88d9a643f26464d8131975d85e99e9496dbe07ff2c908550c9fc28ad9ba33c61',
+    },
+    {
+      platform: 'darwin',
+      arch: 'x64',
+      expectedAsset: 'piper-darwin_x64.zip',
+      expectedSha256: '74d8a58c8798f4cc0a2757269ca0f646e8a6536067df1420e22d12725f587df4',
+    },
+    {
+      platform: 'win32',
+      arch: 'x64',
+      expectedAsset: 'piper-win32_x64.zip',
+      expectedSha256: 'cdb038f0be3352012679e5c8873090797e8041695790717d9d64d8b438d05a73',
+    },
+  ];
+
   const sha256Regex = /^[a-f0-9]{64}$/i;
   const baseUrl = 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/';
 
@@ -67,10 +93,10 @@ async function runRuntimeRepositoryTests() {
     const desc = await repository.getDescriptor('whisper', '1.9.1', item.platform, item.arch);
 
     if (!desc) {
-      throw new Error(`FAILED: Could not find descriptor for ${item.platform}_${item.arch}`);
+      throw new Error(`FAILED: Could not find Whisper descriptor for ${item.platform}_${item.arch}`);
     }
 
-    console.log(`\n  Checking ${item.platform}_${item.arch}:`);
+    console.log(`\n  Checking Whisper ${item.platform}_${item.arch}:`);
     console.log(`    - ID: ${desc.id}`);
     console.log(`    - Name: ${desc.name}`);
     console.log(`    - Version: ${desc.version}`);
@@ -96,6 +122,42 @@ async function runRuntimeRepositoryTests() {
 
     if (!sha256Regex.test(desc.checksumSha256)) {
       throw new Error(`FAILED: SHA-256 format invalid for ${item.platform}_${item.arch}`);
+    }
+  }
+
+  for (const item of piperPlatformsToTest) {
+    const desc = await repository.getDescriptor('piper', '1.0.0', item.platform, item.arch);
+
+    if (!desc) {
+      throw new Error(`FAILED: Could not find Piper descriptor for ${item.platform}_${item.arch}`);
+    }
+
+    console.log(`\n  Checking Piper ${item.platform}_${item.arch}:`);
+    console.log(`    - ID: ${desc.id}`);
+    console.log(`    - Name: ${desc.name}`);
+    console.log(`    - Version: ${desc.version}`);
+    console.log(`    - URL: ${desc.downloadUrl}`);
+    console.log(`    - SHA-256: ${desc.checksumSha256}`);
+
+    if (desc.id !== 'piper') {
+      throw new Error(`FAILED: Invalid ID for Piper ${item.platform}_${item.arch}`);
+    }
+
+    if (desc.version !== '1.0.0') {
+      throw new Error(`FAILED: Invalid version for Piper ${item.platform}_${item.arch}`);
+    }
+
+    const expectedUrl = `${baseUrl}${item.expectedAsset}`;
+    if (desc.downloadUrl !== expectedUrl) {
+      throw new Error(`FAILED: downloadUrl mismatch! Expected: ${expectedUrl}, Got: ${desc.downloadUrl}`);
+    }
+
+    if (desc.checksumSha256 !== item.expectedSha256) {
+      throw new Error(`FAILED: checksumSha256 mismatch! Expected: ${item.expectedSha256}, Got: ${desc.checksumSha256}`);
+    }
+
+    if (!sha256Regex.test(desc.checksumSha256)) {
+      throw new Error(`FAILED: SHA-256 format invalid for Piper ${item.platform}_${item.arch}`);
     }
   }
 

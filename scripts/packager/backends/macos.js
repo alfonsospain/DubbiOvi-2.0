@@ -22,7 +22,23 @@ class MacOSPackager extends BasePlatformPackager {
     if (!fs.existsSync(srcExec)) {
       throw new Error(`Source executable not found at: ${srcExec}`);
     }
-    fs.copyFileSync(srcExec, destExec);
+
+    // Copy all contents (binaries, dylibs, data directories like espeak-ng-data) from srcDir into binDir recursively
+    const copyRecursive = (src, dest) => {
+      const stats = fs.statSync(src);
+      if (stats.isDirectory()) {
+        if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+        for (const child of fs.readdirSync(src)) {
+          copyRecursive(path.join(src, child), path.join(dest, child));
+        }
+      } else {
+        fs.copyFileSync(src, dest);
+      }
+    };
+
+    for (const item of fs.readdirSync(srcDir)) {
+      copyRecursive(path.join(srcDir, item), path.join(binDir, item));
+    }
 
     // Copy LICENSE and VERSION if present in srcDir or parent dirs
     for (const docFile of ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'VERSION']) {

@@ -910,10 +910,18 @@ ipcMain.handle('run-piper-local', async (event, { text, modelName, outputFilenam
 
   // 3. Execute native Piper engine via RuntimeExecutor
   logDiag(`[PiperLocal IPC] Spawning RuntimeExecutor for piper v1.0.0...`);
+  const execDir = path.dirname(installedRuntime.executablePath);
+  const espeakDataDir = path.join(execDir, 'espeak-ng-data');
+  const piperArgs = ['--model', modelPath, '--output_file', absoluteOutputPath];
+  if (fs.existsSync(espeakDataDir)) {
+    piperArgs.push('--espeak_data', espeakDataDir);
+  }
+
   const execResult = await runtimeExecutor.execute({
     runtimeId: 'piper',
     version: '1.0.0',
-    args: ['--model', modelPath, '--output_file', absoluteOutputPath],
+    args: piperArgs,
+    cwd: execDir,
     inputData: text,
   });
 

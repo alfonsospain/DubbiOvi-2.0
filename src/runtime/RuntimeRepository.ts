@@ -140,8 +140,8 @@ export class RuntimeRepository {
       category: 'tts',
       version: '1.0.0',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/piper-darwin_x64.zip',
-      checksumSha256: 'a1b2c3d4e5f60000000000000000000000000000000000000000000000000002',
-      estimatedSize: '16.0 MB',
+      checksumSha256: '74d8a58c8798f4cc0a2757269ca0f646e8a6536067df1420e22d12725f587df4',
+      estimatedSize: '19.2 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
     };
@@ -153,8 +153,8 @@ export class RuntimeRepository {
       category: 'tts',
       version: '1.0.0',
       downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/piper-win32_x64.zip',
-      checksumSha256: 'a1b2c3d4e5f60000000000000000000000000000000000000000000000000003',
-      estimatedSize: '14.8 MB',
+      checksumSha256: 'cdb038f0be3352012679e5c8873090797e8041695790717d9d64d8b438d05a73',
+      estimatedSize: '22.5 MB',
       runtimeApiVersion: '2.0.0',
       minimumDubbiOviVersion: '2.0.0',
     };

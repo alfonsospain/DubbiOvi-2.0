@@ -4,13 +4,21 @@ import http from 'http';
 import { RuntimeManager } from '../src/runtime/RuntimeManager';
 import { RuntimeValidator } from '../src/runtime/RuntimeValidator';
 import { RuntimeExecutor } from '../src/runtime/RuntimeExecutor';
+import { RuntimeRepository } from '../src/runtime/RuntimeRepository';
 
 async function runFreshInstallValidation() {
   console.log('=====================================================');
   console.log(' PIPER FRESH INSTALLATION END-TO-END VALIDATION');
   console.log('=====================================================');
 
-  const zipPackagePath = path.resolve('./dist/piper-darwin_arm64.zip');
+  const repo = new RuntimeRepository();
+  const catalogDesc = await repo.getDescriptor('piper', '1.0.0', process.platform, process.arch);
+  if (!catalogDesc) {
+    throw new Error(`FAILED: Catalog descriptor missing for platform ${process.platform}_${process.arch}`);
+  }
+
+  const targetFileName = RuntimeRepository.resolveReleaseFilename('piper', process.platform, process.arch);
+  const zipPackagePath = path.resolve(`./dist/${targetFileName}`);
   if (!fs.existsSync(zipPackagePath)) {
     throw new Error(`FAILED: Target runtime package not found at ${zipPackagePath}`);
   }
@@ -27,8 +35,8 @@ async function runFreshInstallValidation() {
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as { port: number };
-  const downloadUrl = `http://127.0.0.1:${address.port}/piper-darwin_arm64.zip`;
-  console.log(`[HTTP Mock Server] Serving runtime package at ${downloadUrl}...`);
+  const downloadUrl = `http://127.0.0.1:${address.port}/${targetFileName}`;
+  console.log(`[HTTP Mock Server] Serving runtime package ${targetFileName} at ${downloadUrl}...`);
 
   try {
     // 1. Setup Completely Isolated Test Environment Directory
@@ -63,17 +71,10 @@ async function runFreshInstallValidation() {
     console.log('  ✓ Verified zero initial Piper runtime installation.');
 
     // 3. Install Package using RuntimeInstaller
-    console.log('\n[Step 3] Installing piper-darwin_arm64.zip via RuntimeManager / RuntimeInstaller...');
+    console.log(`\n[Step 3] Installing ${targetFileName} via RuntimeManager / RuntimeInstaller...`);
     const descriptor = {
-      id: 'piper',
-      name: 'Piper Neural TTS Engine',
-      category: 'tts' as const,
-      version: '1.0.0',
+      ...catalogDesc,
       downloadUrl,
-      checksumSha256: '88d9a643f26464d8131975d85e99e9496dbe07ff2c908550c9fc28ad9ba33c61',
-      estimatedSize: '34.2 MB',
-      runtimeApiVersion: '2.0.0',
-      minimumDubbiOviVersion: '2.0.0',
     };
 
     const installedInfo = await manager.installRuntime(descriptor);
@@ -128,12 +129,13 @@ async function runFreshInstallValidation() {
     const execResult = await executor.execute({
       runtimeId: 'piper',
       version: '1.0.0',
-      args: ['--model', modelPath, '--output_file', outputWavPath],
-      inputData: 'DubbiOvi fresh installation validation of Piper Local TTS on Apple Silicon.',
-      env: {
-        PATH: '/usr/bin:/bin', // Strip external Python/Homebrew PATHs to enforce 100% isolation
-        PYTHONPATH: '',
-      },
+      args: [
+        '--model', modelPath,
+        '--output_file', outputWavPath,
+        '--espeak_data', path.join(path.dirname(installedInfo.executablePath), 'espeak-ng-data'),
+      ],
+      inputData: 'DubbiOvi fresh installation validation of Piper Local TTS.',
+      cwd: path.dirname(installedInfo.executablePath),
     });
 
     if (execResult.exitCode !== 0) {
@@ -165,7 +167,7 @@ async function runFreshInstallValidation() {
 
     console.log('\n=====================================================');
     console.log(' FRESH INSTALLATION VALIDATION PASSED (100%)');
-    console.log(' PIPER-DARWIN_ARM64.ZIP IS PRODUCTION READY');
+    console.log(` ${targetFileName.toUpperCase()} IS PRODUCTION READY`);
     console.log('=====================================================');
   } finally {
     server.close();

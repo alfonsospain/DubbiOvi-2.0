@@ -41,7 +41,16 @@ async function runRuntimePackagerTests() {
   // Test 2: Single-Command Packaging Execution (scripts/package-runtimes.js)
   // -------------------------------------------------------------------------
   console.log('\n[Test 2] Testing master packaging script execution...');
-  const srcExec = '/Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/dist/whisper-darwin_arm64/bin/whisper-cli';
+  const isWin = process.platform === 'win32';
+  const sampleExecName = isWin ? 'piper.exe' : 'piper';
+  const candidateExecs = [
+    path.resolve(`./dist/.staging/piper-win32_x64/bin/${sampleExecName}`),
+    path.resolve(`./dist/.staging/piper-darwin_x64/bin/${sampleExecName}`),
+    path.resolve(`C:/Users/Alfonso/.gemini/antigravity-ide/brain/f2b4979b-fd89-42b1-82ab-cb096dbee848/scratch/win_extract/piper/${sampleExecName}`),
+    path.resolve(`C:/Users/Alfonso/.gemini/antigravity-ide/brain/f2b4979b-fd89-42b1-82ab-cb096dbee848/scratch/mac_extract/piper/${sampleExecName}`),
+    '/Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/dist/whisper-darwin_arm64/bin/whisper-cli',
+  ];
+  const srcExec = candidateExecs.find((p) => fs.existsSync(p)) || candidateExecs[0];
   if (!fs.existsSync(srcExec)) {
     throw new Error(`Prerequisite binary missing at: ${srcExec}`);
   }
@@ -53,11 +62,11 @@ async function runRuntimePackagerTests() {
     const packagerScript = path.join(__dirname, '..', 'scripts', 'package-runtimes.js');
     const packagerArgs = [
       packagerScript,
-      '--engine', 'whisper',
-      '--name', 'Whisper.cpp Engine',
-      '--category', 'asr',
-      '--version', '1.9.1',
-      '--exec', 'whisper-cli',
+      '--engine', 'piper',
+      '--name', 'Piper Neural TTS Engine',
+      '--category', 'tts',
+      '--version', '1.0.0',
+      '--exec', sampleExecName,
       '--src', path.dirname(srcExec),
       '--out', tempOutDir,
       '--platform', `${process.platform}_${process.arch}`,
@@ -70,7 +79,7 @@ async function runRuntimePackagerTests() {
       throw new Error(`FAILED: Master packaging script exited with code ${runRes.status}:\n${runRes.stderr}`);
     }
 
-    const targetZipName = `whisper-${process.platform}_${process.arch}.zip`;
+    const targetZipName = `piper-${process.platform}_${process.arch}.zip`;
     const targetZipPath = path.join(tempOutDir, targetZipName);
     const targetShaPath = `${targetZipPath}.sha256`;
 
@@ -90,7 +99,7 @@ async function runRuntimePackagerTests() {
     console.log('\n[Test 3] Inspecting ZIP manifest.json versioning & schema...');
     let manifestRaw = '';
     if (process.platform === 'win32') {
-      const pshRes = execSync(`powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead('${targetZipPath}').Entries | Where-Object Name -eq 'manifest.json' | ForEach-Object { (New-Object System.IO.StreamReader(\$_.Open())).ReadToEnd() }"`, { encoding: 'utf8' });
+      const pshRes = execSync(`powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead('${targetZipPath.replace(/\\/g, '\\\\')}').Entries | Where-Object Name -eq 'manifest.json' | ForEach-Object { (New-Object System.IO.StreamReader(\$_.Open())).ReadToEnd() }"`, { encoding: 'utf8' });
       manifestRaw = pshRes;
     } else {
       manifestRaw = execSync(`unzip -p "${targetZipPath}" manifest.json`, { encoding: 'utf8' });
@@ -110,7 +119,7 @@ async function runRuntimePackagerTests() {
     if (manifest.runtimeApiVersion !== '2.0.0') {
       throw new Error(`FAILED: runtimeApiVersion was '${manifest.runtimeApiVersion}', expected '2.0.0'`);
     }
-    if (manifest.engine !== 'whisper' || manifest.id !== 'whisper') {
+    if (manifest.engine !== 'piper' || manifest.id !== 'piper') {
       throw new Error('FAILED: manifest engine ID mismatch!');
     }
     if (!manifest.binary || !manifest.executable) {

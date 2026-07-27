@@ -174,7 +174,7 @@ async function run() {
     fs.unlinkSync(spec.zipPath);
   }
 
-  const zipCmd = platform === 'win32'
+  const zipCmd = process.platform === 'win32'
     ? `powershell -Command "Compress-Archive -Path '${spec.stagingDir}\\*' -DestinationPath '${spec.zipPath}' -Force"`
     : `cd "${spec.stagingDir}" && zip -q -r "${spec.zipPath}" .`;
 

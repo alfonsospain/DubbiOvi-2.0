@@ -28,29 +28,36 @@ ZIP_PATH="${OUT_DIR}/${PACKAGE_NAME}.zip"
 
 rm -rf "${STAGING_DIR}" "${ZIP_PATH}" "${ZIP_PATH}.sha256"
 
-if [[ "${TARGET_PLATFORM}" == "darwin_arm64" || "${TARGET_PLATFORM}" == "darwin_x64" ]]; then
-    echo "--> Setting up PyPI wheel build environment for ${TARGET_PLATFORM}..."
-    python3 -m venv "${BUILD_TMP}/venv"
-    source "${BUILD_TMP}/venv/bin/activate"
-
-    pip install --quiet --upgrade pip setuptools wheel pyinstaller piper-tts
-
-    echo "--> Freezing standalone executable with PyInstaller..."
-    PIPER_CLI_PATH="$(which piper)"
-    pyinstaller \
-        --noconfirm \
-        --onedir \
-        --name piper \
-        --collect-all piper \
-        --distpath "${BUILD_TMP}/dist" \
-        --workpath "${BUILD_TMP}/build" \
-        "${PIPER_CLI_PATH}"
+if [[ "${TARGET_PLATFORM}" == "darwin_arm64" ]]; then
+    echo "--> Downloading official standalone C++ release package for macOS arm64..."
+    MAC_ARM_URL="https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_macos_aarch64.tar.gz"
+    curl -s -L -o "${BUILD_TMP}/piper_mac_arm.tar.gz" "${MAC_ARM_URL}"
+    mkdir -p "${BUILD_TMP}/mac_arm_extract"
+    tar -xzf "${BUILD_TMP}/piper_mac_arm.tar.gz" -C "${BUILD_TMP}/mac_arm_extract"
 
     mkdir -p "${STAGING_DIR}/bin"
-    cp -R "${BUILD_TMP}/dist/piper/"* "${STAGING_DIR}/bin/"
+    cp -R "${BUILD_TMP}/mac_arm_extract/piper/"* "${STAGING_DIR}/bin/"
     chmod +x "${STAGING_DIR}/bin/piper"
 
-    # Clean absolute RPATHs and re-sign for Apple Silicon
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        echo "--> Applying Mach-O ad-hoc codesign to staging binaries..."
+        find "${STAGING_DIR}/bin" -type f \( -name "piper" -o -name "*.dylib" -o -name "*.so" \) | while read -r binfile; do
+            chmod 755 "${binfile}"
+            codesign --force --deep -s - "${binfile}" 2>/dev/null || true
+        done
+    fi
+
+elif [[ "${TARGET_PLATFORM}" == "darwin_x64" ]]; then
+    echo "--> Downloading official standalone C++ release package for macOS x64..."
+    MAC_X64_URL="https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_macos_x64.tar.gz"
+    curl -s -L -o "${BUILD_TMP}/piper_mac_x64.tar.gz" "${MAC_X64_URL}"
+    mkdir -p "${BUILD_TMP}/mac_x64_extract"
+    tar -xzf "${BUILD_TMP}/piper_mac_x64.tar.gz" -C "${BUILD_TMP}/mac_x64_extract"
+
+    mkdir -p "${STAGING_DIR}/bin"
+    cp -R "${BUILD_TMP}/mac_x64_extract/piper/"* "${STAGING_DIR}/bin/"
+    chmod +x "${STAGING_DIR}/bin/piper"
+
     if [[ "$(uname -s)" == "Darwin" ]]; then
         echo "--> Applying Mach-O ad-hoc codesign to staging binaries..."
         find "${STAGING_DIR}/bin" -type f \( -name "piper" -o -name "*.dylib" -o -name "*.so" \) | while read -r binfile; do
@@ -64,7 +71,7 @@ elif [[ "${TARGET_PLATFORM}" == "win32_x64" ]]; then
     WIN_URL="https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_windows_amd64.zip"
     curl -s -L -o "${BUILD_TMP}/piper_win.zip" "${WIN_URL}"
     mkdir -p "${BUILD_TMP}/win_extract"
-    unzip -q "${BUILD_TMP}/win_extract/piper_win.zip" -d "${BUILD_TMP}/win_extract"
+    unzip -q "${BUILD_TMP}/piper_win.zip" -d "${BUILD_TMP}/win_extract"
 
     mkdir -p "${STAGING_DIR}/bin"
     cp -R "${BUILD_TMP}/win_extract/piper/"* "${STAGING_DIR}/bin/"
