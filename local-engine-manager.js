@@ -392,7 +392,7 @@ class LocalEngineManager {
    * @param {function({ loaded: number, total: number }): void} [onProgress] Progress callback.
    * @returns {Promise<string>} Fully resolved path to installed model.
    */
-  async downloadModel(engineId, modelName, onProgress, customDownloadUrl, customConfigUrl) {
+  async downloadModel(engineId, modelName, onProgress, customDownloadUrl = null, customConfigUrl = null) {
     let url = customDownloadUrl;
     if (!url) {
       try {

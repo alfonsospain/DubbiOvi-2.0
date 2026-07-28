@@ -7,6 +7,7 @@ import { StubVoiceProvider } from './stubs/StubVoiceProvider';
 import { PiperLocalProvider } from './PiperLocalProvider';
 import { GeminiTTSProvider } from './GeminiTTSProvider';
 import { OpenAITTSProvider } from './OpenAITTSProvider';
+import { LocalOpenAITTSProvider } from './LocalOpenAITTSProvider';
 
 /**
  * Unified Provider Registry managing discovery for all provider categories (ASR, MT, Voice/TTS).
@@ -25,6 +26,7 @@ export class ProviderRegistry {
     // Auto-register default Voice Providers
     this.registerVoiceProvider(new StubVoiceProvider());
     this.registerVoiceProvider(new PiperLocalProvider());
+    this.registerVoiceProvider(new LocalOpenAITTSProvider());
     this.registerVoiceProvider(new GeminiTTSProvider());
     this.registerVoiceProvider(new OpenAITTSProvider());
   }
@@ -110,6 +112,15 @@ export class ProviderRegistry {
       normalized === 'piper-local'
     ) {
       return this.voiceProviders.get('piper');
+    }
+    if (
+      normalized === 'local-openai-tts' ||
+      normalized === 'local-tts' ||
+      normalized === 'local ai voice' ||
+      normalized === 'kokoro' ||
+      normalized.includes('local-openai')
+    ) {
+      return this.voiceProviders.get('local-openai-tts');
     }
     if (
       normalized === 'gemini' ||

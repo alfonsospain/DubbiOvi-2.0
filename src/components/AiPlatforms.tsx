@@ -61,6 +61,33 @@ import { WhisperModelSelector } from './WhisperModelSelector';
 
 const OLLAMA_SPEECH_MODEL_STORAGE_KEY = 'dubbiovi_ollama_speech_model';
 
+const CAPABILITY_CONFIG = {
+  asr: { label: 'Speech Recognition', icon: Mic, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+  translation: { label: 'Translation', icon: Globe, color: 'text-sky-400 bg-sky-500/10 border-sky-500/20' },
+  tts: { label: 'Voice Generation', icon: Volume2, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+};
+
+function ProviderCapabilityBadges({ capabilities }: { capabilities: Array<'asr' | 'translation' | 'tts'> }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+      {capabilities.map((cap) => {
+        const config = CAPABILITY_CONFIG[cap];
+        const Icon = config.icon;
+        return (
+          <Badge
+            key={cap}
+            variant="outline"
+            className={`text-[10px] font-semibold py-0.5 px-2 gap-1 border ${config.color}`}
+          >
+            <Icon className="h-3 w-3 shrink-0" />
+            {config.label}
+          </Badge>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AiPlatforms() {
   const { toast } = useToast();
 
@@ -148,31 +175,29 @@ export default function AiPlatforms() {
       try {
         const res = await (window as any).electron.checkEngineBinary('piper');
         setIsPiperInstalled(!!res?.installed);
-      } catch (err) {
-        console.error('[AiPlatforms] Error checking Piper runtime:', err);
-      }
+      } catch (_) {}
     }
   };
 
   const handleInstallPiperRuntime = async () => {
-    if (typeof window !== 'undefined' && (window as any).electron?.downloadEngineBinary) {
-      setIsPiperInstalling(true);
-      try {
-        await (window as any).electron.downloadEngineBinary('piper');
-        setIsPiperInstalled(true);
+    setIsPiperInstalling(true);
+    try {
+      if (typeof window !== 'undefined' && (window as any).electron?.installEngineBinary) {
+        await (window as any).electron.installEngineBinary('piper');
         toast({
-          title: 'Piper Runtime Installed',
-          description: 'Successfully installed Piper Neural TTS runtime.',
+          title: 'Piper Engine Installed',
+          description: 'Local Piper TTS engine binary was downloaded successfully.',
         });
-      } catch (err: any) {
-        toast({
-          title: 'Runtime Download Failed',
-          description: err.message || String(err),
-          variant: 'destructive',
-        });
-      } finally {
-        setIsPiperInstalling(false);
+        await checkPiperRuntime();
       }
+    } catch (err: any) {
+      toast({
+        title: 'Installation Failed',
+        description: err.message || String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsPiperInstalling(false);
     }
   };
 
@@ -507,14 +532,18 @@ export default function AiPlatforms() {
 
       {/* 1. Google AI Ecosystem Card */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Globe className="h-4 w-4 text-primary" /> Google AI (Gemini Ecosystem)
+        <CardHeader
+          className="p-4 sm:p-6 pb-3 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          onClick={() => toggleExpand('google')}
+        >
+          <div className="space-y-1.5">
+            <CardTitle className="text-base font-bold text-foreground">
+              Google AI (Gemini Ecosystem)
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
               Cloud Multilingual Speech Recognition & High-Fidelity Translation
             </CardDescription>
+            <ProviderCapabilityBadges capabilities={['asr', 'translation', 'tts']} />
           </div>
           <div className="flex items-center gap-2">
             {hasGeminiKey ? (
@@ -530,7 +559,10 @@ export default function AiPlatforms() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => toggleExpand('google')}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand('google');
+              }}
             >
               {expandedCards.google ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
@@ -539,27 +571,6 @@ export default function AiPlatforms() {
 
         {expandedCards.google && (
           <CardContent className="space-y-4 pt-0">
-            {/* Capabilities Summary */}
-            <div className="p-3 rounded-lg border border-border/50 bg-secondary/15 space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Platform Capabilities
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <Mic className="h-3.5 w-3.5 text-primary" /> Speech Recognition
-                </div>
-                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <Globe className="h-3.5 w-3.5 text-primary" /> Translation
-                </div>
-                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <Volume2 className="h-3.5 w-3.5 text-primary" /> Voice Synthesis
-                </div>
-              </div>
-            </div>
-
             {/* API Key Input */}
             <div className="space-y-2">
               <Label htmlFor="gemini-key" className="text-xs font-semibold text-muted-foreground">
@@ -621,14 +632,18 @@ export default function AiPlatforms() {
 
       {/* 2. OpenAI Ecosystem Card */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Key className="h-4 w-4 text-primary" /> OpenAI (Whisper Cloud & GPT)
+        <CardHeader
+          className="p-4 sm:p-6 pb-3 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          onClick={() => toggleExpand('openai')}
+        >
+          <div className="space-y-1.5">
+            <CardTitle className="text-base font-bold text-foreground">
+              OpenAI (Whisper Cloud & GPT)
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
               Cloud Whisper Speech-to-Text & GPT Translation Services
             </CardDescription>
+            <ProviderCapabilityBadges capabilities={['asr', 'translation', 'tts']} />
           </div>
           <div className="flex items-center gap-2">
             {hasOpenAiKey ? (
@@ -644,7 +659,10 @@ export default function AiPlatforms() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => toggleExpand('openai')}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand('openai');
+              }}
             >
               {expandedCards.openai ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
@@ -652,27 +670,6 @@ export default function AiPlatforms() {
         </CardHeader>
         {expandedCards.openai && (
           <CardContent className="space-y-4 pt-0 text-xs">
-            {/* Capabilities Summary */}
-            <div className="p-3 rounded-lg border border-border/50 bg-secondary/15 space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Platform Capabilities
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <Mic className="h-3.5 w-3.5 text-primary" /> Speech Recognition
-                </div>
-                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <Globe className="h-3.5 w-3.5 text-primary" /> Translation
-                </div>
-                <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <Volume2 className="h-3.5 w-3.5 text-primary" /> Voice Synthesis
-                </div>
-              </div>
-            </div>
-
             {/* Input */}
             <div className="space-y-1.5">
               <Label htmlFor="openai-api-key" className="text-xs font-semibold text-muted-foreground">
@@ -722,14 +719,18 @@ export default function AiPlatforms() {
 
       {/* 3. Ollama Local AI Card */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Cpu className="h-4 w-4 text-primary" /> Ollama (Local LLM Engine)
+        <CardHeader
+          className="p-4 sm:p-6 pb-3 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          onClick={() => toggleExpand('ollama')}
+        >
+          <div className="space-y-1.5">
+            <CardTitle className="text-base font-bold text-foreground">
+              Ollama (Local LLM Engine)
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Offline local models (Llama 3.1, Gemma 3, Qwen 2.5, Mistral, Kokoro)
+              Offline local models (Llama 3.1, Gemma 3, Qwen 2.5, Mistral)
             </CardDescription>
+            <ProviderCapabilityBadges capabilities={['translation']} />
           </div>
           <div className="flex items-center gap-2">
             {hasOllamaConfig ? (
@@ -745,7 +746,10 @@ export default function AiPlatforms() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => toggleExpand('ollama')}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand('ollama');
+              }}
             >
               {expandedCards.ollama ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
@@ -817,33 +821,7 @@ export default function AiPlatforms() {
                 )}
               </div>
 
-              {/* 2. Voice Models Category */}
-              <div className="space-y-1.5 pt-1 border-t border-border/40">
-                <Label htmlFor="ollama-voice-model" className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Volume2 className="h-3.5 w-3.5 text-primary" /> Voice Models
-                </Label>
-                {categorizedOllama.voiceModels.length > 0 ? (
-                  <select
-                    id="ollama-voice-model"
-                    value={ollamaVoiceModelInput}
-                    onChange={(e) => setOllamaVoiceModelInput(e.target.value)}
-                    className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
-                  >
-                    {categorizedOllama.voiceModels.map((m) => (
-                      <option key={m} value={m}>
-                        ▼ {m}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="p-2 rounded bg-secondary/20 border border-border/40 text-[11px] text-muted-foreground flex items-center justify-between">
-                    <span>No dedicated local voice models detected (e.g. Kokoro)</span>
-                    <Badge variant="outline" className="text-[9.5px]">Optional</Badge>
-                  </div>
-                )}
-              </div>
-
-              {/* 3. Additional Installed Models Section */}
+              {/* 2. Additional Installed Models Section */}
               {categorizedOllama.additionalModels.length > 0 && (
                 <div className="space-y-1.5 pt-2 border-t border-border/40">
                   <div className="flex items-center justify-between">
@@ -911,23 +889,31 @@ export default function AiPlatforms() {
       {/* 4. Whisper Local Ecosystem Card */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
         <CardHeader
-          className="py-3 px-4 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          className="p-4 sm:p-6 pb-3 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
           onClick={() => toggleExpand('whisper')}
         >
-          <div className="flex items-center gap-2">
-            <Cpu className="h-4 w-4 text-primary" />
-            <div>
-              <CardTitle className="text-sm font-bold text-foreground">Whisper Local (Offline ASR)</CardTitle>
-              <CardDescription className="text-[11px] text-muted-foreground">
-                High-performance offline C++ speech recognition engine (Apple Silicon CoreML & CUDA support)
-              </CardDescription>
-            </div>
+          <div className="space-y-1.5">
+            <CardTitle className="text-base font-bold text-foreground">Whisper Local (Offline ASR)</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              High-performance offline C++ speech recognition engine (Apple Silicon CoreML & CUDA support)
+            </CardDescription>
+            <ProviderCapabilityBadges capabilities={['asr']} />
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] gap-1 font-semibold">
               <CheckCircle2 className="h-3 w-3" /> Runtime Ready
             </Badge>
-            {expandedCards.whisper ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand('whisper');
+              }}
+            >
+              {expandedCards.whisper ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
           </div>
         </CardHeader>
 
@@ -951,17 +937,15 @@ export default function AiPlatforms() {
       {/* 5. Piper Local Ecosystem Card */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
         <CardHeader
-          className="py-3 px-4 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          className="p-4 sm:p-6 pb-3 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
           onClick={() => toggleExpand('piper')}
         >
-          <div className="flex items-center gap-2">
-            <Cpu className="h-4 w-4 text-primary" />
-            <div>
-              <CardTitle className="text-sm font-bold text-foreground">Piper Local TTS (Offline)</CardTitle>
-              <CardDescription className="text-[11px] text-muted-foreground">
-                Fast, local neural text-to-speech engine running 100% offline
-              </CardDescription>
-            </div>
+          <div className="space-y-1.5">
+            <CardTitle className="text-base font-bold text-foreground">Piper Local TTS (Offline)</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Fast, local neural text-to-speech engine running 100% offline
+            </CardDescription>
+            <ProviderCapabilityBadges capabilities={['tts']} />
           </div>
           <div className="flex items-center gap-2">
             {isPiperInstalled ? (
@@ -973,7 +957,17 @@ export default function AiPlatforms() {
                 Runtime Not Installed
               </Badge>
             )}
-            {expandedCards.piper ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand('piper');
+              }}
+            >
+              {expandedCards.piper ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
           </div>
         </CardHeader>
 
@@ -1039,14 +1033,18 @@ export default function AiPlatforms() {
 
       {/* 6. DeepL Ecosystem Card */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <Globe className="h-4 w-4 text-primary" /> DeepL Translation
+        <CardHeader
+          className="p-4 sm:p-6 pb-3 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          onClick={() => toggleExpand('deepl')}
+        >
+          <div className="space-y-1.5">
+            <CardTitle className="text-base font-bold text-foreground">
+              DeepL Translation
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
               API access credentials for high-fidelity machine translation
             </CardDescription>
+            <ProviderCapabilityBadges capabilities={['translation']} />
           </div>
           <div className="flex items-center gap-2">
             {hasDeepLKey ? (
@@ -1062,7 +1060,10 @@ export default function AiPlatforms() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => toggleExpand('deepl')}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand('deepl');
+              }}
             >
               {expandedCards.deepl ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
