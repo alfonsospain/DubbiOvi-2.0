@@ -39,6 +39,7 @@ import { getTranslationSuggestion } from '@/ai/ai-translation-suggestions';
 import { useToast } from '@/hooks/use-toast';
 import { loadApiKey, loadOpenAiApiKey, loadDeepLApiKey, loadOllamaConfig } from '@/lib/apiKeyStorage';
 import { VoiceService } from '@/lib/VoiceService';
+import { useTakePlayback } from '@/hooks/useTakePlayback';
 import {
   Sparkles,
   Trash2,
@@ -49,6 +50,7 @@ import {
   Scissors,
   GitMerge,
   Play,
+  Square,
   Loader2,
   AudioLines,
 } from 'lucide-react';
@@ -92,6 +94,8 @@ interface TakeRowProps {
   isSuggesting: boolean;
   onGenerateVoice: (take: Take) => void;
   onPlayVoice: (take: Take) => void;
+  onStopVoice: () => void;
+  isPlayingVoice: boolean;
   isGeneratingVoice: boolean;
   handleFieldChange: (id: string, field: keyof Take, value: string) => void;
   openSplitDialog: (index: number) => void;
@@ -118,6 +122,8 @@ const TakeRow: React.FC<TakeRowProps> = ({
   isSuggesting,
   onGenerateVoice,
   onPlayVoice,
+  onStopVoice,
+  isPlayingVoice,
   isGeneratingVoice,
   handleFieldChange,
   openSplitDialog,
@@ -311,10 +317,23 @@ const TakeRow: React.FC<TakeRowProps> = ({
       </TableCell>
       <TableCell className="text-right align-top pt-3">
         <div className="flex items-center justify-end gap-1">
-          {/* Voice Action Control (State 1: Generate 🗣️ | State 2: Generating ⏳ | State 3: Play ▶) */}
+          {/* Voice Action Control (State 1: Generating ⏳ | State 2: Stop ■ | State 3: Play ▶ | State 4: Generate 🗣️) */}
           {isGeneratingVoice ? (
             <Button variant="ghost" size="icon" disabled title="Generating AI voice with Piper engine...">
               <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+            </Button>
+          ) : isPlayingVoice ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onStopVoice) onStopVoice();
+              }}
+              title="Stop Playing Voice Asset"
+              className="text-red-400 hover:text-red-300 hover:bg-red-950/30"
+            >
+              <Square className="h-4 w-4 fill-current text-red-400" />
             </Button>
           ) : take.voiceAssetId ? (
             <Button
@@ -519,75 +538,24 @@ const TakesList: React.FC<TakesListProps> = ({
     }
   };
 
-  const handlePlayVoice = async (take: Take) => {
-    const assetId = take.voiceAssetId;
-    if (!assetId) return;
-
-    let relativePath: string | undefined;
-    if (voiceServiceRef.current) {
-      const asset = voiceServiceRef.current.getAssetManager().getAsset(assetId);
-      if (asset) {
-        relativePath = asset.relativePath;
-      }
+  const getAssetManager = React.useCallback(() => {
+    if (!voiceServiceRef.current) {
+      voiceServiceRef.current = new VoiceService();
     }
+    return voiceServiceRef.current.getAssetManager();
+  }, []);
 
-    if (!relativePath) {
-      const cleanTakeId = take.id.replace(/[^a-zA-Z0-9-_]/g, '-');
-      relativePath = `Audio/voice_${cleanTakeId}_${assetId.substring(0, 8)}.mp3`;
-    }
+  const { isPlaying, playTake, stopPlayback } = useTakePlayback({
+    takes,
+    getAssetManager,
+  });
 
-    let audioUrl = relativePath;
-    if (typeof window !== 'undefined' && (window as any).electron?.resolveAudioPath) {
-      try {
-        audioUrl = await (window as any).electron.resolveAudioPath(relativePath);
-      } catch (err) {
-        console.error('[TakesList] Path resolution error:', err);
-      }
-    }
-
-    const audio = new Audio(audioUrl);
-
-    const logAudioDiagnostics = (tag: string, errObj?: any) => {
-      let protocolUsed = 'unknown';
-      try { protocolUsed = new URL(audioUrl).protocol; } catch (_) {}
-      console.log(`[TakesList Audio Diagnostics - ${tag}]`);
-      console.log('  Filesystem path        :', relativePath);
-      console.log('  URL generated from path:', audioUrl);
-      console.log('  Protocol used          :', protocolUsed);
-      console.log('  audio.src              :', audio.src);
-      console.log('  audio.currentSrc       :', audio.currentSrc);
-      console.log('  audio.readyState       :', audio.readyState);
-      console.log('  audio.networkState     :', audio.networkState);
-      console.log('  audio.error            :', audio.error);
-      if (audio.error) {
-        console.log('  audio.error.code       :', audio.error.code);
-        console.log('  audio.error.message    :', audio.error.message);
-      }
-      if (errObj) {
-        console.log('  play error             :', errObj);
-      }
-    };
-
-    audio.onerror = (e) => logAudioDiagnostics('onerror event', e);
-    audio.oncanplaythrough = () => logAudioDiagnostics('oncanplaythrough event');
-
-    try {
-      logAudioDiagnostics('before play');
-      await audio.play();
-      logAudioDiagnostics('after play success');
-      toast({
-        title: 'Auditioning Voice Asset',
-        description: `Playing generated audio reference (${assetId.substring(0, 8)})`,
-      });
-    } catch (err: any) {
-      logAudioDiagnostics('play catch block', err);
-      toast({
-        title: 'Voice Playback Failed',
-        description: err.message || String(err),
-        variant: 'destructive',
-      });
-    }
-  };
+  const handlePlayVoice = React.useCallback(
+    (take: Take) => {
+      playTake(take);
+    },
+    [playTake]
+  );
 
   // Split dialog state
   const [isSplitOpen, setIsSplitOpen] = useState(false);
@@ -845,6 +813,8 @@ const TakesList: React.FC<TakesListProps> = ({
                   isSuggesting={isSuggesting === take.id}
                   onGenerateVoice={handleGenerateVoice}
                   onPlayVoice={handlePlayVoice}
+                  onStopVoice={stopPlayback}
+                  isPlayingVoice={isPlaying(take.id)}
                   isGeneratingVoice={generatingVoiceId === take.id}
                   handleFieldChange={handleFieldChange}
                   openSplitDialog={openSplitDialog}
