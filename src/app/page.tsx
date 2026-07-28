@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Card, CardContent } from '@/components/ui/card';
 import TakesList from '@/components/TakesList';
 import { TimelineEditor } from '@/components/TimelineEditor';
+import { PlaybackMixer } from '@/components/PlaybackMixer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen } from 'lucide-react';
 import Timeline from '@/components/Timeline';
@@ -73,6 +74,24 @@ export default function DubbingStudioPro() {
   const [translationProvider, setTranslationProviderState] = useState('None');
   const [speechProvider, setSpeechProviderState] = useState('None');
 
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Playback Mixer State (Milestone 15.3)
+  const [originalVolume, setOriginalVolume] = useState(1.0);
+  const [originalEnabled, setOriginalEnabled] = useState(true);
+  const [voiceVolume, setVoiceVolume] = useState(1.0);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+
+  // Sync HTML5 Video volume & muted properties dynamically with Playback Mixer
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      const effectiveVol = originalEnabled ? Math.max(0, Math.min(1, originalVolume)) : 0;
+      video.volume = effectiveVol;
+      video.muted = !originalEnabled || effectiveVol === 0;
+    }
+  }, [videoRef, videoUrl, originalVolume, originalEnabled]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedAsr = localStorage.getItem('dubbiovi_transcription_provider');
@@ -107,8 +126,6 @@ export default function DubbingStudioPro() {
     }
   };
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  
   const [isTimelineEditorActive, setIsTimelineEditorActive] = useState(false);
   const [tempInSeconds, setTempInSeconds] = useState<number | null>(null);
   const [tempOutSeconds, setTempOutSeconds] = useState<number | null>(null);
@@ -1100,6 +1117,8 @@ export default function DubbingStudioPro() {
                       onTakeMerge={handleTakeMerge}
                       onTakeSplit={handleTakeSplit}
                       onEnterSyncMode={handleEnterTimelineEditor}
+                      voiceVolume={voiceVolume}
+                      voiceEnabled={voiceEnabled}
                     />
                   </TabsContent>
                   <TabsContent value="project" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
@@ -1247,6 +1266,8 @@ export default function DubbingStudioPro() {
                                 onTakeMerge={handleTakeMerge}
                                 onTakeSplit={handleTakeSplit}
                                 onEnterSyncMode={handleEnterTimelineEditor}
+                                voiceVolume={voiceVolume}
+                                voiceEnabled={voiceEnabled}
                               />
                             </TabsContent>
                             <TabsContent value="project" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
@@ -1307,7 +1328,17 @@ export default function DubbingStudioPro() {
             <PanelResizeHandle className="h-4 flex items-center justify-center">
               <GripHorizontal className="h-4 w-4 text-muted-foreground rotate-90" />
             </PanelResizeHandle>
-            <Panel defaultSize={30} minSize={20} className="pt-2">
+            <Panel defaultSize={30} minSize={20} className="pt-2 flex flex-col gap-2 overflow-hidden">
+              <PlaybackMixer
+                originalVolume={originalVolume}
+                originalEnabled={originalEnabled}
+                onOriginalVolumeChange={setOriginalVolume}
+                onOriginalEnabledChange={setOriginalEnabled}
+                voiceVolume={voiceVolume}
+                voiceEnabled={voiceEnabled}
+                onVoiceVolumeChange={setVoiceVolume}
+                onVoiceEnabledChange={setVoiceEnabled}
+              />
               <Timeline
                 takes={takes}
                 duration={videoDuration}

@@ -79,6 +79,8 @@ interface TakesListProps {
     target2: string
   ) => void;
   onEnterSyncMode: (index: number) => void;
+  voiceVolume?: number;
+  voiceEnabled?: boolean;
 }
 
 interface TakeRowProps {
@@ -453,6 +455,8 @@ const TakesList: React.FC<TakesListProps> = ({
   onTakeMerge,
   onTakeSplit,
   onEnterSyncMode,
+  voiceVolume,
+  voiceEnabled,
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
@@ -549,6 +553,8 @@ const TakesList: React.FC<TakesListProps> = ({
   const { isPlaying, playTake, stopPlayback } = useTakePlayback({
     takes,
     getAssetManager,
+    voiceVolume,
+    voiceEnabled,
   });
 
   useDubPreview({

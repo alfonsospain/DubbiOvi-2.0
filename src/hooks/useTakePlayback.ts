@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 export interface UseTakePlaybackOptions {
   takes: Take[];
   getAssetManager: () => VoiceAssetManager | null;
+  voiceVolume?: number; // 0.0 to 1.0
+  voiceEnabled?: boolean;
 }
 
 export interface UseTakePlaybackReturn {
@@ -27,10 +29,23 @@ export interface UseTakePlaybackReturn {
 export function useTakePlayback({
   takes,
   getAssetManager,
+  voiceVolume = 1.0,
+  voiceEnabled = true,
 }: UseTakePlaybackOptions): UseTakePlaybackReturn {
   const { toast } = useToast();
   const [playingTakeId, setPlayingTakeId] = useState<string | null>(null);
   const playingAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const effectiveVoiceVol = voiceEnabled ? Math.max(0, Math.min(1, voiceVolume)) : 0;
+  const isMuted = !voiceEnabled || effectiveVoiceVol === 0;
+
+  // Instantly apply volume updates to currently playing HTML5 Audio element
+  useEffect(() => {
+    if (playingAudioRef.current) {
+      playingAudioRef.current.volume = effectiveVoiceVol;
+      playingAudioRef.current.muted = isMuted;
+    }
+  }, [effectiveVoiceVol, isMuted]);
 
   /**
    * Helper to safely release HTML5 Audio resources and unbind event handlers.
@@ -114,6 +129,8 @@ export function useTakePlayback({
 
       // Create new HTML5 Audio instance
       const audio = new Audio(audioUrl);
+      audio.volume = effectiveVoiceVol;
+      audio.muted = isMuted;
 
       audio.onended = () => {
         releaseAudioResource(audio);
