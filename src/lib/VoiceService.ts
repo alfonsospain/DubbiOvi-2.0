@@ -1,6 +1,7 @@
 import { providerRegistry } from './ProviderRegistry';
 import { VoiceAssetManager } from './VoiceAssetManager';
 import { VoiceAsset } from './types/voice-types';
+import type { Take } from './types';
 import {
   VoiceProvider,
   VoiceGenerationRequest,
@@ -112,5 +113,19 @@ export class VoiceService {
    */
   public getAssetManager(): VoiceAssetManager {
     return this.assetManager;
+  }
+
+  /**
+   * Deterministically re-hydrates underlying VoiceAssetManager from project Takes metadata.
+   */
+  public rehydrateFromTakes(takes: Take[]): void {
+    this.assetManager.rehydrateFromTakes(takes);
+  }
+
+  /**
+   * Directly re-hydrates underlying VoiceAssetManager from a persisted voiceAssets collection.
+   */
+  public rehydrateFromAssets(assets: VoiceAsset[]): void {
+    this.assetManager.rehydrateFromAssets(assets);
   }
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import type { GlossaryEntry, ProjectSettings, Take } from '@/lib/types';
+import type { VoiceAssetManager } from '@/lib/VoiceAssetManager';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
@@ -81,6 +82,9 @@ interface TakesListProps {
   onEnterSyncMode: (index: number) => void;
   voiceVolume?: number;
   voiceEnabled?: boolean;
+  getVoiceService?: () => VoiceService;
+  getAssetManager?: () => VoiceAssetManager | null;
+  projectPath?: string;
 }
 
 interface TakeRowProps {
@@ -457,12 +461,33 @@ const TakesList: React.FC<TakesListProps> = ({
   onEnterSyncMode,
   voiceVolume,
   voiceEnabled,
+  getVoiceService,
+  getAssetManager: getAssetManagerProp,
+  projectPath,
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
   const [generatingVoiceId, setGeneratingVoiceId] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(true);
-  const voiceServiceRef = useRef<VoiceService | null>(null);
+  const internalVoiceServiceRef = useRef<VoiceService | null>(null);
+
+  const resolveVoiceService = React.useCallback(() => {
+    if (getVoiceService) {
+      return getVoiceService();
+    }
+    if (!internalVoiceServiceRef.current) {
+      internalVoiceServiceRef.current = new VoiceService();
+    }
+    internalVoiceServiceRef.current.rehydrateFromTakes(takes);
+    return internalVoiceServiceRef.current;
+  }, [getVoiceService, takes]);
+
+  const resolveAssetManager = React.useCallback(() => {
+    if (getAssetManagerProp) {
+      return getAssetManagerProp();
+    }
+    return resolveVoiceService().getAssetManager();
+  }, [getAssetManagerProp, resolveVoiceService]);
 
   useEffect(() => {
     const prov = (translationProvider || 'Gemini').toLowerCase();
@@ -482,10 +507,6 @@ const TakesList: React.FC<TakesListProps> = ({
     setGeneratingVoiceId(take.id);
 
     try {
-      if (!voiceServiceRef.current) {
-        voiceServiceRef.current = new VoiceService();
-      }
-
       const textToSynthesize = take.translation || take.original;
       if (!textToSynthesize || textToSynthesize.trim().length === 0) {
         toast({
@@ -513,7 +534,8 @@ const TakesList: React.FC<TakesListProps> = ({
           ? 'local-openai-tts'
           : selectedProv;
 
-      const { result, asset } = await voiceServiceRef.current.generateVoiceForTake({
+      const voiceService = resolveVoiceService();
+      const { result, asset } = await voiceService.generateVoiceForTake({
         takeId: take.id,
         text: textToSynthesize,
         language: settings.targetLang || 'EN',
@@ -543,18 +565,12 @@ const TakesList: React.FC<TakesListProps> = ({
     }
   };
 
-  const getAssetManager = React.useCallback(() => {
-    if (!voiceServiceRef.current) {
-      voiceServiceRef.current = new VoiceService();
-    }
-    return voiceServiceRef.current.getAssetManager();
-  }, []);
-
   const { isPlaying, playTake, stopPlayback } = useTakePlayback({
     takes,
-    getAssetManager,
+    getAssetManager: resolveAssetManager,
     voiceVolume,
     voiceEnabled,
+    projectPath,
   });
 
   useDubPreview({

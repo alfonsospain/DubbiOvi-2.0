@@ -10,6 +10,7 @@ export interface UseTakePlaybackOptions {
   getAssetManager: () => VoiceAssetManager | null;
   voiceVolume?: number; // 0.0 to 1.0
   voiceEnabled?: boolean;
+  projectPath?: string;
 }
 
 export interface UseTakePlaybackReturn {
@@ -31,6 +32,7 @@ export function useTakePlayback({
   getAssetManager,
   voiceVolume = 1.0,
   voiceEnabled = true,
+  projectPath,
 }: UseTakePlaybackOptions): UseTakePlaybackReturn {
   const { toast } = useToast();
   const [playingTakeId, setPlayingTakeId] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export function useTakePlayback({
       let audioUrl = asset.relativePath;
       if (typeof window !== 'undefined' && (window as any).electron?.resolveAudioPath) {
         try {
-          audioUrl = await (window as any).electron.resolveAudioPath(asset.relativePath);
+          audioUrl = await (window as any).electron.resolveAudioPath(asset.relativePath, projectPath);
         } catch (err) {
           console.error('[useTakePlayback] Electron path resolution error:', err);
         }
@@ -141,7 +143,8 @@ export function useTakePlayback({
       };
 
       audio.onerror = (e) => {
-        console.error('[useTakePlayback] Audio playback error:', e);
+        const mediaErr = audio.error;
+        console.error('[useTakePlayback] Audio playback error:', e, 'Code:', mediaErr?.code, 'Message:', mediaErr?.message, 'Audio Src:', audioUrl);
         releaseAudioResource(audio);
         if (playingAudioRef.current === audio) {
           playingAudioRef.current = null;
@@ -150,7 +153,7 @@ export function useTakePlayback({
         if (!isSilent) {
           toast({
             title: 'Voice Playback Failed',
-            description: 'Could not play generated audio file.',
+            description: `Could not play audio file (code ${mediaErr?.code || 'unknown'}).`,
             variant: 'destructive',
           });
         }

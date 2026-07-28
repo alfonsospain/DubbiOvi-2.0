@@ -18,6 +18,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import TakesList from '@/components/TakesList';
 import { TimelineEditor } from '@/components/TimelineEditor';
 import { PlaybackMixer } from '@/components/PlaybackMixer';
+import { ExportAudioDialog } from '@/components/ExportAudioDialog';
+import { VoiceService } from '@/lib/VoiceService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen } from 'lucide-react';
 import Timeline from '@/components/Timeline';
@@ -76,11 +78,25 @@ export default function DubbingStudioPro() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Playback Mixer State (Milestone 15.3)
+  // Playback Mixer State (Milestone 15.3 & 15.4)
   const [originalVolume, setOriginalVolume] = useState(1.0);
   const [originalEnabled, setOriginalEnabled] = useState(true);
   const [voiceVolume, setVoiceVolume] = useState(1.0);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isExportAudioDialogOpen, setIsExportAudioDialogOpen] = useState(false);
+  const voiceServiceRef = useRef<VoiceService | null>(null);
+
+  const getVoiceService = useCallback(() => {
+    if (!voiceServiceRef.current) {
+      voiceServiceRef.current = new VoiceService();
+    }
+    voiceServiceRef.current.rehydrateFromTakes(takes);
+    return voiceServiceRef.current;
+  }, [takes]);
+
+  const getAssetManager = useCallback(() => {
+    return getVoiceService().getAssetManager();
+  }, [getVoiceService]);
 
   // Sync HTML5 Video volume & muted properties dynamically with Playback Mixer
   useEffect(() => {
@@ -179,10 +195,11 @@ export default function DubbingStudioPro() {
       settings: newSettings,
       takes: newTakes,
       glossary: newGlossary,
+      voiceAssets: getAssetManager()?.getAllAssets() || [],
       videoFileName,
       activeFilePath: filePathOverride !== undefined ? filePathOverride : activeFilePath,
     });
-  }, [activeFilePath]);
+  }, [activeFilePath, getAssetManager]);
 
   const pushToHistory = useCallback((actionName: string, customTakes?: Take[], customGlossary?: GlossaryEntry[], customSettings?: ProjectSettings) => {
     setPast(prevPast => {
@@ -381,6 +398,9 @@ export default function DubbingStudioPro() {
       setSettings(restored.settings);
       setTakes(restored.takes || []);
       setGlossary(restored.glossary || []);
+      if (restored.voiceAssets && restored.voiceAssets.length > 0) {
+        getVoiceService().rehydrateFromAssets(restored.voiceAssets);
+      }
       if ((restored as any).activeFilePath) {
         setActiveFilePath((restored as any).activeFilePath);
       }
@@ -577,6 +597,9 @@ export default function DubbingStudioPro() {
       setSettings(loadedSettings);
       setTakes(loadedTakes);
       setGlossary(loadedGlossary);
+      if (Array.isArray(projectData.voiceAssets) && projectData.voiceAssets.length > 0) {
+        getVoiceService().rehydrateFromAssets(projectData.voiceAssets);
+      }
       setCurrentIndex(0);
       setActiveFilePath(filePath);
 
@@ -629,6 +652,7 @@ export default function DubbingStudioPro() {
         settings,
         takes,
         glossary,
+        voiceAssets: getAssetManager()?.getAllAssets() || [],
       };
 
       const projectDataString = JSON.stringify(projectData, null, 2);
@@ -661,6 +685,7 @@ export default function DubbingStudioPro() {
       settings,
       takes,
       glossary,
+      voiceAssets: getAssetManager()?.getAllAssets() || [],
     };
 
     const projectDataString = JSON.stringify(projectData, null, 2);
@@ -1063,118 +1088,124 @@ export default function DubbingStudioPro() {
         onDockVideo={handleDockVideo}
       />
       <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
-        {isDetached ? (
-          isTimelineEditorActive ? (
-            <TimelineEditor
-              take={takes[currentIndex]}
-              index={currentIndex}
-              takesCount={takes.length}
-              currentTime={currentTime}
-              duration={videoDuration}
-              playbackController={playbackController}
-              tempInSeconds={tempInSeconds}
-              tempOutSeconds={tempOutSeconds}
-              setTempInSeconds={setTempInSeconds}
-              setTempOutSeconds={setTempOutSeconds}
-              onSave={handleSaveSyncTiming}
-              onCancel={() => setIsTimelineEditorActive(false)}
-              onPrevTake={() => handleTimelineEditorNavigate(currentIndex - 1)}
-              onNextTake={() => handleTimelineEditorNavigate(currentIndex + 1)}
-              hasPrevTake={currentIndex > 0}
-              hasNextTake={currentIndex < takes.length - 1}
-              takes={takes}
-            />
-          ) : (
-            <Card className="flex-grow h-full flex flex-col min-h-0">
-              <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
-                  <TabsList className="m-2 shrink-0 flex flex-wrap gap-1 bg-secondary/40 p-0.5 rounded-md">
-                    <TabsTrigger value="takes" className="text-xs px-2.5 py-1.5"><FileText className="mr-1 h-3.5 w-3.5" /> Takes</TabsTrigger>
-                    <TabsTrigger value="project" className="text-xs px-2.5 py-1.5"><Settings className="mr-1 h-3.5 w-3.5" /> Project</TabsTrigger>
-                    <TabsTrigger value="services" className="text-xs px-2.5 py-1.5"><Cpu className="mr-1 h-3.5 w-3.5" /> Services</TabsTrigger>
-                    <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> AI Platforms</TabsTrigger>
-                    <TabsTrigger value="glossary" className="text-xs px-2.5 py-1.5"><BookMarked className="mr-1 h-3.5 w-3.5" /> Glossary</TabsTrigger>
-                    <TabsTrigger value="data" className="text-xs px-2.5 py-1.5"><FolderOpen className="mr-1 h-3.5 w-3.5" /> Data</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
-                    <TakesList
-                      takes={takes}
-                      onTakeUpdate={handleTakeUpdate}
-                      onTakeDelete={handleTakeDelete}
-                      glossary={glossary}
-                      settings={settings}
-                      translationProvider={translationProvider}
-                      speechProvider={speechProvider}
-                      videoRef={videoRef}
-                      currentTime={currentTime}
-                      selectedTakeIndex={currentIndex}
-                      onTakeSelect={(index) => {
-                        setCurrentIndex(index);
-                        if (videoRef.current) {
-                          videoRef.current.currentTime = takes[index]?.startSeconds ?? 0;
-                        }
-                      }}
-                      onTakeMerge={handleTakeMerge}
-                      onTakeSplit={handleTakeSplit}
-                      onEnterSyncMode={handleEnterTimelineEditor}
-                      voiceVolume={voiceVolume}
-                      voiceEnabled={voiceEnabled}
-                    />
-                  </TabsContent>
-                  <TabsContent value="project" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
-                    <ProjectSettingsComponent
-                      settings={settings}
-                      onSettingsChange={handleSettingsChange}
-                      videoFile={videoFile}
-                      videoDuration={videoDuration}
-                      takes={takes}
-                    />
-                  </TabsContent>
-                  <TabsContent value="services" className="flex-grow overflow-y-auto min-h-0 px-4">
-                    <Services
-                      workflowMode={workflowMode}
-                      setWorkflowMode={setWorkflowMode}
-                      transcriptionProvider={transcriptionProvider}
-                      setTranscriptionProvider={setTranscriptionProvider}
-                      translationProvider={translationProvider}
-                      setTranslationProvider={setTranslationProvider}
-                      speechProvider={speechProvider}
-                      setSpeechProvider={setSpeechProvider}
-                    />
-                  </TabsContent>
-                  <TabsContent value="providers" className="flex-grow overflow-y-auto min-h-0 px-4">
-                    <Providers targetLanguage={settings.targetLang} />
-                  </TabsContent>
-                  <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
-                    <GlossaryPanel 
-                      glossary={glossary} 
-                      onGlossaryChange={handleGlossaryChange} 
-                      projectName={settings.projectName || settings.title || 'Untitled Project'}
-                    />
-                  </TabsContent>
-                  <TabsContent value="data" className="flex-grow overflow-y-auto min-h-0 px-4">
-                    <ImportExportPanel 
-                      takes={takes} 
-                      onImport={handleTakesChange} 
-                      videoFile={videoFile}
-                      defaultSourceLang={settings.sourceLang}
-                      projectName={settings.projectName || settings.title || 'Untitled Project'}
-                      onExportWordSource={handleExportWordSource}
-                      onExportWordTarget={handleExportWordTarget}
-                      onExportWordBoth={handleExportWordBoth}
-                      onExportExcel={handleExportExcel}
-                      onExportCSV={handleExportCSV}
-                      onSaveProjectAs={handleSaveProjectAs}
-                      transcriptionProvider={transcriptionProvider}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          )
-        ) : (
-          <PanelGroup direction="vertical" className="flex-grow">
-            <Panel defaultSize={70}>
+        <PanelGroup direction="vertical" className="flex-grow">
+          <Panel defaultSize={70}>
+            {isDetached ? (
+              <div className="h-full overflow-hidden flex flex-col">
+                {isTimelineEditorActive ? (
+                  <TimelineEditor
+                    take={takes[currentIndex]}
+                    index={currentIndex}
+                    takesCount={takes.length}
+                    currentTime={currentTime}
+                    duration={videoDuration}
+                    playbackController={playbackController}
+                    tempInSeconds={tempInSeconds}
+                    tempOutSeconds={tempOutSeconds}
+                    setTempInSeconds={setTempInSeconds}
+                    setTempOutSeconds={setTempOutSeconds}
+                    onSave={handleSaveSyncTiming}
+                    onCancel={() => setIsTimelineEditorActive(false)}
+                    onPrevTake={() => handleTimelineEditorNavigate(currentIndex - 1)}
+                    onNextTake={() => handleTimelineEditorNavigate(currentIndex + 1)}
+                    hasPrevTake={currentIndex > 0}
+                    hasNextTake={currentIndex < takes.length - 1}
+                    takes={takes}
+                  />
+                ) : (
+                  <Card className="flex-grow h-full flex flex-col min-h-0">
+                    <CardContent className="p-0 flex-grow min-h-0 flex flex-col">
+                      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
+                        <TabsList className="m-2 shrink-0 flex flex-wrap gap-1 bg-secondary/40 p-0.5 rounded-md">
+                          <TabsTrigger value="takes" className="text-xs px-2.5 py-1.5"><FileText className="mr-1 h-3.5 w-3.5" /> Takes</TabsTrigger>
+                          <TabsTrigger value="project" className="text-xs px-2.5 py-1.5"><Settings className="mr-1 h-3.5 w-3.5" /> Project</TabsTrigger>
+                          <TabsTrigger value="services" className="text-xs px-2.5 py-1.5"><Cpu className="mr-1 h-3.5 w-3.5" /> Services</TabsTrigger>
+                          <TabsTrigger value="providers" className="text-xs px-2.5 py-1.5"><Key className="mr-1 h-3.5 w-3.5" /> AI Platforms</TabsTrigger>
+                          <TabsTrigger value="glossary" className="text-xs px-2.5 py-1.5"><BookMarked className="mr-1 h-3.5 w-3.5" /> Glossary</TabsTrigger>
+                          <TabsTrigger value="data" className="text-xs px-2.5 py-1.5"><FolderOpen className="mr-1 h-3.5 w-3.5" /> Data</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="takes" className="flex-grow overflow-hidden min-h-0 flex flex-col">
+                          <TakesList
+                            takes={takes}
+                            onTakeUpdate={handleTakeUpdate}
+                            onTakeDelete={handleTakeDelete}
+                            glossary={glossary}
+                            settings={settings}
+                            translationProvider={translationProvider}
+                            speechProvider={speechProvider}
+                            videoRef={videoRef}
+                            currentTime={currentTime}
+                            selectedTakeIndex={currentIndex}
+                            onTakeSelect={(index) => {
+                              setCurrentIndex(index);
+                              if (videoRef.current) {
+                                videoRef.current.currentTime = takes[index]?.startSeconds ?? 0;
+                              }
+                            }}
+                            onTakeMerge={handleTakeMerge}
+                            onTakeSplit={handleTakeSplit}
+                            onEnterSyncMode={handleEnterTimelineEditor}
+                            voiceVolume={voiceVolume}
+                            voiceEnabled={voiceEnabled}
+                            getVoiceService={getVoiceService}
+                            getAssetManager={getAssetManager}
+                            projectPath={activeFilePath ? activeFilePath.replace(/[\/\\][^\/\\]+$/, '') : undefined}
+                          />
+                        </TabsContent>
+                        <TabsContent value="project" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
+                          <ProjectSettingsComponent
+                            settings={settings}
+                            onSettingsChange={handleSettingsChange}
+                            videoFile={videoFile}
+                            videoDuration={videoDuration}
+                            takes={takes}
+                          />
+                        </TabsContent>
+                        <TabsContent value="services" className="flex-grow overflow-y-auto min-h-0 px-4">
+                          <Services
+                            workflowMode={workflowMode}
+                            setWorkflowMode={setWorkflowMode}
+                            transcriptionProvider={transcriptionProvider}
+                            setTranscriptionProvider={setTranscriptionProvider}
+                            translationProvider={translationProvider}
+                            setTranslationProvider={setTranslationProvider}
+                            speechProvider={speechProvider}
+                            setSpeechProvider={setSpeechProvider}
+                          />
+                        </TabsContent>
+                        <TabsContent value="providers" className="flex-grow overflow-y-auto min-h-0 px-4">
+                          <Providers targetLanguage={settings.targetLang} />
+                        </TabsContent>
+                        <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
+                          <GlossaryPanel 
+                            glossary={glossary} 
+                            onGlossaryChange={handleGlossaryChange} 
+                            projectName={settings.projectName || settings.title || 'Untitled Project'}
+                          />
+                        </TabsContent>
+                        <TabsContent value="data" className="flex-grow overflow-y-auto min-h-0 px-4">
+                          <ImportExportPanel 
+                            takes={takes} 
+                            onImport={handleTakesChange} 
+                            videoFile={videoFile}
+                            defaultSourceLang={settings.sourceLang}
+                            projectName={settings.projectName || settings.title || 'Untitled Project'}
+                            onExportWordSource={handleExportWordSource}
+                            onExportWordTarget={handleExportWordTarget}
+                            onExportWordBoth={handleExportWordBoth}
+                            onExportExcel={handleExportExcel}
+                            onExportCSV={handleExportCSV}
+                            onSaveProjectAs={handleSaveProjectAs}
+                            transcriptionProvider={transcriptionProvider}
+                            onOpenExportAudioDialog={() => setIsExportAudioDialogOpen(true)}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : (
               <PanelGroup direction="horizontal">
                 <Panel defaultSize={50} minSize={30}>
                   <div className="flex flex-col gap-4 h-full overflow-hidden pr-2">
@@ -1268,6 +1299,9 @@ export default function DubbingStudioPro() {
                                 onEnterSyncMode={handleEnterTimelineEditor}
                                 voiceVolume={voiceVolume}
                                 voiceEnabled={voiceEnabled}
+                                getVoiceService={getVoiceService}
+                                getAssetManager={getAssetManager}
+                                projectPath={activeFilePath ? activeFilePath.replace(/[\/\\][^\/\\]+$/, '') : undefined}
                               />
                             </TabsContent>
                             <TabsContent value="project" className="flex-grow overflow-y-auto min-h-0 px-4 flex flex-col gap-6">
@@ -1315,6 +1349,7 @@ export default function DubbingStudioPro() {
                                 onExportCSV={handleExportCSV}
                                 onSaveProjectAs={handleSaveProjectAs}
                                 transcriptionProvider={transcriptionProvider}
+                                onOpenExportAudioDialog={() => setIsExportAudioDialogOpen(true)}
                               />
                             </TabsContent>
                           </Tabs>
@@ -1324,39 +1359,53 @@ export default function DubbingStudioPro() {
                   </div>
                 </Panel>
               </PanelGroup>
-            </Panel>
-            <PanelResizeHandle className="h-4 flex items-center justify-center">
-              <GripHorizontal className="h-4 w-4 text-muted-foreground rotate-90" />
-            </PanelResizeHandle>
-            <Panel defaultSize={30} minSize={20} className="pt-2 flex flex-col gap-2 overflow-hidden">
-              <PlaybackMixer
-                originalVolume={originalVolume}
-                originalEnabled={originalEnabled}
-                onOriginalVolumeChange={setOriginalVolume}
-                onOriginalEnabledChange={setOriginalEnabled}
-                voiceVolume={voiceVolume}
-                voiceEnabled={voiceEnabled}
-                onVoiceVolumeChange={setVoiceVolume}
-                onVoiceEnabledChange={setVoiceEnabled}
-              />
-              <Timeline
-                takes={takes}
-                duration={videoDuration}
-                currentTime={currentTime}
-                currentIndex={currentIndex}
-                onTakeClick={handleTimelineTakeClick}
-                onTakeDoubleClick={handleTimelineTakeDoubleClick}
-                onTimebarClick={time =>
-                  videoRef.current && (videoRef.current.currentTime = time)
-                }
-              />
-            </Panel>
-          </PanelGroup>
-        )}
+            )}
+          </Panel>
+          <PanelResizeHandle className="h-4 flex items-center justify-center">
+            <GripHorizontal className="h-4 w-4 text-muted-foreground rotate-90" />
+          </PanelResizeHandle>
+          <Panel defaultSize={30} minSize={20} className="pt-2 flex flex-col gap-2 overflow-hidden">
+            <PlaybackMixer
+              originalVolume={originalVolume}
+              originalEnabled={originalEnabled}
+              onOriginalVolumeChange={setOriginalVolume}
+              onOriginalEnabledChange={setOriginalEnabled}
+              voiceVolume={voiceVolume}
+              voiceEnabled={voiceEnabled}
+              onVoiceVolumeChange={setVoiceVolume}
+              onVoiceEnabledChange={setVoiceEnabled}
+            />
+            <Timeline
+              takes={takes}
+              duration={videoDuration}
+              currentTime={currentTime}
+              currentIndex={currentIndex}
+              onTakeClick={handleTimelineTakeClick}
+              onTakeDoubleClick={handleTimelineTakeDoubleClick}
+              onTimebarClick={time =>
+                videoRef.current && (videoRef.current.currentTime = time)
+              }
+            />
+          </Panel>
+        </PanelGroup>
       </main>
       <footer className="w-full py-2 text-center text-[10px] text-muted-foreground border-t bg-card/20 shrink-0">
         Copyright © Universidad de Oviedo, 2026. All rights reserved.
       </footer>
+      <ExportAudioDialog
+        isOpen={isExportAudioDialogOpen}
+        onOpenChange={setIsExportAudioDialogOpen}
+        videoFile={videoFile}
+        videoUrl={videoUrl}
+        takes={takes}
+        getAssetManager={getAssetManager}
+        initialOriginalVolume={originalVolume}
+        initialOriginalEnabled={originalEnabled}
+        initialVoiceVolume={voiceVolume}
+        initialVoiceEnabled={voiceEnabled}
+        projectName={settings.projectName || settings.title || 'DubbiOvi_Project'}
+        projectPath={activeFilePath ? activeFilePath.replace(/[\/\\][^\/\\]+$/, '') : undefined}
+      />
     </div>
   );
 }

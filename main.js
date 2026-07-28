@@ -445,6 +445,14 @@ app.whenReady().then(() => {
     logDiag(`[RuntimeManager] Initialization error: ${err.message}`);
   }
 
+  try {
+    const startupFFmpegPath = resolveFFmpegExecutable();
+    logDiag(`[FFmpeg Resolution] Startup Check -> Resolved FFmpeg executable:\n${startupFFmpegPath}`);
+    console.log(`[FFmpeg Resolution] Startup Check -> Resolved FFmpeg executable:\n${startupFFmpegPath}`);
+  } catch (err) {
+    logDiag(`[FFmpeg Resolution] Startup check error: ${err.message}`);
+  }
+
   createWindow();
 });
 
@@ -469,11 +477,6 @@ app.on('will-quit', () => {
 });
 
 // IPC Handlers for native save and file dialogs
-ipcMain.handle('show-save-dialog', async (event, options) => {
-  if (!mainWindow) return { canceled: true };
-  return await dialog.showSaveDialog(mainWindow, options);
-});
-
 ipcMain.handle('save-file', async (event, filePath, data, projectPath) => {
   try {
     const baseDir = projectPath ? projectPath : app.getPath('userData');
@@ -1050,9 +1053,29 @@ ipcMain.handle('resolve-audio-path', async (event, { relativePath, projectPath }
   if (relativePath.startsWith('dubbiovi-file://') || relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
     return relativePath;
   }
-  const baseDir = projectPath ? projectPath : app.getPath('userData');
-  const fullPath = path.isAbsolute(relativePath) ? relativePath : path.join(baseDir, relativePath);
-  const normalized = fullPath.replace(/\\/g, '/');
+
+  let targetPath = relativePath;
+  if (!path.isAbsolute(relativePath)) {
+    const projCandidate = projectPath ? path.join(projectPath, relativePath) : null;
+    const userCandidate = path.join(app.getPath('userData'), relativePath);
+    const cwdCandidate = path.join(process.cwd(), relativePath);
+
+    if (projCandidate && fs.existsSync(projCandidate)) {
+      targetPath = projCandidate;
+    } else if (fs.existsSync(userCandidate)) {
+      targetPath = userCandidate;
+    } else if (fs.existsSync(cwdCandidate)) {
+      targetPath = cwdCandidate;
+    } else if (projCandidate) {
+      targetPath = projCandidate;
+    } else {
+      targetPath = userCandidate;
+    }
+  }
+
+  logDiag(`[resolve-audio-path IPC] Input: "${relativePath}" | ProjectPath: "${projectPath}" => Resolved: "${targetPath}" (Exists: ${fs.existsSync(targetPath)})`);
+
+  const normalized = targetPath.replace(/\\/g, '/');
   const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
   return `dubbiovi-file://${cleanPath}`;
 });
@@ -1106,4 +1129,199 @@ ipcMain.handle('get-system-diagnostics', async () => {
   }
 
   return diagnostics;
+});
+
+// -----------------------------------------------------------------------------
+// Milestone 15.4: Native Save As Dialog & FFmpeg Audio Mixdown IPC Bridges
+// -----------------------------------------------------------------------------
+
+/**
+ * Multi-tier FFmpeg binary path resolver.
+ * Priority order:
+ * 1. Development: project-local bin/ directory
+ * 2. Packaged Application: process.resourcesPath/bin/
+ * 3. Managed Runtime Directory: userData/runtimes or userData/engines
+ * 4. System PATH: final fallback only
+ */
+function resolveFFmpegExecutable() {
+  const isWin = process.platform === 'win32';
+  const binaryName = isWin ? 'ffmpeg.exe' : 'ffmpeg';
+
+  // 1. Development: project-local bin/ directory
+  const devBinPath = path.join(__dirname, 'bin', binaryName);
+  const cwdBinPath = path.join(process.cwd(), 'bin', binaryName);
+  if (fs.existsSync(devBinPath)) {
+    logDiag(`[FFmpeg Resolution] Found development binary at: ${devBinPath}`);
+    return devBinPath;
+  }
+  if (fs.existsSync(cwdBinPath)) {
+    logDiag(`[FFmpeg Resolution] Found CWD binary at: ${cwdBinPath}`);
+    return cwdBinPath;
+  }
+
+  // 2. Packaged Application: process.resourcesPath/bin/
+  if (process.resourcesPath) {
+    const packagedBinPath = path.join(process.resourcesPath, 'bin', binaryName);
+    const packagedRootPath = path.join(process.resourcesPath, binaryName);
+    if (fs.existsSync(packagedBinPath)) {
+      logDiag(`[FFmpeg Resolution] Found packaged binary at: ${packagedBinPath}`);
+      return packagedBinPath;
+    }
+    if (fs.existsSync(packagedRootPath)) {
+      logDiag(`[FFmpeg Resolution] Found packaged root binary at: ${packagedRootPath}`);
+      return packagedRootPath;
+    }
+  }
+
+  // 3. Managed Runtime Directory (userData/runtimes or userData/engines)
+  const userDataDir = app.getPath('userData');
+  const managedCandidates = [
+    path.join(userDataDir, 'runtimes', 'ffmpeg', 'bin', binaryName),
+    path.join(userDataDir, 'runtimes', 'ffmpeg', binaryName),
+    path.join(userDataDir, 'engines', 'ffmpeg', binaryName),
+    path.join(userDataDir, 'bin', binaryName),
+  ];
+
+  if (runtimeManager) {
+    try {
+      const ffmpegRuntime = runtimeManager.getRuntime('ffmpeg', '1.0.0');
+      if (ffmpegRuntime && ffmpegRuntime.executablePath && fs.existsSync(ffmpegRuntime.executablePath)) {
+        logDiag(`[FFmpeg Resolution] Found managed RuntimeManager binary at: ${ffmpegRuntime.executablePath}`);
+        return ffmpegRuntime.executablePath;
+      }
+    } catch (_) {}
+  }
+
+  for (const candidate of managedCandidates) {
+    if (fs.existsSync(candidate)) {
+      logDiag(`[FFmpeg Resolution] Found managed runtime binary at: ${candidate}`);
+      return candidate;
+    }
+  }
+
+  // 4. System PATH as final fallback only
+  logDiag(`[FFmpeg Resolution] Managed/bundled FFmpeg not found on disk. Falling back to system PATH ('${binaryName}').`);
+  return binaryName;
+}
+
+ipcMain.handle('show-save-dialog', async (event, options) => {
+  if (!mainWindow) return { canceled: true };
+  const { defaultPath, filters } = options || {};
+  logDiag(`[SaveDialog IPC] Opening native Save As dialog (defaultPath: ${defaultPath})...`);
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save Audio Mixdown As',
+    defaultPath: defaultPath || 'dubbed_audio_mixdown.wav',
+    filters: filters || [
+      { name: 'WAV Audio File', extensions: ['wav'] },
+      { name: 'MP3 Audio File', extensions: ['mp3'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+  });
+  logDiag(`[SaveDialog IPC] Result: canceled=${result.canceled}, filePath="${result.filePath}"`);
+  return result;
+});
+
+ipcMain.handle('render-audio-mixdown', async (event, { ffmpegArgs, outputPath, projectPath }) => {
+  logDiag(`[AudioMixdown IPC] Starting FFmpeg audio mixdown render...`);
+  logDiag(`[AudioMixdown IPC] Path returned by native Save dialog: "${outputPath}"`);
+  logDiag(`[AudioMixdown IPC] Raw FFmpeg Args: ${JSON.stringify(ffmpegArgs)}`);
+
+  if (!outputPath || !ffmpegArgs || !Array.isArray(ffmpegArgs)) {
+    logDiag(`[AudioMixdown IPC] Error: Invalid arguments passed to render-audio-mixdown`);
+    return {
+      success: false,
+      error: 'Invalid arguments: ffmpegArgs (array) and outputPath (string) are required.',
+    };
+  }
+
+  // Ensure target output directory exists
+  const outDir = path.dirname(outputPath);
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+
+  // Resolve any relative input paths in ffmpegArgs to absolute on-disk paths
+  const resolvedArgs = ffmpegArgs.map((arg, idx) => {
+    if (idx > 0 && ffmpegArgs[idx - 1] === '-i') {
+      if (!path.isAbsolute(arg) && !arg.startsWith('http://') && !arg.startsWith('https://')) {
+        const projCandidate = projectPath ? path.join(projectPath, arg) : null;
+        const userCandidate = path.join(app.getPath('userData'), arg);
+        const cwdCandidate = path.join(process.cwd(), arg);
+
+        if (projCandidate && fs.existsSync(projCandidate)) {
+          return projCandidate;
+        } else if (fs.existsSync(userCandidate)) {
+          return userCandidate;
+        } else if (fs.existsSync(cwdCandidate)) {
+          return cwdCandidate;
+        } else if (projCandidate) {
+          return projCandidate;
+        } else {
+          return userCandidate;
+        }
+      }
+    }
+    return arg;
+  });
+
+  logDiag(`[AudioMixdown IPC] Resolved FFmpeg Args: ${JSON.stringify(resolvedArgs)}`);
+
+  const ffmpegExecPath = resolveFFmpegExecutable();
+  logDiag(`[AudioMixdown IPC] Resolved FFmpeg executable:\n${ffmpegExecPath}`);
+  console.log(`[AudioMixdown IPC] Resolved FFmpeg executable:\n${ffmpegExecPath}`);
+
+  return new Promise((resolve) => {
+    const { spawn } = require('child_process');
+    const ffmpegProc = spawn(ffmpegExecPath, resolvedArgs, { windowsHide: true });
+
+    let stdout = '';
+    let stderr = '';
+
+    ffmpegProc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    ffmpegProc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    ffmpegProc.on('error', (err) => {
+      logDiag(`[AudioMixdown IPC] FFmpeg spawn error: ${err.message}`);
+      resolve({
+        success: false,
+        error: `FFmpeg binary error: ${err.message}. Please verify FFmpeg is installed and accessible in system PATH.`,
+        stdout,
+        stderr,
+      });
+    });
+
+    ffmpegProc.on('close', (code) => {
+      logDiag(`[AudioMixdown IPC] FFmpeg exited with code ${code}`);
+      const fileExists = fs.existsSync(outputPath);
+      const fileSize = fileExists ? fs.statSync(outputPath).size : 0;
+
+      logDiag(`[AudioMixdown IPC] Post-FFmpeg File Check: outputPath="${outputPath}" | exists=${fileExists} | fileSize=${fileSize} bytes`);
+
+      if (code === 0 && fileExists && fileSize > 0) {
+        logDiag(`[AudioMixdown IPC] Render SUCCESS: ${fileSize} bytes written to ${outputPath}`);
+        resolve({
+          success: true,
+          outputPath,
+          fileSize,
+          stdout,
+          stderr,
+        });
+      } else {
+        const errorMsg = stderr || `FFmpeg process exited with code ${code} (output file exists: ${fileExists})`;
+        logDiag(`[AudioMixdown IPC] Render FAILURE: ${errorMsg}`);
+        resolve({
+          success: false,
+          exitCode: code,
+          error: errorMsg,
+          stdout,
+          stderr,
+        });
+      }
+    });
+  });
 });

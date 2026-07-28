@@ -33,6 +33,7 @@ import {
   FileCode,
   Copy,
   Download,
+  Music,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
@@ -61,6 +62,7 @@ interface ImportExportPanelProps {
   onExportCSV?: () => void;
   onSaveProjectAs?: () => void;
   transcriptionProvider?: string;
+  onOpenExportAudioDialog?: () => void;
 }
 
 const STAGE_DETAILS = {
@@ -103,6 +105,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   onExportCSV,
   onSaveProjectAs,
   transcriptionProvider,
+  onOpenExportAudioDialog,
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
@@ -636,6 +639,21 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                 </div>
                 <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={onSaveProjectAs}>
                   <Download className="h-3 w-3" /> Save As
+                </Button>
+              </div>
+
+              {/* Mixed Audio Export (Milestone 15.4) */}
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-primary/15 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-primary flex items-center gap-1.5">
+                    <Music className="h-3.5 w-3.5" /> Render Mixed Audio (.wav / .mp3)
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">
+                    Export original video soundtrack combined with AI Voice Takes using Playback Mixer levels.
+                  </p>
+                </div>
+                <Button size="sm" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={onOpenExportAudioDialog}>
+                  <Download className="h-3 w-3" /> Export Audio...
                 </Button>
               </div>
 

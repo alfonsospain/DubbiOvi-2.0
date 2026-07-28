@@ -138,4 +138,59 @@ export class VoiceAssetManager {
   public getAllAssets(): VoiceAsset[] {
     return Array.from(this.assets.values());
   }
+
+  /**
+   * Deterministically re-hydrates the VoiceAssetManager registry from project Takes metadata.
+   * Keeps getAsset() a pure, side-effect-free lookup operation while ensuring all persisted
+   * or session takes with a voiceAssetId are registered in the assets Map.
+   */
+  public rehydrateFromTakes(takes: Take[]): void {
+    if (!Array.isArray(takes)) return;
+    for (const take of takes) {
+      if (!take || !take.voiceAssetId) continue;
+      if (this.assets.has(take.voiceAssetId)) continue;
+
+      const extMatch = take.voiceAssetId.match(/\.(wav|mp3|ogg)$/i);
+      const format: 'wav' | 'mp3' | 'ogg' = extMatch
+        ? (extMatch[1].toLowerCase() as 'wav' | 'mp3' | 'ogg')
+        : take.voiceAssetId.includes('.mp3')
+        ? 'mp3'
+        : 'wav';
+
+      const filename = take.voiceAssetId.endsWith(`.${format}`)
+        ? take.voiceAssetId
+        : `${take.voiceAssetId}.${format}`;
+
+      const relativePath = take.voiceAssetId.startsWith('Audio/')
+        ? take.voiceAssetId
+        : `Audio/${filename}`;
+
+      this.registerAsset({
+        id: take.voiceAssetId,
+        takeId: take.id,
+        relativePath,
+        filename,
+        format,
+        sampleRate: 24000,
+        durationSeconds: 0,
+        metadata: {
+          generatorProviderId: 'rehydrated',
+          generatorModelName: 'rehydrated',
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    }
+  }
+
+  /**
+   * Directly re-hydrates the VoiceAssetManager registry from a persisted voiceAssets collection.
+   * Project metadata is the single authoritative source of truth.
+   */
+  public rehydrateFromAssets(assets: VoiceAsset[]): void {
+    if (!Array.isArray(assets)) return;
+    for (const asset of assets) {
+      if (!asset || !asset.id) continue;
+      this.assets.set(asset.id, { ...asset });
+    }
+  }
 }
