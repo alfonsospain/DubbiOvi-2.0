@@ -151,7 +151,7 @@ async function runCloudTTSProviderTests() {
                 parts: [
                   {
                     inlineData: {
-                      mimeType: 'audio/mp3',
+                      mimeType: 'audio/L16;codec=pcm;rate=24000',
                       data: createMockAudioBase64(),
                     },
                   },
@@ -169,12 +169,12 @@ async function runCloudTTSProviderTests() {
         text: 'This is a test of Gemini voice synthesis.',
         language: 'EN',
         voiceId: 'Puck',
-        modelName: 'gemini-2.5-flash',
+        modelName: 'gemini-2.5-flash-preview-tts',
       },
       'fake-gemini-key'
     );
 
-    if (!capturedGeminiUrl.includes('gemini-2.5-flash:generateContent?key=fake-gemini-key')) {
+    if (!capturedGeminiUrl.includes('gemini-2.5-flash-preview-tts:generateContent?key=fake-gemini-key')) {
       throw new Error(`FAILED: Incorrect Gemini API URL constructed: ${capturedGeminiUrl}`);
     }
     if (capturedGeminiPayload?.generationConfig?.speechConfig?.voiceConfig?.prebuiltVoiceConfig?.voiceName !== 'Puck') {
@@ -184,6 +184,22 @@ async function runCloudTTSProviderTests() {
     if (!geminiResult || geminiResult.metadata.generatorProviderId !== 'gemini') {
       throw new Error('FAILED: Invalid Gemini VoiceGenerationResult mapping!');
     }
+
+    if (geminiResult.format !== 'wav' || !geminiResult.filename.endsWith('.wav')) {
+      throw new Error(`FAILED: Gemini result expected format 'wav' and '.wav' extension, got format: '${geminiResult.format}' and filename: '${geminiResult.filename}'`);
+    }
+
+    // Verify RIFF WAV file content saved
+    if (fs.existsSync(geminiResult.relativePath)) {
+      const savedBuf = fs.readFileSync(geminiResult.relativePath);
+      const headerMagic = savedBuf.subarray(0, 4).toString('ascii');
+      const waveMagic = savedBuf.subarray(8, 12).toString('ascii');
+      if (headerMagic !== 'RIFF' || waveMagic !== 'WAVE') {
+        throw new Error(`FAILED: Generated Gemini audio file does not contain valid RIFF WAV header magic bytes! Got: ${headerMagic} / ${waveMagic}`);
+      }
+      console.log(`  ✓ Verified RIFF WAV header magic: ${headerMagic}...${waveMagic}`);
+    }
+
     console.log(`  ✓ Gemini synthesis URL: ${capturedGeminiUrl}`);
     console.log(`  ✓ Generated Audio File: ${geminiResult.filename}`);
     console.log(`  ✓ Result Relative Path: ${geminiResult.relativePath}`);
@@ -316,7 +332,7 @@ async function runCloudTTSProviderTests() {
           candidates: [
             {
               content: {
-                parts: [{ inlineData: { mimeType: 'audio/mp3', data: createMockAudioBase64() } }],
+                parts: [{ inlineData: { mimeType: 'audio/L16;codec=pcm;rate=24000', data: createMockAudioBase64() } }],
               },
             },
           ],

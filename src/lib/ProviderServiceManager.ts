@@ -51,8 +51,8 @@ export class ProviderServiceManager {
     ProviderServiceManager.registerCapability({
       providerId: 'gemini',
       serviceType: 'tts',
-      defaultModel: 'gemini-2.5-flash-tts',
-      supportedModels: ['gemini-2.5-flash-tts'],
+      defaultModel: 'gemini-2.5-flash-preview-tts',
+      supportedModels: ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts', 'gemini-3.1-flash-tts-preview'],
       description: 'Gemini Voice Generation TTS model',
     });
 

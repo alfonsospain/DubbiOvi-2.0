@@ -30,6 +30,38 @@ export const GEMINI_PREBUILT_VOICES: VoiceDescriptor[] = [
 export const DEFAULT_GEMINI_VOICE = 'Puck';
 
 /**
+ * Helper to wrap raw uncompressed 16-bit PCM audio data into a standard 44-byte RIFF WAV container.
+ */
+export function wrapPcmInWavHeader(
+  pcmBuffer: Buffer,
+  sampleRate = 24000,
+  numChannels = 1,
+  bitsPerSample = 16
+): Buffer {
+  const header = Buffer.alloc(44);
+  const dataSize = pcmBuffer.length;
+  const fileSize = 36 + dataSize;
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+
+  header.write('RIFF', 0);
+  header.writeUInt32LE(fileSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // Subchunk1Size for PCM
+  header.writeUInt16LE(1, 20);  // AudioFormat 1 = PCM
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+/**
  * Helper to save generated binary audio data to local project Audio/ directory.
  */
 async function saveGeneratedAudioFile(
@@ -144,7 +176,7 @@ export class GeminiTTSProvider implements VoiceProvider {
       voiceToUse = VALID_GEMINI_VOICES.has(storedVoice.toLowerCase()) ? storedVoice : DEFAULT_GEMINI_VOICE;
     }
 
-    const modelToUse = request.modelName && request.modelName.includes('gemini') ? request.modelName : 'gemini-2.5-flash';
+    const modelToUse = request.modelName && request.modelName.includes('gemini') ? request.modelName : 'gemini-2.5-flash-preview-tts';
 
     const payload = {
       contents: [
@@ -208,12 +240,45 @@ export class GeminiTTSProvider implements VoiceProvider {
     }
 
     const base64Data = inlineData.data;
-    const mimeType = (inlineData.mimeType || 'audio/mp3').toLowerCase();
-    const format: 'wav' | 'mp3' | 'ogg' = mimeType.includes('wav') ? 'wav' : 'mp3';
+    const rawMimeType = (inlineData.mimeType || '').toLowerCase();
+    const rawBuffer = Buffer.from(base64Data, 'base64');
 
-    const binaryBuffer = Buffer.from(base64Data, 'base64');
-    if (binaryBuffer.length < 50) {
+    if (rawBuffer.length < 50) {
       throw new Error('Gemini TTS API returned audio payload that is too short or malformed.');
+    }
+
+    let finalBuffer: Buffer = rawBuffer;
+    let format: 'wav' | 'mp3' | 'ogg' = 'wav';
+    let sampleRateToUse = request.sampleRate || 24000;
+
+    if (rawMimeType.includes('l16') || rawMimeType.includes('pcm') || rawMimeType.includes('raw')) {
+      const rateMatch = rawMimeType.match(/rate=(\d+)/);
+      if (rateMatch) {
+        sampleRateToUse = parseInt(rateMatch[1], 10);
+      }
+      const channelsMatch = rawMimeType.match(/channels=(\d+)/);
+      const parsedChannels = channelsMatch ? parseInt(channelsMatch[1], 10) : 1;
+
+      finalBuffer = wrapPcmInWavHeader(rawBuffer, sampleRateToUse, parsedChannels, 16);
+      format = 'wav';
+    } else if (rawMimeType.includes('mp3') || rawMimeType.includes('mpeg')) {
+      format = 'mp3';
+    } else if (rawMimeType.includes('ogg')) {
+      format = 'ogg';
+    } else if (rawMimeType.includes('wav')) {
+      format = 'wav';
+    } else {
+      // Fallback format inspection if mimeType is absent or generic
+      const hexHeader = rawBuffer.subarray(0, 4).toString('hex');
+      if (hexHeader.startsWith('52494646')) {
+        format = 'wav';
+      } else if (hexHeader.startsWith('494433') || hexHeader.startsWith('fff3') || hexHeader.startsWith('fffb')) {
+        format = 'mp3';
+      } else {
+        // Default to PCM -> WAV header wrapping for Gemini raw audio
+        finalBuffer = wrapPcmInWavHeader(rawBuffer, sampleRateToUse, 1, 16);
+        format = 'wav';
+      }
     }
 
     const resultId = uuidv4();
@@ -222,7 +287,7 @@ export class GeminiTTSProvider implements VoiceProvider {
     const filename = `voice_${cleanTakeId}_${resultId.substring(0, 8)}.${format}`;
     const relativePath = `Audio/${filename}`;
 
-    await saveGeneratedAudioFile(filename, binaryBuffer);
+    await saveGeneratedAudioFile(filename, finalBuffer);
 
     // Calculate duration or estimate based on text length
     const estimatedDuration = Math.max(1.0, parseFloat((request.text.length * 0.065).toFixed(2)));
@@ -233,7 +298,7 @@ export class GeminiTTSProvider implements VoiceProvider {
       relativePath,
       filename,
       format,
-      sampleRate: request.sampleRate || 24000,
+      sampleRate: sampleRateToUse,
       durationSeconds: estimatedDuration,
       metadata: {
         generatorProviderId: this.id,
