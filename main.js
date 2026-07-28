@@ -1056,3 +1056,54 @@ ipcMain.handle('resolve-audio-path', async (event, { relativePath, projectPath }
   const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
   return `dubbiovi-file://${cleanPath}`;
 });
+
+ipcMain.handle('get-system-diagnostics', async () => {
+  const osPlatform = process.platform;
+  const osArch = process.arch;
+  const isAppleSilicon = osPlatform === 'darwin' && osArch === 'arm64';
+
+  const diagnostics = {
+    platform: osPlatform,
+    arch: osArch,
+    isAppleSilicon,
+    dockerInstalled: false,
+    dockerRunning: false,
+    dockerVersion: '',
+    pythonInstalled: false,
+    pythonVersion: '',
+  };
+
+  const execPromise = (cmd, args, timeout = 2500) => {
+    return new Promise((resolve) => {
+      const { execFile } = require('child_process');
+      execFile(cmd, args, { timeout }, (err, stdout) => {
+        if (err) {
+          resolve({ success: false, stdout: '' });
+        } else {
+          resolve({ success: true, stdout: (stdout || '').trim() });
+        }
+      });
+    });
+  };
+
+  const dockerVer = await execPromise('docker', ['--version']);
+  if (dockerVer.success) {
+    diagnostics.dockerInstalled = true;
+    diagnostics.dockerVersion = dockerVer.stdout;
+    const dockerInfo = await execPromise('docker', ['info']);
+    if (dockerInfo.success) {
+      diagnostics.dockerRunning = true;
+    }
+  }
+
+  let pyVer = await execPromise('python3', ['--version']);
+  if (!pyVer.success) {
+    pyVer = await execPromise('python', ['--version']);
+  }
+  if (pyVer.success) {
+    diagnostics.pythonInstalled = true;
+    diagnostics.pythonVersion = pyVer.stdout;
+  }
+
+  return diagnostics;
+});

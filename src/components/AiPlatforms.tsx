@@ -59,6 +59,7 @@ import {
 import { PiperModelSelector } from './PiperModelSelector';
 import { WhisperModelSelector } from './WhisperModelSelector';
 import { LocalOpenAITTSProvider, LocalServerStatus, DEFAULT_LOCAL_TTS_URL } from '@/lib/LocalOpenAITTSProvider';
+import { LocalAiEngineCenter } from './LocalAiEngineCenter';
 
 const OLLAMA_SPEECH_MODEL_STORAGE_KEY = 'dubbiovi_ollama_speech_model';
 
@@ -1145,99 +1146,17 @@ export default function AiPlatforms() {
 
         {expandedCards.localTts && (
           <CardContent className="space-y-4 pt-0 text-xs">
-            <div className="space-y-3 p-3 rounded-lg border border-border/55 bg-secondary/10">
-              {/* Endpoint URL Input */}
-              <div className="grid gap-1.5">
-                <Label htmlFor="local-tts-url" className="text-xs font-semibold text-muted-foreground">
-                  Server Endpoint Base URL
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="local-tts-url"
-                    type="text"
-                    placeholder="http://localhost:8880/v1"
-                    value={localTtsUrlInput}
-                    onChange={(e) => setLocalTtsUrlInput(e.target.value)}
-                    className="h-9 text-xs font-mono bg-background/50 border-border/80 flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleTestLocalTts()}
-                    disabled={isLocalTtsTesting}
-                    className="h-9 text-xs font-bold gap-1.5 shrink-0"
-                  >
-                    {isLocalTtsTesting ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /> Probing...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-3.5 w-3.5 text-primary" /> Test Connection
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Status Indicator Panel */}
-              {!localTtsStatus.online ? (
-                <div className="p-3 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs space-y-1">
-                  <div className="flex items-center gap-2 font-bold">
-                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                    No Local AI Voice server is currently running.
-                  </div>
-                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                    Start an OpenAI-compatible speech server (such as Kokoro-FastAPI) and click Test Connection to detect it automatically.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-1 border-t border-border/40">
-                  {/* Server Info */}
-                  <div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center justify-between">
-                    <span className="font-semibold flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                      {localTtsStatus.statusMessage}
-                    </span>
-                    <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 text-[10px]">
-                      Online
-                    </Badge>
-                  </div>
-
-                  {/* Detected Models */}
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-foreground">Detected Speech Models</Label>
-                    <select
-                      value={selectedLocalTtsModel}
-                      onChange={(e) => setSelectedLocalTtsModel(e.target.value)}
-                      className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
-                    >
-                      {localTtsStatus.models.map((m) => (
-                        <option key={m} value={m}>
-                          ▼ {m}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Available Voices */}
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-foreground">Available Neural Voices ({localTtsStatus.voices.length})</Label>
-                    <select
-                      value={selectedLocalTtsVoice}
-                      onChange={(e) => setSelectedLocalTtsVoice(e.target.value)}
-                      className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
-                    >
-                      {localTtsStatus.voices.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          🗣️ {v.name} ({v.language})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
+            <LocalAiEngineCenter
+              status={localTtsStatus}
+              baseUrl={localTtsUrlInput}
+              onUrlChange={(url) => setLocalTtsUrlInput(url)}
+              onTestConnection={handleTestLocalTts}
+              isTesting={isLocalTtsTesting}
+              selectedModel={selectedLocalTtsModel}
+              onModelSelect={(m) => setSelectedLocalTtsModel(m)}
+              selectedVoice={selectedLocalTtsVoice}
+              onVoiceSelect={(v) => setSelectedLocalTtsVoice(v)}
+            />
           </CardContent>
         )}
       </Card>
