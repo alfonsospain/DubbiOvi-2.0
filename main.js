@@ -1,4 +1,8 @@
-const { app, BrowserWindow, dialog, ipcMain, protocol, net } = require('electron');
+const electron = require('electron');
+const electronObj = typeof electron === 'object' && electron !== null ? electron : {};
+const { app, BrowserWindow, dialog, protocol, net } = electronObj;
+const ipcMain = electronObj.ipcMain || { handle: () => {}, on: () => {} };
+
 const { fork, spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -11,11 +15,13 @@ const LocalEngineManager = require('./local-engine-manager');
 const AppSettingsService = require('./app-settings-service');
 
 // Register dubbiovi-file privileged scheme for local audio resource fetching from http:// origin
-try {
-  protocol.registerSchemesAsPrivileged([
-    { scheme: 'dubbiovi-file', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }
-  ]);
-} catch (_) {}
+if (protocol && protocol.registerSchemesAsPrivileged) {
+  try {
+    protocol.registerSchemesAsPrivileged([
+      { scheme: 'dubbiovi-file', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }
+    ]);
+  } catch (_) {}
+}
 
 let nextProcess = null;
 let mainWindow = null;
@@ -27,7 +33,13 @@ let runtimeRepository = null;
 let runtimeExecutor = null;
 
 // Resolve diagnostics logging directory
-const logDir = app.getPath('logs');
+const getAppUserDataPath = (sub) => {
+  if (typeof app !== 'undefined' && app?.getPath) {
+    return sub ? app.getPath(sub) : app.getPath('userData');
+  }
+  return path.join(process.cwd(), 'logs');
+};
+const logDir = getAppUserDataPath('logs');
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
@@ -352,6 +364,7 @@ async function createWindow() {
 
 const { pathToFileURL } = require('url');
 
+if (app && app.whenReady) {
 app.whenReady().then(() => {
   // Protocol handler for dubbiovi-file:// URIs allowing http:// origins to stream local audio
   try {
@@ -454,27 +467,30 @@ app.whenReady().then(() => {
   }
 
   createWindow();
-});
+  });
+}
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+if (app && app.on) {
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
 
-// Clean up child process when app closes
-app.on('will-quit', () => {
-  if (nextProcess) {
-    logDiag('[Electron] Terminating Next.js standalone server process...');
-    nextProcess.kill();
-  }
-});
+  // Clean up child process when app closes
+  app.on('will-quit', () => {
+    if (nextProcess) {
+      logDiag('[Electron] Terminating Next.js standalone server process...');
+      nextProcess.kill();
+    }
+  });
+}
 
 // IPC Handlers for native save and file dialogs
 ipcMain.handle('save-file', async (event, filePath, data, projectPath) => {
@@ -1325,3 +1341,10 @@ ipcMain.handle('render-audio-mixdown', async (event, { ffmpegArgs, outputPath, p
     });
   });
 });
+
+if (typeof module !== 'undefined') {
+  module.exports = {
+    resolveFFmpegExecutable,
+  };
+}
+
