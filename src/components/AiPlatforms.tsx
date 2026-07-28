@@ -58,6 +58,7 @@ import {
 } from 'lucide-react';
 import { PiperModelSelector } from './PiperModelSelector';
 import { WhisperModelSelector } from './WhisperModelSelector';
+import { LocalOpenAITTSProvider, LocalServerStatus, DEFAULT_LOCAL_TTS_URL } from '@/lib/LocalOpenAITTSProvider';
 
 const OLLAMA_SPEECH_MODEL_STORAGE_KEY = 'dubbiovi_ollama_speech_model';
 
@@ -98,6 +99,7 @@ export default function AiPlatforms() {
     ollama: true,
     whisper: true,
     piper: true,
+    localTts: true,
     deepl: false,
   });
 
@@ -139,6 +141,19 @@ export default function AiPlatforms() {
   const [isPiperInstalled, setIsPiperInstalled] = useState(false);
   const [isPiperInstalling, setIsPiperInstalling] = useState(false);
 
+  // 6. Local AI Voice Provider State
+  const [localTtsUrlInput, setLocalTtsUrlInput] = useState(DEFAULT_LOCAL_TTS_URL);
+  const [localTtsStatus, setLocalTtsStatus] = useState<LocalServerStatus>({
+    online: false,
+    baseUrl: DEFAULT_LOCAL_TTS_URL,
+    statusMessage: 'Server status unverified.',
+    models: [],
+    voices: [],
+  });
+  const [isLocalTtsTesting, setIsLocalTtsTesting] = useState(false);
+  const [selectedLocalTtsModel, setSelectedLocalTtsModel] = useState('');
+  const [selectedLocalTtsVoice, setSelectedLocalTtsVoice] = useState('');
+
   // Initial Load
   useEffect(() => {
     // Google AI
@@ -155,6 +170,16 @@ export default function AiPlatforms() {
     const savedDeepL = loadDeepLApiKey() || '';
     setDeepLKeyInput(savedDeepL);
     setHasDeepLKey(!!savedDeepL);
+
+    // Local AI Voice Server auto-probe on mount
+    const localProvider = new LocalOpenAITTSProvider();
+    const savedUrl = localProvider.getBaseUrl();
+    setLocalTtsUrlInput(savedUrl);
+    localProvider.checkServerConnection(savedUrl).then((status) => {
+      setLocalTtsStatus(status);
+      if (status.models.length > 0) setSelectedLocalTtsModel(status.models[0]);
+      if (status.voices.length > 0) setSelectedLocalTtsVoice(status.voices[0].id);
+    });
 
     // Ollama
     const savedOllama = loadOllamaConfig();
@@ -198,6 +223,42 @@ export default function AiPlatforms() {
       });
     } finally {
       setIsPiperInstalling(false);
+    }
+  };
+
+  // Handlers - Local AI Voice Provider
+  const handleTestLocalTts = async (urlToTest?: string) => {
+    setIsLocalTtsTesting(true);
+    const targetUrl = urlToTest || localTtsUrlInput;
+    try {
+      const localProvider = new LocalOpenAITTSProvider();
+      const status = await localProvider.checkServerConnection(targetUrl);
+      setLocalTtsStatus(status);
+      localProvider.saveBaseUrl(targetUrl);
+
+      if (status.models.length > 0) setSelectedLocalTtsModel(status.models[0]);
+      if (status.voices.length > 0) setSelectedLocalTtsVoice(status.voices[0].id);
+
+      if (status.online) {
+        toast({
+          title: 'Local Speech Server Connected',
+          description: status.statusMessage,
+        });
+      } else {
+        toast({
+          title: 'Local Server Offline',
+          description: status.statusMessage,
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Connection Probe Error',
+        description: err.message || String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLocalTtsTesting(false);
     }
   };
 
@@ -1027,6 +1088,156 @@ export default function AiPlatforms() {
                 }
               }}
             />
+          </CardContent>
+        )}
+      </Card>
+
+      {/* 6. Local AI Voice Server (OpenAI-Compatible) Card */}
+      <Card className="border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
+        <CardHeader
+          className="p-4 sm:p-6 pb-3 flex flex-row items-center justify-between cursor-pointer select-none hover:bg-secondary/10 transition-colors"
+          onClick={() => toggleExpand('localTts')}
+        >
+          <div className="space-y-1.5">
+            <CardTitle className="text-base font-bold text-foreground">
+              Local AI Voice Server (OpenAI-Compatible)
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Offline neural speech server (Kokoro, XTTS, StyleTTS, Parler, Bark)
+            </CardDescription>
+            <ProviderCapabilityBadges capabilities={['tts']} />
+          </div>
+          <div className="flex items-center gap-2">
+            {isLocalTtsTesting ? (
+              <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <Loader2 className="h-3 w-3 animate-spin text-sky-400" /> Detecting...
+              </Badge>
+            ) : localTtsStatus.online ? (
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Connected
+              </Badge>
+            ) : localTtsStatus.errorType === 'TIMEOUT' ? (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <Clock className="h-3 w-3 text-amber-400" /> Connection Timeout
+              </Badge>
+            ) : localTtsStatus.errorType === 'SERVER_ERROR' ? (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-400" /> Invalid Endpoint
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-400" /> Server Offline
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand('localTts');
+              }}
+            >
+              {expandedCards.localTts ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+
+        {expandedCards.localTts && (
+          <CardContent className="space-y-4 pt-0 text-xs">
+            <div className="space-y-3 p-3 rounded-lg border border-border/55 bg-secondary/10">
+              {/* Endpoint URL Input */}
+              <div className="grid gap-1.5">
+                <Label htmlFor="local-tts-url" className="text-xs font-semibold text-muted-foreground">
+                  Server Endpoint Base URL
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="local-tts-url"
+                    type="text"
+                    placeholder="http://localhost:8880/v1"
+                    value={localTtsUrlInput}
+                    onChange={(e) => setLocalTtsUrlInput(e.target.value)}
+                    className="h-9 text-xs font-mono bg-background/50 border-border/80 flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleTestLocalTts()}
+                    disabled={isLocalTtsTesting}
+                    className="h-9 text-xs font-bold gap-1.5 shrink-0"
+                  >
+                    {isLocalTtsTesting ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /> Probing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 text-primary" /> Test Connection
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Status Indicator Panel */}
+              {!localTtsStatus.online ? (
+                <div className="p-3 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs space-y-1">
+                  <div className="flex items-center gap-2 font-bold">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                    No Local AI Voice server is currently running.
+                  </div>
+                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                    Start an OpenAI-compatible speech server (such as Kokoro-FastAPI) and click Test Connection to detect it automatically.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-1 border-t border-border/40">
+                  {/* Server Info */}
+                  <div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center justify-between">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      {localTtsStatus.statusMessage}
+                    </span>
+                    <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 text-[10px]">
+                      Online
+                    </Badge>
+                  </div>
+
+                  {/* Detected Models */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-foreground">Detected Speech Models</Label>
+                    <select
+                      value={selectedLocalTtsModel}
+                      onChange={(e) => setSelectedLocalTtsModel(e.target.value)}
+                      className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
+                    >
+                      {localTtsStatus.models.map((m) => (
+                        <option key={m} value={m}>
+                          ▼ {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Available Voices */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-foreground">Available Neural Voices ({localTtsStatus.voices.length})</Label>
+                    <select
+                      value={selectedLocalTtsVoice}
+                      onChange={(e) => setSelectedLocalTtsVoice(e.target.value)}
+                      className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
+                    >
+                      {localTtsStatus.voices.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          🗣️ {v.name} ({v.language})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         )}
       </Card>

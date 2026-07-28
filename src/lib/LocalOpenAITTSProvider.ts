@@ -18,6 +18,15 @@ export const DEFAULT_LOCAL_VOICES: VoiceDescriptor[] = [
   { id: 'bm_george', name: 'George (British Male)', gender: 'male', language: 'EN' },
 ];
 
+export interface LocalServerStatus {
+  online: boolean;
+  baseUrl: string;
+  statusMessage: string;
+  models: string[];
+  voices: VoiceDescriptor[];
+  errorType?: 'OFFLINE' | 'TIMEOUT' | 'INVALID_RESPONSE' | 'SERVER_ERROR';
+}
+
 /**
  * Provider-independent Local AI Voice Provider foundation for any local neural speech engine
  * exposing an OpenAI-compatible speech endpoint (e.g. POST /v1/audio/speech).
@@ -53,38 +62,138 @@ export class LocalOpenAITTSProvider implements VoiceProvider {
   }
 
   /**
-   * Local provider is available whenever local endpoint URL is configured or online.
+   * Saves configured local speech base URL.
+   */
+  public saveBaseUrl(url: string): void {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dubbiovi_local_tts_url', url.trim());
+      } catch (_) {}
+    }
+  }
+
+  /**
+   * Probes the local speech server endpoint to determine online availability,
+   * available models (/v1/models), and available voices (/v1/audio/voices).
+   */
+  public async checkServerConnection(targetUrl?: string): Promise<LocalServerStatus> {
+    const baseUrl = (targetUrl || this.getBaseUrl()).trim().replace(/\/+$/, '');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    try {
+      const modelsRes = await fetch(`${baseUrl}/models`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!modelsRes.ok) {
+        return {
+          online: false,
+          baseUrl,
+          statusMessage: `Local speech server returned HTTP ${modelsRes.status} on /models`,
+          models: [],
+          voices: DEFAULT_LOCAL_VOICES,
+          errorType: 'SERVER_ERROR',
+        };
+      }
+
+      const modelsData = await modelsRes.json();
+      const modelsList: string[] = [];
+      if (Array.isArray(modelsData?.data)) {
+        for (const m of modelsData.data) {
+          if (m.id) modelsList.push(String(m.id));
+        }
+      } else if (Array.isArray(modelsData?.models)) {
+        for (const m of modelsData.models) {
+          if (typeof m === 'string') modelsList.push(m);
+          else if (m.id) modelsList.push(String(m.id));
+        }
+      }
+
+      if (modelsList.length === 0) {
+        modelsList.push('kokoro', 'tts-1');
+      }
+
+      // Try discovering voices via /audio/voices or /voices
+      let discoveredVoices: VoiceDescriptor[] = [];
+      try {
+        const voicesRes = await fetch(`${baseUrl}/audio/voices`);
+        if (voicesRes.ok) {
+          const vData = await voicesRes.json();
+          const rawVoices = Array.isArray(vData) ? vData : (vData?.voices || vData?.data || []);
+          if (Array.isArray(rawVoices) && rawVoices.length > 0) {
+            discoveredVoices = rawVoices.map((v: any) => {
+              const vId = typeof v === 'string' ? v : (v.id || v.name);
+              const vName = typeof v === 'string' ? v : (v.name || v.id);
+              const lang = v.language || (vId.startsWith('es_') ? 'ES' : 'EN');
+              return {
+                id: vId,
+                name: `${vName}`,
+                gender: vId.includes('m_') ? 'male' : (vId.includes('f_') ? 'female' : 'neutral'),
+                language: String(lang).toUpperCase(),
+              };
+            });
+          }
+        }
+      } catch (_) {}
+
+      if (discoveredVoices.length === 0) {
+        discoveredVoices = [...DEFAULT_LOCAL_VOICES];
+      }
+
+      return {
+        online: true,
+        baseUrl,
+        statusMessage: `Connected to local speech server at ${baseUrl}`,
+        models: modelsList,
+        voices: discoveredVoices,
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const isTimeout = err?.name === 'AbortError';
+      return {
+        online: false,
+        baseUrl,
+        statusMessage: isTimeout
+          ? `Connection to ${baseUrl} timed out after 3.5s`
+          : `No Local AI Voice server is currently running at ${baseUrl}`,
+        models: [],
+        voices: DEFAULT_LOCAL_VOICES,
+        errorType: isTimeout ? 'TIMEOUT' : 'OFFLINE',
+      };
+    }
+  }
+
+  /**
+   * Returns whether the local server is reachable (statically or probed).
    */
   public isAvailable(): boolean {
     return true;
   }
 
   /**
-   * Discovers available voices from local speech endpoint (/v1/voices or /v1/models) or default catalog.
+   * Discovers available models dynamically from GET /v1/models.
+   */
+  public async getAvailableModels(targetUrl?: string): Promise<string[]> {
+    const status = await this.checkServerConnection(targetUrl);
+    return status.models.length > 0 ? status.models : ['kokoro', 'tts-1'];
+  }
+
+  /**
+   * Discovers available voices dynamically from local speech endpoint or default catalog.
    */
   public async getAvailableVoices(language?: string): Promise<VoiceDescriptor[]> {
-    const baseUrl = this.getBaseUrl().replace(/\/+$/, '');
-    try {
-      const res = await fetch(`${baseUrl}/models`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data?.data)) {
-          const discovered: VoiceDescriptor[] = data.data.map((item: any) => ({
-            id: item.id || item.name,
-            name: `${item.name || item.id} (Local Neural)`,
-            gender: 'neutral',
-            language: (language || 'EN').toUpperCase(),
-          }));
-          if (discovered.length > 0) return discovered;
-        }
-      }
-    } catch (_) {
-      // Local server offline or non-standard models endpoint; fallback to local catalog
+    const status = await this.checkServerConnection();
+    let voices = status.voices;
+
+    if (language) {
+      const normLang = language.trim().toUpperCase();
+      const filtered = voices.filter((v) => v.language.toUpperCase() === normLang);
+      if (filtered.length > 0) return filtered;
     }
 
-    if (!language) return [...DEFAULT_LOCAL_VOICES];
-    const normLang = language.trim().toUpperCase();
-    return DEFAULT_LOCAL_VOICES.map((v) => ({ ...v, language: normLang }));
+    return voices;
   }
 
   /**
@@ -96,7 +205,7 @@ export class LocalOpenAITTSProvider implements VoiceProvider {
 
     return await OpenAiCompatibleSpeechClient.synthesizeSpeech({
       baseUrl,
-      model: activeModel || 'tts-1',
+      model: activeModel || 'kokoro',
       text: request.text,
       voice: request.voiceId || DEFAULT_LOCAL_VOICES[0].id,
       responseFormat: 'wav',

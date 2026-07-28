@@ -86,11 +86,18 @@ export class OpenAiCompatibleSpeechClient {
 
     console.log(`[OpenAiCompatibleSpeechClient] Synthesizing speech via ${endpointUrl}...`);
 
-    const response = await fetch(endpointUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
+    let response: Response;
+    try {
+      response = await fetch(endpointUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+    } catch (err: any) {
+      throw new Error(
+        `Local speech server at ${cleanBaseUrl} is offline or unreachable (${err.message || 'Connection refused'}). Please verify your local speech server (e.g. Kokoro-FastAPI) is running.`
+      );
+    }
 
     if (!response.ok) {
       let errText = '';

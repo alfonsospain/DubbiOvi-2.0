@@ -207,12 +207,16 @@ const Services: React.FC<ServicesProps> = ({
             </div>
             <Select
               value={
-                speechProvider === 'Piper Local TTS' || speechProvider === 'piper'
+                speechProvider === 'Piper Local TTS' || speechProvider === 'piper' || speechProvider === 'Piper Local'
                   ? 'Piper Local'
-                  : speechProvider === 'Google TTS' || speechProvider === 'gemini'
+                  : speechProvider === 'Google TTS' || speechProvider === 'gemini' || speechProvider === 'Gemini'
                   ? 'Gemini'
-                  : speechProvider === 'OpenAI Audio TTS' || speechProvider === 'openai'
+                  : speechProvider === 'OpenAI Audio TTS' || speechProvider === 'openai' || speechProvider === 'OpenAI'
                   ? 'OpenAI'
+                  : speechProvider === 'local-openai-tts' || speechProvider === 'kokoro' || speechProvider === 'Local AI Voice'
+                  ? 'Local AI Voice'
+                  : speechProvider === 'Manual' || speechProvider === 'None'
+                  ? 'None'
                   : speechProvider
               }
               onValueChange={setSpeechProvider}
@@ -221,17 +225,18 @@ const Services: React.FC<ServicesProps> = ({
                 id="speech-prov"
                 className={`h-9 text-xs transition-all duration-200 ${
                   isSpeechActive
-                    ? 'border-primary/60 bg-primary/5 text-foreground font-semibold shadow-sm focus:ring-primary/40'
+                    ? 'border-primary/60 bg-primary/10 text-foreground font-semibold shadow-sm focus:ring-primary/40'
                     : 'border-border/80'
                 }`}
               >
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="OpenAI">OpenAI (Cloud)</SelectItem>
+                <SelectItem value="Gemini">Gemini (Cloud)</SelectItem>
                 <SelectItem value="Piper Local">Piper Local (Offline)</SelectItem>
-                <SelectItem value="Gemini">Gemini (Google Cloud)</SelectItem>
-                <SelectItem value="OpenAI">OpenAI (Cloud Audio)</SelectItem>
-                <SelectItem value="None">None (Manual)</SelectItem>
+                <SelectItem value="Local AI Voice">Local AI Voice (OpenAI-Compatible)</SelectItem>
+                <SelectItem value="None">None</SelectItem>
               </SelectContent>
             </Select>
           </div>

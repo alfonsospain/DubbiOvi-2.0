@@ -485,6 +485,8 @@ const TakesList: React.FC<TakesListProps> = ({
           ? 'gemini'
           : selectedProv === 'OpenAI Audio TTS' || selectedProv === 'OpenAI' || selectedProv === 'openai'
           ? 'openai'
+          : selectedProv === 'Local AI Voice' || selectedProv === 'Local AI Voice (OpenAI-Compatible)' || selectedProv === 'local-openai-tts'
+          ? 'local-openai-tts'
           : selectedProv;
 
       const { result, asset } = await voiceServiceRef.current.generateVoiceForTake({
