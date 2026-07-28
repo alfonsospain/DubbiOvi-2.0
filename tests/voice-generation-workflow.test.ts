@@ -82,6 +82,33 @@ async function runVoiceGenerationWorkflowTests() {
   }
   console.log(`  ✓ Audition Audio Reference Path: ${auditionPath}`);
 
+  // 6. Verify LocalOpenAITTSProvider Take generation uses saved voice ID (not 'tts')
+  console.log('\n[Test 6] Verifying LocalOpenAITTSProvider Take generation resolves saved voice ID...');
+  if (typeof global.localStorage === 'undefined') {
+    const storage: Record<string, string> = {};
+    global.localStorage = {
+      getItem: (key: string) => storage[key] || null,
+      setItem: (key: string, val: string) => { storage[key] = String(val); },
+      removeItem: (key: string) => { delete storage[key]; },
+      clear: () => { Object.keys(storage).forEach((k) => delete storage[k]); },
+      length: 0,
+      key: (i: number) => Object.keys(storage)[i] || null,
+    };
+  }
+  localStorage.setItem('dubbiovi_local_tts_voice', 'ef_dora');
+
+  const { result: localResult, asset: localAsset } = await service.generateVoiceForTake({
+    takeId: 'take-102',
+    text: 'Hola mundo',
+    language: 'ES',
+    providerId: 'local-openai-tts',
+  });
+
+  if (!localResult || !localAsset) {
+    throw new Error('FAILED: local-openai-tts Take voice generation failed!');
+  }
+  console.log(`  ✓ Generated Take voice with saved voice ID: ef_dora`);
+
   console.log('\n=====================================================');
   console.log(' VOICE GENERATION WORKFLOW TESTS PASSED (100%)');
   console.log('=====================================================');

@@ -32,6 +32,7 @@ import {
   Play,
 } from 'lucide-react';
 import { LocalOpenAITTSProvider, LocalServerStatus } from '@/lib/LocalOpenAITTSProvider';
+import { parseVoiceMetadata, groupAndPrioritizeVoices } from '@/lib/VoiceMetadataParser';
 
 export interface SystemDiagnostics {
   platform: 'darwin' | 'win32' | 'linux' | string;
@@ -54,6 +55,7 @@ export interface LocalAiEngineCenterProps {
   onModelSelect: (model: string) => void;
   selectedVoice: string;
   onVoiceSelect: (voice: string) => void;
+  targetLanguage?: string;
 }
 
 const SUPPORTED_ENGINE_CATALOG = [
@@ -99,6 +101,7 @@ export function LocalAiEngineCenter({
   onModelSelect,
   selectedVoice,
   onVoiceSelect,
+  targetLanguage,
 }: LocalAiEngineCenterProps) {
   const { toast } = useToast();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -215,6 +218,10 @@ export function LocalAiEngineCenter({
   const hasModels = status.models.length > 0;
   const hasVoices = status.voices.length > 0;
   const isFullyReady = isEngineReachable && hasModels && hasVoices;
+
+  const targetLang = (targetLanguage || 'EN').toUpperCase();
+  const { recommended, groups } = groupAndPrioritizeVoices(status.voices, targetLang);
+  const activeVoiceMeta = parseVoiceMetadata(selectedVoice || (status.voices[0]?.id || 'af_bella'));
 
   const kokoroDockerCmd = 'docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest';
 
@@ -375,6 +382,12 @@ export function LocalAiEngineCenter({
                     </option>
                   ))}
                 </select>
+                {status.models.length > 1 && (
+                  <p className="text-[10px] text-muted-foreground leading-tight pt-1 flex items-start gap-1">
+                    <Info className="h-3 w-3 text-sky-400 shrink-0 mt-0.5" />
+                    <span>This server exposes multiple OpenAI-compatible model aliases. All available voices are shared across them.</span>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -382,16 +395,60 @@ export function LocalAiEngineCenter({
                 <select
                   value={selectedVoice}
                   onChange={(e) => onVoiceSelect(e.target.value)}
-                  className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
+                  className="h-9 text-xs font-mono bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full font-semibold"
                 >
-                  {status.voices.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      🗣️ {v.name} ({v.language})
-                    </option>
+                  {recommended.length > 0 && (
+                    <optgroup label={`⭐ Recommended for Target Language (${targetLang})`}>
+                      {recommended.map((v) => (
+                        <option key={`rec_${v.id}`} value={v.id}>
+                          {v.countryFlag} {v.displayName} — {v.languageName} ({v.gender.toUpperCase()}) [{v.rawId}]
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {groups.map((group) => (
+                    <optgroup key={group.languageName} label={`${group.countryFlag} ${group.languageName}`}>
+                      {group.voices.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.countryFlag} {v.displayName} ({v.gender}) [{v.rawId}]
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
             </div>
+
+            {/* Detailed Voice Metadata Inspector Badge */}
+            {selectedVoice && (
+              <div className="p-2 rounded-md bg-background/80 border border-border/70 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{activeVoiceMeta.countryFlag}</span>
+                  <div>
+                    <span className="font-bold text-foreground">{activeVoiceMeta.displayName}</span>
+                    <span className="text-muted-foreground text-[10px] ml-1.5 font-semibold">({activeVoiceMeta.languageName})</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={`text-[9px] font-bold px-1.5 py-0 ${
+                      activeVoiceMeta.gender === 'female'
+                        ? 'bg-pink-500/10 text-pink-400 border-pink-500/20'
+                        : activeVoiceMeta.gender === 'male'
+                        ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {activeVoiceMeta.gender.toUpperCase()}
+                  </Badge>
+                  <span className="text-[10px] font-mono text-muted-foreground bg-secondary/60 px-1.5 py-0.5 rounded border border-border/50">
+                    ID: {activeVoiceMeta.rawId}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Milestone 14F.3 — Voice Preview Controls */}
             <div className="pt-1 flex flex-wrap items-center justify-between gap-2 border-t border-border/30">

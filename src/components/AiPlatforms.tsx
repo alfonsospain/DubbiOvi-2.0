@@ -60,6 +60,8 @@ import { PiperModelSelector } from './PiperModelSelector';
 import { WhisperModelSelector } from './WhisperModelSelector';
 import { LocalOpenAITTSProvider, LocalServerStatus, DEFAULT_LOCAL_TTS_URL } from '@/lib/LocalOpenAITTSProvider';
 import { LocalAiEngineCenter } from './LocalAiEngineCenter';
+import { ProviderServiceManager } from '@/lib/ProviderServiceManager';
+import { groupAndPrioritizeVoices } from '@/lib/VoiceMetadataParser';
 
 const OLLAMA_SPEECH_MODEL_STORAGE_KEY = 'dubbiovi_ollama_speech_model';
 
@@ -90,8 +92,14 @@ function ProviderCapabilityBadges({ capabilities }: { capabilities: Array<'asr' 
   );
 }
 
-export default function AiPlatforms() {
+export interface AiPlatformsProps {
+  targetLanguage?: string;
+}
+
+export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
   const { toast } = useToast();
+
+  const EXPANDED_CARDS_STORAGE_KEY = 'dubbiovi_ai_platforms_expanded';
 
   // Expanded card states
   const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
@@ -104,11 +112,34 @@ export default function AiPlatforms() {
     deepl: false,
   });
 
+  // Load saved card expansion preferences on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(EXPANDED_CARDS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            setExpandedCards((prev) => ({ ...prev, ...parsed }));
+          }
+        }
+      } catch (_) {}
+    }
+  }, []);
+
   const toggleExpand = (key: string) => {
-    setExpandedCards((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setExpandedCards((prev) => {
+      const next = {
+        ...prev,
+        [key]: !prev[key],
+      };
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(EXPANDED_CARDS_STORAGE_KEY, JSON.stringify(next));
+        } catch (_) {}
+      }
+      return next;
+    });
   };
 
   // 1. Google AI State
@@ -155,6 +186,80 @@ export default function AiPlatforms() {
   const [selectedLocalTtsModel, setSelectedLocalTtsModel] = useState('');
   const [selectedLocalTtsVoice, setSelectedLocalTtsVoice] = useState('');
 
+  // Helper to preserve model & voice selections upon connection probe/refresh
+  const resolveAndApplyLocalTtsSelection = async (
+    status: LocalServerStatus,
+    targetLangParam?: string
+  ) => {
+    // 1. Resolve Speech Model
+    const storedModel = await ProviderServiceManager.getServiceModel('local-openai-tts', 'tts');
+    if (storedModel && status.models.includes(storedModel)) {
+      setSelectedLocalTtsModel(storedModel);
+    } else if (status.models.length > 0) {
+      const fallbackModel = status.models[0];
+      setSelectedLocalTtsModel(fallbackModel);
+      await ProviderServiceManager.setServiceModel('local-openai-tts', 'tts', fallbackModel);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('dubbiovi_local_tts_model_manual', 'false');
+      }
+    }
+
+    // 2. Resolve Voice
+    const storedVoice = typeof window !== 'undefined' ? localStorage.getItem('dubbiovi_local_tts_voice') || '' : '';
+    const voiceExists = status.voices.some((v) => v.id === storedVoice);
+
+    if (storedVoice && voiceExists) {
+      // Preserve previously selected voice!
+      setSelectedLocalTtsVoice(storedVoice);
+    } else if (status.voices.length > 0) {
+      // Previously selected voice is no longer available from the connected server
+      const targetLang = (targetLangParam || targetLanguage || 'EN').toUpperCase();
+      const { recommended } = groupAndPrioritizeVoices(status.voices, targetLang);
+      const newVoice = recommended.length > 0 ? recommended[0].id : status.voices[0].id;
+      setSelectedLocalTtsVoice(newVoice);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('dubbiovi_local_tts_voice', newVoice);
+        localStorage.setItem('dubbiovi_local_tts_voice_manual', 'false');
+      }
+    }
+  };
+
+  const handleModelSelect = async (model: string) => {
+    setSelectedLocalTtsModel(model);
+    await ProviderServiceManager.setServiceModel('local-openai-tts', 'tts', model);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dubbiovi_local_tts_model_manual', 'true');
+    }
+  };
+
+  const handleVoiceSelect = (voice: string) => {
+    setSelectedLocalTtsVoice(voice);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dubbiovi_local_tts_voice', voice);
+      localStorage.setItem('dubbiovi_local_tts_voice_manual', 'true');
+    }
+  };
+
+  // Re-evaluate target language changes for auto-recommendations
+  useEffect(() => {
+    if (!targetLanguage || localTtsStatus.voices.length === 0) return;
+    const isManual = typeof window !== 'undefined' && localStorage.getItem('dubbiovi_local_tts_voice_manual') === 'true';
+
+    if (!isManual) {
+      const normTarget = targetLanguage.trim().toUpperCase();
+      const { recommended } = groupAndPrioritizeVoices(localTtsStatus.voices, normTarget);
+      if (recommended.length > 0) {
+        const recVoice = recommended[0].id;
+        if (recVoice !== selectedLocalTtsVoice) {
+          setSelectedLocalTtsVoice(recVoice);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('dubbiovi_local_tts_voice', recVoice);
+          }
+        }
+      }
+    }
+  }, [targetLanguage, localTtsStatus.voices]);
+
   // Initial Load
   useEffect(() => {
     // Google AI
@@ -178,8 +283,7 @@ export default function AiPlatforms() {
     setLocalTtsUrlInput(savedUrl);
     localProvider.checkServerConnection(savedUrl).then((status) => {
       setLocalTtsStatus(status);
-      if (status.models.length > 0) setSelectedLocalTtsModel(status.models[0]);
-      if (status.voices.length > 0) setSelectedLocalTtsVoice(status.voices[0].id);
+      resolveAndApplyLocalTtsSelection(status);
     });
 
     // Ollama
@@ -237,8 +341,7 @@ export default function AiPlatforms() {
       setLocalTtsStatus(status);
       localProvider.saveBaseUrl(targetUrl);
 
-      if (status.models.length > 0) setSelectedLocalTtsModel(status.models[0]);
-      if (status.voices.length > 0) setSelectedLocalTtsVoice(status.voices[0].id);
+      await resolveAndApplyLocalTtsSelection(status);
 
       if (status.online) {
         toast({
@@ -1153,9 +1256,10 @@ export default function AiPlatforms() {
               onTestConnection={handleTestLocalTts}
               isTesting={isLocalTtsTesting}
               selectedModel={selectedLocalTtsModel}
-              onModelSelect={(m) => setSelectedLocalTtsModel(m)}
+              onModelSelect={handleModelSelect}
               selectedVoice={selectedLocalTtsVoice}
-              onVoiceSelect={(v) => setSelectedLocalTtsVoice(v)}
+              onVoiceSelect={handleVoiceSelect}
+              targetLanguage={targetLanguage}
             />
           </CardContent>
         )}

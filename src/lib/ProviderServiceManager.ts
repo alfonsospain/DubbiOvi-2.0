@@ -103,6 +103,15 @@ export class ProviderServiceManager {
       supportedModels: ['en_US-lessac-high.onnx', 'es_ES-davefx-medium.onnx', 'fr_FR-upmc-medium.onnx'],
       description: 'Piper neural fast local TTS model',
     });
+
+    // 5. Local AI Voice Provider Services (OpenAI-compatible)
+    ProviderServiceManager.registerCapability({
+      providerId: 'local-openai-tts',
+      serviceType: 'tts',
+      defaultModel: 'kokoro',
+      supportedModels: ['kokoro', 'tts-1', 'tts-1-hd'],
+      description: 'Local AI Voice Server (OpenAI-compatible speech model)',
+    });
   }
 
   /**

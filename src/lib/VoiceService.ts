@@ -76,7 +76,7 @@ export class VoiceService {
       takeId: options.takeId,
       text: options.text,
       language: options.language,
-      voiceId: options.voiceId || targetModel,
+      voiceId: options.voiceId,
       modelName: targetModel,
       format: reqFormat,
       sampleRate: options.sampleRate || 24000,

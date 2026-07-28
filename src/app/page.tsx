@@ -1124,7 +1124,7 @@ export default function DubbingStudioPro() {
                     />
                   </TabsContent>
                   <TabsContent value="providers" className="flex-grow overflow-y-auto min-h-0 px-4">
-                    <Providers />
+                    <Providers targetLanguage={settings.targetLang} />
                   </TabsContent>
                   <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
                     <GlossaryPanel 
@@ -1271,7 +1271,7 @@ export default function DubbingStudioPro() {
                               />
                             </TabsContent>
                             <TabsContent value="providers" className="flex-grow overflow-y-auto min-h-0 px-4">
-                              <Providers />
+                              <Providers targetLanguage={settings.targetLang} />
                             </TabsContent>
                             <TabsContent value="glossary" className="flex-grow overflow-y-auto min-h-0 px-4">
                               <GlossaryPanel 

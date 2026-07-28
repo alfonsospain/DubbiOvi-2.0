@@ -203,11 +203,13 @@ export class LocalOpenAITTSProvider implements VoiceProvider {
     const baseUrl = this.getBaseUrl();
     const activeModel = await ProviderServiceManager.getServiceModel('local-openai-tts', 'tts');
 
+    const savedVoice = typeof window !== 'undefined' ? localStorage.getItem('dubbiovi_local_tts_voice') : null;
+
     return await OpenAiCompatibleSpeechClient.synthesizeSpeech({
       baseUrl,
       model: activeModel || 'kokoro',
       text: request.text,
-      voice: request.voiceId || DEFAULT_LOCAL_VOICES[0].id,
+      voice: request.voiceId || savedVoice || DEFAULT_LOCAL_VOICES[0].id,
       responseFormat: 'wav',
       takeId: request.takeId || 'unassigned',
       providerId: this.id,
