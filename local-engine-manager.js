@@ -392,8 +392,15 @@ class LocalEngineManager {
    * @param {function({ loaded: number, total: number }): void} [onProgress] Progress callback.
    * @returns {Promise<string>} Fully resolved path to installed model.
    */
-  async downloadModel(engineId, modelName, onProgress) {
-    const url = this.getModelDownloadUrl(engineId, modelName);
+  async downloadModel(engineId, modelName, onProgress, customDownloadUrl, customConfigUrl) {
+    let url = customDownloadUrl;
+    if (!url) {
+      try {
+        url = this.getModelDownloadUrl(engineId, modelName);
+      } catch (err) {
+        throw new Error(`Cannot download model '${modelName}': no download URL provided or registered.`);
+      }
+    }
     const targetDir = path.join(this.modelsDir, engineId);
 
     if (!fs.existsSync(targetDir)) {
@@ -411,7 +418,7 @@ class LocalEngineManager {
       if (engineId === 'piper' || modelName.endsWith('.onnx')) {
         const descriptor = this.registry.get(engineId);
         const modelMeta = descriptor?.knownModels?.find((m) => m.filename === modelName);
-        const configUrl = modelMeta?.configUrl || `${url}.json`;
+        const configUrl = customConfigUrl || modelMeta?.configUrl || `${url}.json`;
         const configFilename = `${modelName}.json`;
         const configTargetPath = path.join(targetDir, configFilename);
         const configTempPath = path.join(this.cacheDir, `${engineId}_${configFilename}.tmp`);

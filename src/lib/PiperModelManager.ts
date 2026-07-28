@@ -10,13 +10,15 @@ export interface PiperModelDescriptor {
   gender: 'male' | 'female' | 'neutral';
   estimatedSize: string;
   description: string;
+  downloadUrl?: string;
+  configUrl?: string;
 }
 
 const PIPER_LANGUAGE_VOICES_STORAGE_KEY = 'dubbiovi_piper_language_voices';
 
 /**
  * Catalog of known Piper voice models across multiple languages.
- * Used for catalog listing; dynamic filesystem discovery scans userData/models/piper/.
+ * Used for catalog listing fallback; dynamic official catalog loader fetches rhasspy/piper-voices/voices.json.
  */
 export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
   {
@@ -27,6 +29,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'female',
     estimatedSize: '~102 MB',
     description: 'High quality American English female voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx.json',
   },
   {
     id: 'en_US-amy-medium.onnx',
@@ -36,6 +40,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'female',
     estimatedSize: '~60 MB',
     description: 'Clear American English female voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json',
   },
   {
     id: 'en_GB-alan-medium.onnx',
@@ -45,6 +51,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'male',
     estimatedSize: '~64 MB',
     description: 'Natural British English male voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json',
   },
   {
     id: 'es_ES-davefx-medium.onnx',
@@ -54,6 +62,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'male',
     estimatedSize: '~65 MB',
     description: 'Natural Castilian Spanish male voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json',
   },
   {
     id: 'es_MX-ald-medium.onnx',
@@ -63,6 +73,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'male',
     estimatedSize: '~58 MB',
     description: 'Mexican Spanish male voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx.json',
   },
   {
     id: 'fr_FR-upmc-medium.onnx',
@@ -72,6 +84,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'female',
     estimatedSize: '~63 MB',
     description: 'Clear French female voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx.json',
   },
   {
     id: 'de_DE-thorsten-high.onnx',
@@ -81,6 +95,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'male',
     estimatedSize: '~115 MB',
     description: 'High quality German male voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/high/de_DE-thorsten-high.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/high/de_DE-thorsten-high.onnx.json',
   },
   {
     id: 'it_IT-riccardo-x_low.onnx',
@@ -90,6 +106,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'male',
     estimatedSize: '~28 MB',
     description: 'Lightweight Italian male voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/riccardo/x_low/it_IT-riccardo-x_low.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/riccardo/x_low/it_IT-riccardo-x_low.onnx.json',
   },
   {
     id: 'pt_BR-edresson-low.onnx',
@@ -99,6 +117,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'male',
     estimatedSize: '~29 MB',
     description: 'Brazilian Portuguese male voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/edresson/low/pt_BR-edresson-low.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/edresson/low/pt_BR-edresson-low.onnx.json',
   },
   {
     id: 'zh_CN-huayan-medium.onnx',
@@ -108,6 +128,8 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
     gender: 'female',
     estimatedSize: '~66 MB',
     description: 'Standard Mandarin female voice',
+    downloadUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json',
   },
 ];
 
@@ -117,12 +139,101 @@ export const KNOWN_PIPER_MODELS: PiperModelDescriptor[] = [
  */
 export class PiperModelManager {
   public static readonly DEFAULT_MODEL = 'en_US-lessac-high.onnx';
+  private static cachedOfficialCatalog: PiperModelDescriptor[] | null = null;
+
+  /**
+   * Fetches official Piper voice catalog from rhasspy/piper-voices on HuggingFace.
+   * Returns complete catalog of 170+ voice models across 49 languages.
+   * Dynamically caches results in localStorage and memory. Fallback: KNOWN_PIPER_MODELS.
+   */
+  public static async fetchOfficialCatalog(): Promise<PiperModelDescriptor[]> {
+    if (PiperModelManager.cachedOfficialCatalog && PiperModelManager.cachedOfficialCatalog.length > 0) {
+      return PiperModelManager.cachedOfficialCatalog;
+    }
+
+    const OFFICIAL_CATALOG_URL = 'https://huggingface.co/rhasspy/piper-voices/raw/main/voices.json';
+    const CACHE_KEY = 'dubbiovi_piper_official_catalog';
+
+    // 1. Check local storage cache first
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(CACHE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            PiperModelManager.cachedOfficialCatalog = parsed;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Fetch fresh catalog from official Hugging Face repository
+    try {
+      const res = await fetch(OFFICIAL_CATALOG_URL);
+      if (res.ok) {
+        const data = await res.json();
+        const descriptors: PiperModelDescriptor[] = [];
+
+        for (const [key, voiceData] of Object.entries(data as Record<string, any>)) {
+          if (!voiceData || !voiceData.files) continue;
+          const onnxPath = Object.keys(voiceData.files).find((f) => f.endsWith('.onnx'));
+          if (!onnxPath) continue;
+
+          const filename = `${key}.onnx`;
+          const sizeBytes = voiceData.files[onnxPath]?.size_bytes || 50000000;
+          const estimatedSize = `~${Math.round(sizeBytes / 1024 / 1024)} MB`;
+
+          const langCodeFull = voiceData.language?.code || 'en_US';
+          const langCode = langCodeFull.split('_')[0].toUpperCase();
+          const langName = voiceData.language?.name_english || langCode;
+          const country = voiceData.language?.country_english ? ` (${voiceData.language.country_english})` : '';
+
+          const voiceName = voiceData.name || key;
+          const quality = voiceData.quality || 'medium';
+          const displayName = `${langName}${country} - ${voiceName} (${quality})`;
+
+          const downloadUrl = `https://huggingface.co/rhasspy/piper-voices/resolve/main/${onnxPath}`;
+          const configUrl = `${downloadUrl}.json`;
+
+          descriptors.push({
+            id: filename,
+            name: displayName,
+            filename: filename,
+            language: langCode,
+            gender: 'neutral',
+            estimatedSize: estimatedSize,
+            description: `${langName}${country} voice package by ${voiceName} (${quality} quality, ${voiceData.num_speakers || 1} speaker(s))`,
+            downloadUrl,
+            configUrl,
+          });
+        }
+
+        if (descriptors.length > 0) {
+          PiperModelManager.cachedOfficialCatalog = descriptors;
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(descriptors));
+            } catch (_) {}
+          }
+          return descriptors;
+        }
+      }
+    } catch (fetchErr) {
+      console.warn('[PiperModelManager] Fetching official voices.json failed, falling back to cached/bundled catalog:', fetchErr);
+    }
+
+    if (PiperModelManager.cachedOfficialCatalog && PiperModelManager.cachedOfficialCatalog.length > 0) {
+      return PiperModelManager.cachedOfficialCatalog;
+    }
+
+    return KNOWN_PIPER_MODELS;
+  }
 
   /**
    * Returns all known catalog voice models.
    */
   public static getKnownModels(): PiperModelDescriptor[] {
-    return [...KNOWN_PIPER_MODELS];
+    return PiperModelManager.cachedOfficialCatalog || [...KNOWN_PIPER_MODELS];
   }
 
   /**
@@ -142,8 +253,9 @@ export class PiperModelManager {
   public static getModelDescriptor(filenameOrId: string): PiperModelDescriptor | null {
     const target = PiperModelManager.normalizeModelName(filenameOrId);
     const clean = target.toLowerCase().trim();
+    const catalog = PiperModelManager.cachedOfficialCatalog || KNOWN_PIPER_MODELS;
     return (
-      KNOWN_PIPER_MODELS.find(
+      catalog.find(
         (m) => m.filename.toLowerCase() === clean || m.id.toLowerCase() === clean
       ) || null
     );
@@ -314,6 +426,24 @@ export class PiperModelManager {
     } catch (err) {
       console.error('[PiperModelManager] Error listing models:', err);
       return [];
+    }
+  }
+
+  /**
+   * Removes a locally installed Piper voice package (.onnx and .onnx.json) from disk via Electron IPC.
+   */
+  public static async removeModel(modelName: string): Promise<boolean> {
+    const normalized = PiperModelManager.normalizeModelName(modelName);
+    const isElectron = typeof window !== 'undefined' && (window as any).electron?.deleteEngineModel !== undefined;
+    if (!isElectron) {
+      return false;
+    }
+    try {
+      await (window as any).electron.deleteEngineModel('piper', normalized);
+      return true;
+    } catch (err) {
+      console.error('[PiperModelManager] Error removing model package:', err);
+      return false;
     }
   }
 

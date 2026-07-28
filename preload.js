@@ -12,7 +12,8 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('engine-download-progress', subscription);
   },
   checkEngineModel: (engineId, modelName) => ipcRenderer.invoke('check-engine-model', { engineId, modelName }),
-  downloadEngineModel: (engineId, modelName) => ipcRenderer.invoke('download-engine-model', { engineId, modelName }),
+  downloadEngineModel: (engineId, modelName, downloadUrl, configUrl) =>
+    ipcRenderer.invoke('download-engine-model', { engineId, modelName, downloadUrl, configUrl }),
   onModelDownloadProgress: (callback) => {
     const subscription = (event, progress) => callback(progress);
     ipcRenderer.on('model-download-progress', subscription);
@@ -47,5 +48,6 @@ contextBridge.exposeInMainWorld('electron', {
   // Piper Voice Provider IPC Endpoints
   runPiperLocal: (params) => ipcRenderer.invoke('run-piper-local', params),
   listModels: (engineId) => ipcRenderer.invoke('list-models', engineId),
+  deleteEngineModel: (engineId, modelName) => ipcRenderer.invoke('delete-engine-model', { engineId, modelName }),
   resolveAudioPath: (relativePath, projectPath) => ipcRenderer.invoke('resolve-audio-path', { relativePath, projectPath }),
 });

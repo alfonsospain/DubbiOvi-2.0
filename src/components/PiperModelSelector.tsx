@@ -1,18 +1,35 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PiperModelManager, PiperModelDescriptor } from '@/lib/PiperModelManager';
 import { VoiceService } from '@/lib/VoiceService';
 import { LanguageRegistry } from '@/lib/languages/LanguageRegistry';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Download, Volume2, HardDrive, Loader2, Globe, Info, Star } from 'lucide-react';
+import {
+  CheckCircle2,
+  Download,
+  Volume2,
+  HardDrive,
+  Loader2,
+  Globe,
+  Info,
+  Star,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PiperModelSelectorProps {
   onModelSelect?: (modelFilename: string) => void;
-  onRequestDownload?: (modelFilename: string, estimatedSize: string) => Promise<void> | void;
+  onRequestDownload?: (
+    modelFilename: string,
+    estimatedSize: string,
+    downloadUrl?: string,
+    configUrl?: string
+  ) => Promise<void> | void;
 }
 
 export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
@@ -27,7 +44,11 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
   >([]);
   const [isTestingVoice, setIsTestingVoice] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [isRemoving, setIsRemoving] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Collapsible Language Groups State
+  const [expandedLangs, setExpandedLangs] = useState<Record<string, boolean>>({});
 
   // Compact Downloader State
   const [selectedDownloadLang, setSelectedDownloadLang] = useState<string>('EN');
@@ -41,6 +62,9 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
 
       const mapping = PiperModelManager.getLanguageVoiceMapping();
       setLanguageMapping(mapping);
+
+      // Fetch official Piper catalog from rhasspy/piper-voices (170+ voices, 49 languages)
+      await PiperModelManager.fetchOfficialCatalog();
 
       const known = PiperModelManager.getKnownModels();
       const installed = await PiperModelManager.listInstalledModels();
@@ -62,7 +86,7 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
             language: 'EN',
             gender: 'neutral',
             estimatedSize: 'Local',
-            description: 'Custom installed voice model',
+            description: 'Custom installed voice package',
             isInstalled: true,
           });
         }
@@ -80,13 +104,29 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
     loadStatus();
   }, []);
 
-  const installedModels = modelsStatus.filter((m) => m.isInstalled);
-  const downloadableModels = modelsStatus.filter((m) => !m.isInstalled);
+  const installedModels = useMemo(() => modelsStatus.filter((m) => m.isInstalled), [modelsStatus]);
+  const downloadableModels = useMemo(() => modelsStatus.filter((m) => !m.isInstalled), [modelsStatus]);
 
-  // Distinct language codes available for download
-  const availableDownloadLangs = Array.from(
-    new Set(downloadableModels.map((m) => m.language.toUpperCase()))
+  const activeModelDescriptor = useMemo(
+    () => modelsStatus.find((m) => m.filename === activeModel),
+    [modelsStatus, activeModel]
   );
+
+  // Group installed models by language
+  const groupedInstalled = useMemo(() => {
+    const groups: Record<string, Array<PiperModelDescriptor & { isInstalled: boolean }>> = {};
+    for (const model of installedModels) {
+      const langCode = LanguageRegistry.normalizeCode(model.language).toUpperCase();
+      if (!groups[langCode]) groups[langCode] = [];
+      groups[langCode].push(model);
+    }
+    return groups;
+  }, [installedModels]);
+
+  // Distinct language codes available for download in catalog
+  const availableDownloadLangs = useMemo(() => {
+    return Array.from(new Set(downloadableModels.map((m) => m.language.toUpperCase())));
+  }, [downloadableModels]);
 
   // Sync compact downloader state when downloadableModels updates
   useEffect(() => {
@@ -103,16 +143,28 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
         setSelectedDownloadModelFilename(voicesForLang[0].filename);
       }
     }
-  }, [modelsStatus, selectedDownloadLang]);
+  }, [downloadableModels, availableDownloadLangs, selectedDownloadLang, selectedDownloadModelFilename]);
 
   // Voices available for selected download language
-  const voicesForSelectedLang = downloadableModels.filter(
-    (m) => m.language.toUpperCase() === selectedDownloadLang.toUpperCase()
-  );
+  const voicesForSelectedLang = useMemo(() => {
+    return downloadableModels.filter(
+      (m) => m.language.toUpperCase() === selectedDownloadLang.toUpperCase()
+    );
+  }, [downloadableModels, selectedDownloadLang]);
 
-  const currentDownloadModelDescriptor = downloadableModels.find(
-    (m) => m.filename === selectedDownloadModelFilename
-  ) || voicesForSelectedLang[0];
+  const currentDownloadModelDescriptor = useMemo(() => {
+    return (
+      downloadableModels.find((m) => m.filename === selectedDownloadModelFilename) ||
+      voicesForSelectedLang[0]
+    );
+  }, [downloadableModels, selectedDownloadModelFilename, voicesForSelectedLang]);
+
+  const toggleLangExpand = (langCode: string) => {
+    setExpandedLangs((prev) => ({
+      ...prev,
+      [langCode]: prev[langCode] === undefined ? false : !prev[langCode],
+    }));
+  };
 
   const handleSelectModel = async (filename: string, language: string) => {
     try {
@@ -123,16 +175,44 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
       setLanguageMapping(updatedMapping);
 
       toast({
-        title: 'Preferred Voice Updated',
-        description: `Set ${filename} as preferred voice for ${LanguageRegistry.formatDisplay(language)}.`,
+        title: 'Voice Package Activated',
+        description: `Activated ${filename} as active voice for ${LanguageRegistry.formatDisplay(language)}.`,
       });
       if (onModelSelect) onModelSelect(filename);
     } catch (err: any) {
       toast({
-        title: 'Failed to set preferred voice',
+        title: 'Failed to activate voice package',
         description: err.message || String(err),
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleRemoveModel = async (filename: string, name: string) => {
+    setIsRemoving(true);
+    try {
+      const removed = await PiperModelManager.removeModel(filename);
+      if (removed) {
+        toast({
+          title: 'Voice Package Removed',
+          description: `Successfully uninstalled ${name} from disk.`,
+        });
+        await loadStatus();
+      } else {
+        toast({
+          title: 'Removal Error',
+          description: `Could not delete ${filename} from disk.`,
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Failed to remove package',
+        description: err.message || String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -159,7 +239,7 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
 
       toast({
         title: 'Voice Test Complete',
-        description: `Synthesized test audio clip for ${filename}.`,
+        description: `Synthesized preview audio clip for ${filename}.`,
       });
     } catch (err: any) {
       toast({
@@ -190,64 +270,85 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
             : 'border-border/60 bg-secondary/10 hover:bg-secondary/20'
         }`}
       >
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-foreground flex items-center gap-1.5">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="font-bold text-foreground text-xs truncate flex items-center gap-1.5">
               {model.name}
-              <span className="text-[10px] text-muted-foreground font-normal">
+              <span className="text-[10px] text-muted-foreground font-normal shrink-0">
                 ({model.estimatedSize})
               </span>
             </span>
-            <div className="flex items-center gap-1">
-              {isGlobalActive ? (
-                <Badge variant="default" className="text-[9px] py-0 px-1.5 font-bold bg-primary text-primary-foreground gap-0.5">
-                  <Star className="h-2.5 w-2.5 fill-current" /> Active
-                </Badge>
-              ) : isPreferredForLang ? (
-                <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-semibold border-primary/40 text-primary gap-0.5">
-                  <Star className="h-2.5 w-2.5 text-primary" /> Preferred ({normLang})
-                </Badge>
-              ) : null}
-              <Badge variant="outline" className="text-[9.5px] font-mono bg-background/50">
+            <div className="flex items-center gap-1 shrink-0">
+              <Badge variant="outline" className="text-[9.5px] font-medium bg-background/60 text-muted-foreground border-border/60">
                 <Globe className="h-2.5 w-2.5 mr-1 text-primary" /> {langDisplay}
               </Badge>
             </div>
           </div>
 
-          <p className="text-[10.5px] text-muted-foreground leading-normal">
+          <p className="text-[11px] text-muted-foreground leading-normal line-clamp-2">
             {model.description}
           </p>
         </div>
 
-        <div className="pt-2 mt-2 border-t border-border/30 flex items-center justify-between">
-          <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
-            <CheckCircle2 className="h-3 w-3" /> Installed
-          </span>
+        <div className="pt-2.5 mt-2.5 border-t border-border/30 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {isGlobalActive ? (
+              <Badge variant="default" className="text-[9.5px] py-0.5 px-2 font-semibold bg-primary text-primary-foreground gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Active Voice
+              </Badge>
+            ) : isPreferredForLang ? (
+              <Badge variant="outline" className="text-[9.5px] py-0.5 px-2 font-semibold border-primary/40 text-primary bg-primary/10 gap-1">
+                <Star className="h-3 w-3 fill-current text-primary" /> Preferred ({normLang})
+              </Badge>
+            ) : (
+              <span className="text-[10.5px] text-muted-foreground flex items-center gap-1 font-medium">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Installed
+              </span>
+            )}
+          </div>
 
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
             <Button
               size="sm"
               variant="ghost"
-              className="h-6 text-[10px] px-2 font-semibold text-amber-400 hover:text-amber-300"
+              className="h-7 text-[11px] px-2 font-medium text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
               onClick={() => handleTestVoice(model.filename)}
               disabled={isTestingVoice}
               title="Test Voice Synthesis"
             >
               {isTestingVoice ? (
-                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Volume2 className="h-2.5 w-2.5 mr-1" />
+                <Volume2 className="h-3 w-3 mr-1" />
               )}
               Test
             </Button>
 
             <Button
               size="sm"
-              variant={isGlobalActive ? 'default' : isPreferredForLang ? 'outline' : 'secondary'}
-              className="h-6 text-[10px] px-2 font-semibold"
-              onClick={() => handleSelectModel(model.filename, model.language)}
+              variant={isGlobalActive ? 'secondary' : 'outline'}
+              className={`h-7 text-[11px] px-2.5 font-semibold transition-colors ${
+                isGlobalActive ? 'bg-primary/20 text-primary border border-primary/30 cursor-default' : 'hover:bg-secondary'
+              }`}
+              onClick={() => {
+                if (!isGlobalActive) {
+                  handleSelectModel(model.filename, model.language);
+                }
+              }}
+              disabled={isGlobalActive}
             >
-              {isGlobalActive ? 'Active' : isPreferredForLang ? 'Preferred' : 'Select'}
+              {isGlobalActive ? 'Active' : 'Activate'}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px] px-1.5 font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => handleRemoveModel(model.filename, model.name)}
+              disabled={isRemoving}
+              title="Uninstall Voice Package from disk"
+            >
+              <Trash2 className="h-3 w-3" />
             </Button>
           </div>
         </div>
@@ -257,45 +358,131 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-          <HardDrive className="h-3.5 w-3.5 text-primary" /> Piper Local Voice Models
-        </h4>
-        <span className="text-[10px] text-muted-foreground font-mono">
-          Active: <strong className="text-primary">{activeModel || 'None Selected'}</strong>
-        </span>
-      </div>
+      {/* 1. Dedicated Active Voice Status Section */}
+      <div className="p-3.5 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HardDrive className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-xs font-bold text-foreground">Active Voice Model</span>
+          </div>
+          {activeModelDescriptor ? (
+            <Badge variant="default" className="text-[10px] py-0.5 px-2 font-semibold bg-primary text-primary-foreground gap-1">
+              <CheckCircle2 className="h-3 w-3" /> Active
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30 bg-amber-500/10">
+              No Voice Selected
+            </Badge>
+          )}
+        </div>
 
-      {/* 1. Installed Languages Section */}
-      <div className="space-y-2">
-        <h5 className="text-[11px] font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Installed Languages
-        </h5>
-        {installedModels.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {installedModels.map(renderInstalledModelCard)}
+        {activeModelDescriptor ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-primary/15 text-xs">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 font-bold text-foreground">
+                <span>{activeModelDescriptor.name}</span>
+                <Badge variant="outline" className="text-[9.5px] font-mono bg-background/60 text-muted-foreground border-border/60">
+                  <Globe className="h-2.5 w-2.5 mr-1 text-primary" /> {LanguageRegistry.formatDisplay(activeModelDescriptor.language)}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground font-normal">({activeModelDescriptor.estimatedSize})</span>
+              </div>
+              <div className="text-[11px] font-mono text-muted-foreground">
+                {activeModelDescriptor.filename}
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-[11px] font-medium gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+              onClick={() => handleTestVoice(activeModelDescriptor.filename)}
+              disabled={isTestingVoice}
+            >
+              {isTestingVoice ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-3 w-3" />}
+              Test Active Voice
+            </Button>
           </div>
         ) : (
-          <div className="p-3 rounded-lg border border-border/40 bg-secondary/10 text-[11px] text-muted-foreground flex items-center gap-2">
-            <Info className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-            <span>No local voice packages installed yet. Select a language and voice below to download.</span>
+          <p className="text-[11px] text-muted-foreground">
+            Select a voice package from the installed voice packages section below to activate offline synthesis.
+          </p>
+        )}
+      </div>
+
+      {/* 2. Installed Voice Packages Grouped by Language (Collapsible Sections) */}
+      <div className="space-y-2.5 pt-1">
+        <div className="flex items-center justify-between">
+          <h5 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Installed Voice Packages ({Object.keys(groupedInstalled).length})
+          </h5>
+        </div>
+
+        {Object.keys(groupedInstalled).length > 0 ? (
+          <div className="space-y-2">
+            {Object.entries(groupedInstalled).map(([langCode, models]) => {
+              const isExpanded = expandedLangs[langCode] !== false; // Default expanded
+              const langDisplay = LanguageRegistry.formatDisplay(langCode);
+              const hasActive = models.some((m) => m.filename === activeModel);
+
+              return (
+                <div key={langCode} className="rounded-lg border border-border/50 bg-secondary/10 overflow-hidden">
+                  {/* Language Group Collapsible Header */}
+                  <div
+                    onClick={() => toggleLangExpand(langCode)}
+                    className="p-3 flex items-center justify-between cursor-pointer select-none hover:bg-secondary/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-xs font-bold text-foreground">{langDisplay}</span>
+                      <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground border-border/60 bg-background/50">
+                        {models.length} {models.length === 1 ? 'package' : 'packages'}
+                      </Badge>
+                      {hasActive && (
+                        <Badge variant="default" className="text-[9.5px] py-0 px-1.5 bg-primary text-primary-foreground font-semibold">
+                          Active
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground font-mono mr-1">
+                        {isExpanded ? 'Collapse' : 'Expand'}
+                      </span>
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </div>
+
+                  {/* Collapsible Content Body */}
+                  {isExpanded && (
+                    <div className="p-3 pt-0 border-t border-border/30 grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-2">
+                      {models.map(renderInstalledModelCard)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-lg border border-border/40 bg-secondary/10 text-xs text-muted-foreground flex items-center gap-2">
+            <Info className="h-4 w-4 text-amber-400 shrink-0" />
+            <span>No local voice packages installed yet. Select a catalog language below to download a package.</span>
           </div>
         )}
       </div>
 
-      {/* 2. Download Additional Languages Section (Compact Downloader) */}
-      <div className="space-y-2 pt-2 border-t border-border/40">
-        <h5 className="text-[11px] font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
-          <Download className="h-3.5 w-3.5 text-primary" /> Download Additional Languages
+      {/* 3. Voice Package Catalog & Download Manager */}
+      <div className="space-y-2.5 pt-3 border-t border-border/40">
+        <h5 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <Download className="h-3.5 w-3.5 text-primary" /> Voice Package Catalog & Download Manager
         </h5>
 
         {downloadableModels.length > 0 && availableDownloadLangs.length > 0 ? (
-          <div className="p-3 rounded-lg border border-border/55 bg-secondary/10 space-y-3">
+          <div className="p-3.5 rounded-lg border border-border/50 bg-secondary/10 space-y-3.5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Download Language Dropdown */}
               <div className="space-y-1">
                 <Label htmlFor="download-lang" className="text-xs font-semibold text-muted-foreground">
-                  Download Language
+                  Catalog Language
                 </Label>
                 <select
                   id="download-lang"
@@ -307,11 +494,11 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
                       setSelectedDownloadModelFilename(voices[0].filename);
                     }
                   }}
-                  className="h-9 text-xs font-medium bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
+                  className="h-9 text-xs font-medium bg-background border border-border/70 rounded-md px-3 text-foreground w-full focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   {availableDownloadLangs.map((langCode) => (
                     <option key={langCode} value={langCode}>
-                      ▼ {LanguageRegistry.formatDisplay(langCode)}
+                      {LanguageRegistry.formatDisplay(langCode)} ({langCode})
                     </option>
                   ))}
                 </select>
@@ -320,26 +507,26 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
               {/* Voice Model Dropdown */}
               <div className="space-y-1">
                 <Label htmlFor="download-voice" className="text-xs font-semibold text-muted-foreground">
-                  Voice Model
+                  Voice Package
                 </Label>
                 <select
                   id="download-voice"
                   value={selectedDownloadModelFilename}
                   onChange={(e) => setSelectedDownloadModelFilename(e.target.value)}
-                  className="h-9 text-xs font-medium bg-background/80 border border-border/80 rounded-md px-3 text-foreground w-full"
+                  className="h-9 text-xs font-medium bg-background border border-border/70 rounded-md px-3 text-foreground w-full focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   {voicesForSelectedLang.map((m) => (
                     <option key={m.filename} value={m.filename}>
-                      ▼ {m.name} ({m.estimatedSize})
+                      {m.name} ({m.estimatedSize})
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Action & Info Bar */}
-            <div className="flex flex-wrap gap-2 items-center justify-between pt-1 border-t border-border/30">
-              <span className="text-[11px] text-muted-foreground leading-normal">
+            {/* Action & Description Bar */}
+            <div className="flex flex-wrap gap-2 items-center justify-between pt-2 border-t border-border/30">
+              <span className="text-[11px] text-muted-foreground leading-normal max-w-md">
                 {currentDownloadModelDescriptor?.description || 'Select a voice package to download.'}
               </span>
 
@@ -351,9 +538,10 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
                     try {
                       await onRequestDownload(
                         currentDownloadModelDescriptor.filename,
-                        currentDownloadModelDescriptor.estimatedSize
+                        currentDownloadModelDescriptor.estimatedSize,
+                        currentDownloadModelDescriptor.downloadUrl,
+                        currentDownloadModelDescriptor.configUrl
                       );
-                      // Refresh status immediately so installed model moves to Installed Languages!
                       await loadStatus();
                     } finally {
                       setIsDownloading(false);
@@ -369,16 +557,16 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
                   </>
                 ) : (
                   <>
-                    <Download className="h-3.5 w-3.5" /> Download Voice
+                    <Download className="h-3.5 w-3.5" /> Download Voice Package
                   </>
                 )}
               </Button>
             </div>
           </div>
         ) : (
-          <div className="p-3 rounded-lg border border-border/40 bg-secondary/10 text-[11px] text-muted-foreground flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span>No additional downloadable voice models available. All catalog voice models are already installed.</span>
+          <div className="p-3.5 rounded-lg border border-border/40 bg-secondary/10 text-xs text-muted-foreground flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>All catalog voice packages are currently installed on this system.</span>
           </div>
         )}
       </div>

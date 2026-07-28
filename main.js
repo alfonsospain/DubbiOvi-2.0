@@ -759,7 +759,7 @@ ipcMain.handle('check-engine-model', async (event, { engineId, modelName }) => {
   return { exists, modelPath: resolvedPath, modelName: targetName };
 });
 
-ipcMain.handle('download-engine-model', async (event, { engineId, modelName }) => {
+ipcMain.handle('download-engine-model', async (event, { engineId, modelName, downloadUrl, configUrl }) => {
   const targetName = modelName || 'ggml-tiny.bin';
   const targetEngine = engineId || 'whisper';
   if (!localEngineManager) {
@@ -768,15 +768,21 @@ ipcMain.handle('download-engine-model', async (event, { engineId, modelName }) =
 
   logDiag(`[LocalEngineManager] Downloading model ${targetName} for engine ${targetEngine}...`);
 
-  const installedPath = await localEngineManager.downloadModel(targetEngine, targetName, (progress) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('model-download-progress', {
-        engineId: targetEngine,
-        modelName: targetName,
-        ...progress,
-      });
-    }
-  });
+  const installedPath = await localEngineManager.downloadModel(
+    targetEngine,
+    targetName,
+    (progress) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('model-download-progress', {
+          engineId: targetEngine,
+          modelName: targetName,
+          ...progress,
+        });
+      }
+    },
+    downloadUrl,
+    configUrl
+  );
 
   // Verify models directory contents on disk immediately after download
   const targetDir = path.dirname(installedPath);
@@ -913,6 +919,30 @@ ipcMain.handle('list-models', async (event, engineId) => {
     logDiag(`[list-models IPC] Error listing models for ${targetEngine}: ${err.message}`);
     return [];
   }
+});
+
+ipcMain.handle('delete-engine-model', async (event, { engineId, modelName }) => {
+  const targetEngine = engineId || 'piper';
+  if (!modelName || typeof modelName !== 'string') {
+    throw new Error('Model name is required for deletion.');
+  }
+  const modelsDir = path.join(app.getPath('userData'), 'models', targetEngine);
+  const modelPath = path.join(modelsDir, modelName);
+  const configPath = `${modelPath}.json`;
+
+  logDiag(`[delete-engine-model IPC] Deleting model package ${modelName} from ${modelsDir}...`);
+
+  let deletedCount = 0;
+  if (fs.existsSync(modelPath)) {
+    fs.unlinkSync(modelPath);
+    deletedCount++;
+  }
+  if (fs.existsSync(configPath)) {
+    fs.unlinkSync(configPath);
+    deletedCount++;
+  }
+
+  return { success: true, deletedCount };
 });
 
 ipcMain.handle('run-piper-local', async (event, { text, modelName, outputFilename, projectPath }) => {
