@@ -13,7 +13,7 @@ export interface UseTakePlaybackOptions {
 export interface UseTakePlaybackReturn {
   playingTakeId: string | null;
   isPlaying: (takeId: string) => boolean;
-  playTake: (take: Take) => Promise<void>;
+  playTake: (take: Take, options?: { silent?: boolean }) => Promise<void>;
   stopPlayback: () => void;
 }
 
@@ -62,8 +62,9 @@ export function useTakePlayback({
    * Begins or toggles audition playback for a generated Take voice asset.
    */
   const playTake = useCallback(
-    async (take: Take): Promise<void> => {
+    async (take: Take, options?: { silent?: boolean }): Promise<void> => {
       if (!take) return;
+      const isSilent = options?.silent ?? false;
 
       // If user selects Play on the currently playing Take, treat as Stop toggle
       if (playingTakeId === take.id) {
@@ -78,10 +79,12 @@ export function useTakePlayback({
 
       // Check if Take has an associated voiceAssetId
       if (!take.voiceAssetId) {
-        toast({
-          title: 'Voice not generated yet.',
-          description: 'Synthesize or assign a voice asset before auditioning.',
-        });
+        if (!isSilent) {
+          toast({
+            title: 'Voice not generated yet.',
+            description: 'Synthesize or assign a voice asset before auditioning.',
+          });
+        }
         return;
       }
 
@@ -90,10 +93,12 @@ export function useTakePlayback({
       const asset = manager ? manager.getActiveAssetForTake(take) || manager.getAsset(take.voiceAssetId) : null;
 
       if (!asset || !asset.relativePath) {
-        toast({
-          title: 'Voice not generated yet.',
-          description: 'The associated voice asset could not be resolved from project metadata.',
-        });
+        if (!isSilent) {
+          toast({
+            title: 'Voice not generated yet.',
+            description: 'The associated voice asset could not be resolved from project metadata.',
+          });
+        }
         return;
       }
 
@@ -125,11 +130,13 @@ export function useTakePlayback({
           playingAudioRef.current = null;
           setPlayingTakeId(null);
         }
-        toast({
-          title: 'Voice Playback Failed',
-          description: 'Could not play generated audio file.',
-          variant: 'destructive',
-        });
+        if (!isSilent) {
+          toast({
+            title: 'Voice Playback Failed',
+            description: 'Could not play generated audio file.',
+            variant: 'destructive',
+          });
+        }
       };
 
       playingAudioRef.current = audio;
@@ -144,11 +151,13 @@ export function useTakePlayback({
           playingAudioRef.current = null;
           setPlayingTakeId(null);
         }
-        toast({
-          title: 'Voice Playback Failed',
-          description: err?.message || 'Could not play generated audio file.',
-          variant: 'destructive',
-        });
+        if (!isSilent) {
+          toast({
+            title: 'Voice Playback Failed',
+            description: err?.message || 'Could not play generated audio file.',
+            variant: 'destructive',
+          });
+        }
       }
     },
     [playingTakeId, stopPlayback, getAssetManager, releaseAudioResource, toast]

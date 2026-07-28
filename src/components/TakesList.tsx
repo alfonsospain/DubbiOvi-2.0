@@ -40,6 +40,7 @@ import { useToast } from '@/hooks/use-toast';
 import { loadApiKey, loadOpenAiApiKey, loadDeepLApiKey, loadOllamaConfig } from '@/lib/apiKeyStorage';
 import { VoiceService } from '@/lib/VoiceService';
 import { useTakePlayback } from '@/hooks/useTakePlayback';
+import { useDubPreview } from '@/hooks/useDubPreview';
 import {
   Sparkles,
   Trash2,
@@ -548,6 +549,14 @@ const TakesList: React.FC<TakesListProps> = ({
   const { isPlaying, playTake, stopPlayback } = useTakePlayback({
     takes,
     getAssetManager,
+  });
+
+  useDubPreview({
+    videoRef,
+    takes,
+    playTake,
+    stopPlayback,
+    currentTime,
   });
 
   const handlePlayVoice = React.useCallback(
