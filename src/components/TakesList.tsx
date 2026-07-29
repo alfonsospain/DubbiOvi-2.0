@@ -55,6 +55,8 @@ import {
   Square,
   Loader2,
   AudioLines,
+  RotateCw,
+  VolumeX,
 } from 'lucide-react';
 import { cn, formatTimeForDisplay } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -113,6 +115,7 @@ interface TakeRowProps {
   hasApiKey: boolean;
   translationProvider?: string;
   onEnterSyncMode: (index: number) => void;
+  onDeleteVoice: (take: Take) => void;
 }
 
 const TakeRow: React.FC<TakeRowProps> = ({
@@ -141,6 +144,7 @@ const TakeRow: React.FC<TakeRowProps> = ({
   hasApiKey,
   translationProvider,
   onEnterSyncMode,
+  onDeleteVoice,
 }) => {
   const isLocked = take.status === 'Locked';
   const [localOriginal, setLocalOriginal] = useState(take.original || '');
@@ -399,6 +403,30 @@ const TakeRow: React.FC<TakeRowProps> = ({
                 <span>Timeline Editor...</span>
               </DropdownMenuItem>
 
+              {take.voiceAssetId && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onGenerateVoice(take)}
+                    disabled={isLocked || isGeneratingVoice}
+                    className="cursor-pointer gap-2"
+                  >
+                    <RotateCw className={cn('h-3.5 w-3.5 text-amber-400', isGeneratingVoice && 'animate-spin')} />
+                    <span>Regenerate Voice</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => onDeleteVoice(take)}
+                    disabled={isLocked || isGeneratingVoice}
+                    className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+                  >
+                    <VolumeX className="h-3.5 w-3.5 text-destructive" />
+                    <span>Delete Voice</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
               <DropdownMenuItem
                 onClick={() => openSplitDialog(index)}
                 disabled={isLocked}
@@ -563,6 +591,32 @@ const TakesList: React.FC<TakesListProps> = ({
     } finally {
       setGeneratingVoiceId(null);
     }
+  };
+
+  const handleDeleteVoice = (take: Take) => {
+    if (!take.voiceAssetId) return;
+
+    if (isPlaying(take.id)) {
+      stopPlayback();
+    }
+
+    const assetId = take.voiceAssetId;
+    const assetManager = resolveAssetManager();
+    if (assetManager && assetId) {
+      assetManager.removeAsset(assetId, takes);
+    }
+
+    const updatedTake: Take = {
+      ...take,
+      voiceAssetId: undefined,
+    };
+
+    onTakeUpdate(updatedTake);
+
+    toast({
+      title: 'Voice Deleted',
+      description: `Removed voice asset from Take (${take.character || take.id}).`,
+    });
   };
 
   const { isPlaying, playTake, stopPlayback } = useTakePlayback({
@@ -843,6 +897,7 @@ const TakesList: React.FC<TakesListProps> = ({
                   suggestTranslation={suggestTranslation}
                   isSuggesting={isSuggesting === take.id}
                   onGenerateVoice={handleGenerateVoice}
+                  onDeleteVoice={handleDeleteVoice}
                   onPlayVoice={handlePlayVoice}
                   onStopVoice={stopPlayback}
                   isPlayingVoice={isPlaying(take.id)}
