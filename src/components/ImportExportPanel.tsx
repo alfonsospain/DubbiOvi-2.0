@@ -563,20 +563,20 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                 )}
 
                 {transcriptionProvider === 'None' ? (
-                  <div className="p-2.5 rounded border border-amber-500/20 bg-amber-500/5 text-[10.5px] text-amber-400 leading-normal">
-                    ⚠️ Transcription provider is set to <strong>None (Manual)</strong> in the <strong>Services</strong> tab. Select a provider (e.g. <strong>Whisper Local</strong> or <strong>Gemini</strong>) to transcribe automatically.
+                  <div className="p-2.5 rounded border border-amber-500/20 bg-amber-500/5 text-[10.5px] text-slate-700 dark:text-amber-300 leading-normal font-medium">
+                    ⚠️ Transcription provider is set to <strong className="font-bold text-slate-900 dark:text-amber-200">None (Manual)</strong> in the <strong>Services</strong> tab. Select a provider (e.g. <strong>Whisper Local</strong> or <strong>Gemini</strong>) to transcribe automatically.
                   </div>
                 ) : activeProvider && activeProvider.capabilities.requiresApiKey && !hasApiKey ? (
                   <div className="p-2.5 rounded border border-amber-500/20 bg-amber-500/5 text-[10.5px] flex flex-col gap-1">
-                    <p className="font-bold text-amber-400 flex items-center gap-1">
-                      <AlertTriangle className="h-3.5 w-3.5" /> API Key Missing
+                    <p className="font-bold text-slate-900 dark:text-amber-300 flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> API Key Missing
                     </p>
-                    <p className="text-muted-foreground leading-normal">
-                      Please configure your API key for <strong>{activeProvider.name}</strong> in the <strong>AI Platforms</strong> tab.
+                    <p className="text-slate-700 dark:text-muted-foreground leading-normal font-medium">
+                      Please configure your API key for <strong className="font-bold text-slate-900 dark:text-foreground">{activeProvider.name}</strong> in the <strong>AI Platforms</strong> tab.
                     </p>
                   </div>
                 ) : !videoFile ? (
-                  <div className="p-2 border border-amber-500/20 rounded bg-amber-500/5 text-[10.5px] text-amber-500 font-medium">
+                  <div className="p-2 border border-amber-500/20 rounded bg-amber-500/5 text-[10.5px] text-slate-900 dark:text-amber-300 font-semibold">
                     ⚠️ Load a video in the media player to begin.
                   </div>
                 ) : null}

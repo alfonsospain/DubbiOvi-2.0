@@ -311,7 +311,7 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 text-[11px] px-2 font-medium text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+              className="h-7 text-[11px] px-2 font-semibold text-amber-950 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 hover:bg-amber-500/10"
               onClick={() => handleTestVoice(model.filename)}
               disabled={isTestingVoice}
               title="Test Voice Synthesis"
@@ -370,7 +370,7 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
               <CheckCircle2 className="h-3 w-3" /> Active
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30 bg-amber-500/10">
+            <Badge variant="outline" className="text-[10px] text-slate-900 dark:text-amber-400 font-bold border-amber-500/30 bg-amber-500/10">
               No Voice Selected
             </Badge>
           )}
@@ -394,7 +394,7 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-[11px] font-medium gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+              className="h-7 text-[11px] font-medium gap-1.5 text-slate-900 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
               onClick={() => handleTestVoice(activeModelDescriptor.filename)}
               disabled={isTestingVoice}
             >
@@ -464,7 +464,7 @@ export const PiperModelSelector: React.FC<PiperModelSelectorProps> = ({
           </div>
         ) : (
           <div className="p-3.5 rounded-lg border border-border/40 bg-secondary/10 text-xs text-muted-foreground flex items-center gap-2">
-            <Info className="h-4 w-4 text-amber-400 shrink-0" />
+            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>No local voice packages installed yet. Select a catalog language below to download a package.</span>
           </div>
         )}

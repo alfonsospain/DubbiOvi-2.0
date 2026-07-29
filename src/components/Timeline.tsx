@@ -70,7 +70,7 @@ const Timeline: React.FC<TimelineProps> = ({
         return 'bg-blue-500';
       case 'Pending':
       default:
-        return 'bg-zinc-500';
+        return 'bg-timeline-empty';
     }
   };
 
@@ -80,7 +80,7 @@ const Timeline: React.FC<TimelineProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="w-full bg-muted p-2 rounded-lg flex flex-col gap-2">
+      <div className="w-full bg-card border border-border/60 p-2 rounded-lg flex flex-col gap-2 shadow-sm">
         <div className="flex justify-between text-xs font-mono text-muted-foreground">
           <span>{formatTimeForDisplay(currentTime)}</span>
           <span>{formatTimeForDisplay(duration)}</span>
@@ -93,7 +93,7 @@ const Timeline: React.FC<TimelineProps> = ({
         >
           {/* Zoomed Timeline Track Width */}
           <div
-            className="relative cursor-pointer bg-secondary/30 rounded-lg select-none p-1 flex flex-col gap-1.5"
+            className="relative cursor-pointer bg-timeline-bg rounded-lg select-none p-1 flex flex-col gap-1.5"
             style={{ width: timelineWidth }}
             onClick={handleTimebarClick}
           >
@@ -171,7 +171,7 @@ const Timeline: React.FC<TimelineProps> = ({
             {/* Playhead Vertical Overlay */}
             {duration > 0 && (
               <div
-                className="absolute top-0 bottom-0 w-1 -translate-x-1/2 rounded-full bg-[#00FF88] pointer-events-none z-20"
+                className="absolute top-0 bottom-0 w-1 -translate-x-1/2 rounded-full bg-primary pointer-events-none z-20"
                 style={{ left: `${(currentTime / duration) * 100}%` }}
               />
             )}

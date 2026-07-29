@@ -66,9 +66,9 @@ import { groupAndPrioritizeVoices } from '@/lib/VoiceMetadataParser';
 const OLLAMA_SPEECH_MODEL_STORAGE_KEY = 'dubbiovi_ollama_speech_model';
 
 const CAPABILITY_CONFIG = {
-  asr: { label: 'Speech Recognition', icon: Mic, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-  translation: { label: 'Translation', icon: Globe, color: 'text-sky-400 bg-sky-500/10 border-sky-500/20' },
-  tts: { label: 'Voice Generation', icon: Volume2, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+  asr: { label: 'Speech Recognition', icon: Mic, color: 'text-emerald-950 dark:text-emerald-400 bg-emerald-500/20 dark:bg-emerald-500/10 border-emerald-600/40 dark:border-emerald-500/20 font-bold' },
+  translation: { label: 'Translation', icon: Globe, color: 'text-sky-950 dark:text-sky-400 bg-sky-500/20 dark:bg-sky-500/10 border-sky-600/40 dark:border-sky-500/20 font-bold' },
+  tts: { label: 'Voice Generation', icon: Volume2, color: 'text-amber-950 dark:text-amber-400 bg-amber-500/20 dark:bg-amber-500/10 border-amber-600/40 dark:border-amber-500/20 font-bold' },
 };
 
 function ProviderCapabilityBadges({ capabilities }: { capabilities: Array<'asr' | 'translation' | 'tts'> }) {
@@ -712,12 +712,12 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
           </div>
           <div className="flex items-center gap-2">
             {hasGeminiKey ? (
-              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <CheckCircle2 className="h-3 w-3" /> Configured
+              <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-600/30 dark:border-emerald-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> Configured
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3" /> Disconnected
+              <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Disconnected
               </Badge>
             )}
             <Button
@@ -816,8 +816,8 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
                 <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Configured
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3 text-amber-400" /> Disconnected
+              <Badge variant="outline" className="bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Disconnected
               </Badge>
             )}
             <Button
@@ -903,8 +903,8 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
                 <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Configured
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3 text-amber-400" /> Disconnected
+              <Badge variant="outline" className="bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Disconnected
               </Badge>
             )}
             <Button
@@ -1118,7 +1118,7 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
                 <CheckCircle2 className="h-3 w-3" /> Runtime Ready
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px] font-semibold">
+              <Badge variant="outline" className="bg-amber-500/15 text-amber-950 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 text-[10px] font-bold">
                 Runtime Not Installed
               </Badge>
             )}
@@ -1221,16 +1221,16 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
                 <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Connected
               </Badge>
             ) : localTtsStatus.errorType === 'TIMEOUT' ? (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <Clock className="h-3 w-3 text-amber-400" /> Connection Timeout
+              <Badge variant="outline" className="bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Connection Timeout
               </Badge>
             ) : localTtsStatus.errorType === 'SERVER_ERROR' ? (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3 text-amber-400" /> Invalid Endpoint
+              <Badge variant="outline" className="bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Invalid Endpoint
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3 text-amber-400" /> Server Offline
+              <Badge variant="outline" className="bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Server Offline
               </Badge>
             )}
             <Button
@@ -1286,8 +1286,8 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
                 <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Configured
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3 text-amber-400" /> Disconnected
+              <Badge variant="outline" className="bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 px-2 py-0.5 text-[10px] font-bold">
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Disconnected
               </Badge>
             )}
             <Button

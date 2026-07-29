@@ -112,8 +112,8 @@ export default function AiConfiguration() {
               <CheckCircle2 className="h-3.5 w-3.5" /> API Key Configured
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1.5 px-2.5 py-1">
-              <AlertTriangle className="h-3.5 w-3.5" /> No API Key Configured
+            <Badge variant="outline" className="bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1.5 px-2.5 py-1 font-bold">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> No API Key Configured
             </Badge>
           )}
         </div>

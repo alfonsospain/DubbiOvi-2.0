@@ -119,9 +119,9 @@ export const ExecutionProgressDialog: React.FC<ExecutionProgressDialogProps> = (
 
           {/* Cancelled Banner */}
           {isCancelled && (
-            <div className="p-2.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10.5px] flex items-center gap-2">
-              <XCircle className="h-4 w-4 shrink-0" />
-              <div>Execution cancellation requested.</div>
+            <div className="p-2.5 rounded border border-amber-500/30 bg-amber-500/10 text-slate-900 dark:text-amber-400 text-[10.5px] flex items-center gap-2 font-medium">
+              <XCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="text-slate-800 dark:text-amber-400 font-semibold">Execution cancellation requested.</div>
             </div>
           )}
 

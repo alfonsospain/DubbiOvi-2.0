@@ -375,12 +375,12 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
 
           {/* Validation Warnings */}
           {(overlapsPrev || overlapsNext) && (
-            <div className="p-2.5 rounded-lg border border-amber-500/25 bg-amber-500/5 text-amber-200 text-[11px] leading-relaxed flex gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="p-2.5 rounded-lg border border-amber-600/40 bg-amber-500/15 text-slate-700 dark:text-amber-200 text-[11px] leading-relaxed flex gap-2 font-medium">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-amber-400">Timeline Overlaps Detected</p>
-                {overlapsPrev && <p className="mt-0.5">• Captures overlap with the previous take.</p>}
-                {overlapsNext && <p className="mt-0.5">• Captures overlap with the next take.</p>}
+                <p className="font-bold text-slate-900 dark:text-amber-300">Timeline Overlaps Detected</p>
+                {overlapsPrev && <p className="mt-0.5 text-slate-700 dark:text-amber-200/90">• Captures overlap with the previous take.</p>}
+                {overlapsNext && <p className="mt-0.5 text-slate-700 dark:text-amber-200/90">• Captures overlap with the next take.</p>}
               </div>
             </div>
           )}

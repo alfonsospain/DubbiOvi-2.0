@@ -77,10 +77,10 @@ export const WhisperModelSelector: React.FC<WhisperModelSelectorProps> = ({
 
       {recommendation && (
         <div className="p-2.5 rounded-lg border border-amber-500/25 bg-amber-500/10 text-[11px] space-y-1">
-          <div className="flex items-center gap-1.5 font-bold text-amber-400">
-            <Sparkles className="h-3.5 w-3.5" /> Recommended for this computer: {recommendation.model}
+          <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-amber-400">
+            <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Recommended for this computer: {recommendation.model}
           </div>
-          <p className="text-[10.5px] text-muted-foreground leading-normal pl-5">
+          <p className="text-[10.5px] text-slate-700 dark:text-muted-foreground leading-normal pl-5 font-medium">
             {recommendation.reason}
           </p>
         </div>
@@ -110,7 +110,7 @@ export const WhisperModelSelector: React.FC<WhisperModelSelectorProps> = ({
                   </span>
 
                   {isRecommended && (
-                    <span className="text-[9.5px] bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-semibold">
+                    <span className="text-[9.5px] bg-amber-500/15 text-slate-900 dark:text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-bold">
                       Recommended
                     </span>
                   )}

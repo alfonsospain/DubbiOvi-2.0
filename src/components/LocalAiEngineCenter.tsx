@@ -241,7 +241,7 @@ export function LocalAiEngineCenter({
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 : status.online
                 ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                : 'bg-amber-500/15 text-slate-900 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 font-bold'
             }`}
           >
             {isFullyReady ? 'Local AI Voice Ready' : status.online ? 'Server Online' : 'Server Offline'}
@@ -337,10 +337,10 @@ export function LocalAiEngineCenter({
 
         {/* Actionable Status Panel */}
         {!status.online ? (
-          <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs space-y-2">
+          <div className="p-3 rounded-md bg-amber-500/15 dark:bg-amber-500/10 border border-amber-600/40 dark:border-amber-500/20 text-slate-900 dark:text-amber-300 text-xs space-y-2">
             <div className="flex items-center justify-between font-bold">
-              <span className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+              <span className="flex items-center gap-2 text-slate-900 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 No Local AI Voice server is currently running.
               </span>
               <Button
@@ -351,7 +351,7 @@ export function LocalAiEngineCenter({
                 <Wrench className="h-3.5 w-3.5" /> Set Up Kokoro-FastAPI
               </Button>
             </div>
-            <p className="text-[11px] text-amber-300/80 leading-relaxed">
+            <p className="text-[11px] text-slate-700 dark:text-amber-300/80 font-medium leading-relaxed">
               Start an OpenAI-compatible speech server (such as Kokoro-FastAPI) and click Test Connection to detect it automatically.
             </p>
           </div>
@@ -610,8 +610,8 @@ export function LocalAiEngineCenter({
                           <CheckCircle2 className="h-3 w-3" /> Docker Desktop Running
                         </Badge>
                       ) : sysDiag.dockerInstalled ? (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1 font-bold">
-                          <AlertTriangle className="h-3 w-3" /> Docker Desktop detected but not started
+                        <Badge variant="outline" className="bg-amber-500/15 text-amber-950 dark:text-amber-400 border-amber-600/30 dark:border-amber-500/20 gap-1 font-bold">
+                          <AlertTriangle className="h-3 w-3 text-amber-900 dark:text-amber-400" /> Docker Desktop detected but not started
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="bg-muted text-muted-foreground gap-1">
@@ -721,12 +721,12 @@ export function LocalAiEngineCenter({
           {/* Native Python Setup Guide */}
           {activeSetupTab === 'python' && (
             <div className="space-y-3">
-              <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
-                <span className="font-bold flex items-center gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+              <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-slate-900 dark:text-amber-300 text-xs">
+                <span className="font-bold flex items-center gap-1.5 text-slate-900 dark:text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                   Advanced Setup (Native Python 3.10+)
                 </span>
-                <p className="text-[11px] text-amber-300/80 mt-1">
+                <p className="text-[11px] text-slate-700 dark:text-amber-300/80 mt-1 font-medium">
                   For users running Python natively without Docker containers.
                 </p>
               </div>
@@ -846,8 +846,8 @@ export function LocalAiEngineCenter({
                     </>
                   ) : (
                     <>
-                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-                      <span className="text-amber-300">Setup Pending</span>
+                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-slate-900 dark:text-amber-300 font-bold">Setup Pending</span>
                     </>
                   )}
                 </div>
@@ -875,7 +875,7 @@ export function LocalAiEngineCenter({
             <div className="p-2 rounded bg-background/70 border border-border/60 space-y-1">
               <div className="flex items-center justify-between font-bold">
                 <span className="text-foreground">GET {baseUrl}/models</span>
-                <span className={status.online ? 'text-emerald-400' : 'text-amber-400'}>
+                <span className={status.online ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-900 dark:text-amber-400 font-bold'}>
                   {status.online ? 'Available' : 'Offline'}
                 </span>
               </div>
@@ -888,7 +888,7 @@ export function LocalAiEngineCenter({
             <div className="p-2 rounded bg-background/70 border border-border/60 space-y-1">
               <div className="flex items-center justify-between font-bold">
                 <span className="text-foreground">GET {baseUrl}/audio/voices</span>
-                <span className={status.online ? 'text-emerald-400' : 'text-amber-400'}>
+                <span className={status.online ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-900 dark:text-amber-400 font-bold'}>
                   {status.online ? 'Available' : 'Offline'}
                 </span>
               </div>
@@ -932,7 +932,7 @@ export function LocalAiEngineCenter({
                     className={`text-[9px] font-bold ${
                       engine.isValidated
                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        : 'bg-amber-500/10 text-amber-950 dark:text-amber-400 border-amber-500/20'
                     }`}
                   >
                     {engine.statusTag}

@@ -46,7 +46,7 @@ export const VoiceTimelineTrack: React.FC<VoiceTimelineTrackProps> = ({
                 <div
                   className={cn(
                     'absolute top-0.5 bottom-0.5 rounded-sm transition-all duration-150 ease-linear',
-                    hasVoiceAsset ? 'bg-amber-500' : 'bg-zinc-700/60',
+                    hasVoiceAsset ? 'bg-amber-500' : 'bg-timeline-empty',
                     {
                       'ring-2 ring-amber-400 z-10': currentIndex === index && hasVoiceAsset,
                       'ring-2 ring-primary z-10': currentIndex === index && !hasVoiceAsset,

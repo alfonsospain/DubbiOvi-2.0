@@ -140,7 +140,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-[#26355B] bg-[#0E1730] text-slate-100 px-4 sm:px-6 shadow-md">
       <DubbiOviLogo className="mr-2" />
 
       {/* Hidden input for project loading */}
@@ -155,7 +155,7 @@ const Header: React.FC<HeaderProps> = ({
       {/* Top-Level Menubar */}
       <Menubar className="border-none bg-transparent h-auto p-0 gap-1 flex shrink-0">
         <MenubarMenu>
-          <MenubarTrigger className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm">File</MenubarTrigger>
+          <MenubarTrigger className="cursor-pointer hover:bg-[#13203D] text-[#A7B3D1] hover:text-white text-sm font-medium px-3 py-1 rounded-sm data-[state=open]:bg-[#13203D] data-[state=open]:text-white transition-colors">File</MenubarTrigger>
           <MenubarContent className="min-w-[14rem]">
             <MenubarItem onClick={onNewProject} className="cursor-pointer gap-2 text-xs">
               <Plus className="h-3.5 w-3.5 text-muted-foreground" /> New Project
@@ -230,14 +230,14 @@ const Header: React.FC<HeaderProps> = ({
         <MenubarMenu>
           <MenubarTrigger 
             onClick={() => setIsAboutOpen(true)} 
-            className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm"
+            className="cursor-pointer hover:bg-[#13203D] text-[#A7B3D1] hover:text-white text-sm font-medium px-3 py-1 rounded-sm data-[state=open]:bg-[#13203D] data-[state=open]:text-white transition-colors"
           >
             About
           </MenubarTrigger>
         </MenubarMenu>
 
         <MenubarMenu>
-          <MenubarTrigger className="cursor-pointer hover:bg-muted text-xs px-2.5 py-1 rounded-sm">Help</MenubarTrigger>
+          <MenubarTrigger className="cursor-pointer hover:bg-[#13203D] text-[#A7B3D1] hover:text-white text-sm font-medium px-3 py-1 rounded-sm data-[state=open]:bg-[#13203D] data-[state=open]:text-white transition-colors">Help</MenubarTrigger>
           <MenubarContent>
             <MenubarItem onClick={() => setIsHelpOpen(true)} className="cursor-pointer gap-2 text-xs">
               <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /> Help & Contact
@@ -250,9 +250,9 @@ const Header: React.FC<HeaderProps> = ({
       <div className="flex-grow" />
 
       {/* Project Name display on the right */}
-      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground px-3 py-1.5 rounded bg-secondary/20 max-w-[280px] truncate border border-border/40 shrink-0">
-        <span className="text-[9px] uppercase text-muted-foreground/60 font-bold shrink-0">Project:</span>
-        <span className="text-foreground truncate">{projectName}</span>
+      <div className="flex items-center gap-2 text-xs font-medium text-[#A7B3D1] px-3 py-1.5 rounded bg-[#13203D] max-w-[280px] truncate border border-[#26355B] shrink-0">
+        <span className="text-[9px] uppercase text-[#A7B3D1]/70 font-bold shrink-0">Project:</span>
+        <span className="text-white font-semibold truncate">{projectName}</span>
       </div>
 
       {isDetached && onDockVideo && (

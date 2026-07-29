@@ -188,7 +188,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           )}
         </div>
         <div 
-          className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-md bg-slate-950 border border-border/30"
+          className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-md bg-black border border-border/30"
           onClick={handleVideoClick}
         >
           <video

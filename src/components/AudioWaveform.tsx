@@ -159,7 +159,13 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     const gap = 1; // 1px gap between bars
 
     // Draw background placeholder line
-    ctx.fillStyle = '#1e293b';
+    const isLight = typeof document !== 'undefined' && document.documentElement.classList.contains('light');
+    const unplayedColor = isLight ? '#cbd5e1' : '#1e293b';
+    const playedColor = '#00C853';
+    const playheadColor = '#36C95E';
+
+    // Draw background placeholder line
+    ctx.fillStyle = unplayedColor;
     ctx.fillRect(0, height / 2 - 1, width, 2);
 
     const progressRatio = duration > 0 ? currentTime / duration : 0;
@@ -170,16 +176,16 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
       const x = i * barWidth;
       const y = (height - peakHeight) / 2;
 
-      // Color coding: #00C853 for played, #1e293b for unplayed
-      ctx.fillStyle = i <= activeIndex ? '#00C853' : '#1e293b';
+      // Color coding: green for played, adaptive grey for unplayed
+      ctx.fillStyle = i <= activeIndex ? playedColor : unplayedColor;
       
       // Draw rounded/clean bars
       ctx.fillRect(x + gap, y, barWidth - gap, peakHeight);
     }
 
-    // Draw synchronized playhead line: bright green (#00FF88)
+    // Draw synchronized playhead line: emerald green
     const playheadX = progressRatio * width;
-    ctx.fillStyle = '#00FF88';
+    ctx.fillStyle = playheadColor;
     ctx.fillRect(playheadX - 1, 0, 2, height);
   }, [peaks, currentTime, duration]);
 
@@ -297,18 +303,18 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
   const initialOutPct = tempOutSeconds !== null && tempOutSeconds !== undefined ? timeToX(tempOutSeconds) : 0;
 
   return (
-    <div className="w-full bg-slate-950 border border-border/20 rounded-md p-2 flex flex-col gap-1.5 select-none">
+    <div className="w-full bg-card border border-border/40 rounded-md p-2 flex flex-col gap-1.5 select-none">
       <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono">
         <span>Waveform</span>
         {isLoading ? (
-          <span className="animate-pulse text-[#00FF88]">ANALYZING TRACK...</span>
+          <span className="animate-pulse text-primary font-semibold">ANALYZING TRACK...</span>
         ) : (
           <span>LOADED</span>
         )}
       </div>
       <div 
         ref={containerRef}
-        className="relative h-14 w-full bg-slate-900/50 rounded overflow-hidden touch-none"
+        className="relative h-14 w-full bg-timeline-bg rounded overflow-hidden touch-none border border-border/20"
         onPointerMove={handlePointerMove}
       >
         <canvas

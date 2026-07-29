@@ -22,7 +22,7 @@ import { ExportAudioDialog } from '@/components/ExportAudioDialog';
 import { ExportVideoDialog } from '@/components/ExportVideoDialog';
 import { VoiceService } from '@/lib/VoiceService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen } from 'lucide-react';
+import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen, AlertTriangle } from 'lucide-react';
 import Timeline from '@/components/Timeline';
 import {
   exportToExcel,
@@ -1213,8 +1213,8 @@ export default function DubbingStudioPro() {
                 <Panel defaultSize={50} minSize={30}>
                   <div className="flex flex-col gap-4 h-full overflow-hidden pr-2">
                     {videoReloadHint && (
-                      <div className="bg-amber-500/20 border border-amber-500/30 text-amber-200 text-xs px-3 py-2 rounded-md flex items-center gap-2 mb-2 animate-pulse shrink-0">
-                        <span>⚠️ Please reload video file: <strong>{videoReloadHint}</strong></span>
+                      <div className="bg-amber-500/15 border border-amber-600/40 dark:border-amber-500/30 text-slate-700 dark:text-amber-200 font-semibold text-xs px-3.5 py-2 rounded-md flex items-center gap-2 mb-2 animate-pulse shrink-0 shadow-sm">
+                        <span><AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 inline shrink-0 mr-1" /> Please reload video file: <strong className="text-slate-900 dark:text-amber-100 font-bold">{videoReloadHint}</strong></span>
                       </div>
                     )}
                     <VideoPlayer

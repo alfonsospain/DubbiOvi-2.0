@@ -18,9 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { LanguageRegistry } from '@/lib/languages/LanguageRegistry';
 import { formatTimeForDisplay } from '@/lib/utils';
-import { FileVideo, BarChart2, Save, UserCheck, Shield } from 'lucide-react';
+import { FileVideo, BarChart2, Save, UserCheck, Shield, Palette, Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface ProjectSettingsProps {
   settings: ProjectSettings;
@@ -37,6 +39,7 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
   videoDuration = 0,
   takes = [],
 }) => {
+  const { theme, setTheme } = useTheme();
   const allLanguages = LanguageRegistry.getAllLanguages();
 
   const handleChange = (field: keyof ProjectSettings, value: string) => {
@@ -174,6 +177,47 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
         </CardContent>
       </Card>
 
+      {/* Appearance Section */}
+      <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+            <Palette className="h-4 w-4 text-primary" /> Appearance
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Customize the look and feel of DubbiOvi for your workspace environment.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Label className="text-xs font-semibold text-muted-foreground">Theme</Label>
+          <RadioGroup
+            value={theme}
+            onValueChange={(val) => setTheme(val as 'dark' | 'light')}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div>
+              <RadioGroupItem value="dark" id="theme-dark" className="peer sr-only" />
+              <Label
+                htmlFor="theme-dark"
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent/10 hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+              >
+                <Moon className="mb-2 h-5 w-5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">🌙 Dark</span>
+              </Label>
+            </div>
+            <div>
+              <RadioGroupItem value="light" id="theme-light" className="peer sr-only" />
+              <Label
+                htmlFor="theme-light"
+                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent/10 hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+              >
+                <Sun className="mb-2 h-5 w-5 text-amber-500" />
+                <span className="text-xs font-semibold text-foreground">☀️ Light</span>
+              </Label>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
       {/* Video Information */}
       <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3">
@@ -220,7 +264,7 @@ const ProjectSettingsComponent: React.FC<ProjectSettingsProps> = ({
           <div className="space-y-2.5">
             <div className="space-y-1">
               <div className="flex justify-between text-[11px] font-medium">
-                <span className="text-amber-400">Pending</span>
+                <span className="text-slate-900 dark:text-amber-400 font-bold">Pending</span>
                 <span className="text-foreground">{pendingCount} ({pendingPercentage}%)</span>
               </div>
               <div className="h-1.5 w-full bg-secondary/40 rounded-full overflow-hidden">
