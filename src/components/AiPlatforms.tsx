@@ -312,8 +312,8 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
   const handleInstallPiperRuntime = async () => {
     setIsPiperInstalling(true);
     try {
-      if (typeof window !== 'undefined' && (window as any).electron?.installEngineBinary) {
-        await (window as any).electron.installEngineBinary('piper');
+      if (typeof window !== 'undefined' && (window as any).electron?.downloadEngineBinary) {
+        await (window as any).electron.downloadEngineBinary('piper');
         toast({
           title: 'Piper Engine Installed',
           description: 'Local Piper TTS engine binary was downloaded successfully.',

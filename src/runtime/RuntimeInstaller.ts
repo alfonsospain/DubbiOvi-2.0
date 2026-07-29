@@ -40,7 +40,7 @@ export class RuntimeInstaller {
       if (process.platform === 'win32') {
         if (isZip) {
           cmd = 'powershell';
-          args = ['-Command', `Expand-Archive -Path '${archivePath}' -DestinationPath '${stagingDir}' -Force`];
+          args = ['-NoProfile', '-NonInteractive', '-Command', `Expand-Archive -LiteralPath '${archivePath}' -DestinationPath '${stagingDir}' -Force`];
         } else {
           cmd = 'tar';
           args = ['-xzf', archivePath, '-C', stagingDir];
