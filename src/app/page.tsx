@@ -19,6 +19,7 @@ import TakesList from '@/components/TakesList';
 import { TimelineEditor } from '@/components/TimelineEditor';
 import { PlaybackMixer } from '@/components/PlaybackMixer';
 import { ExportAudioDialog } from '@/components/ExportAudioDialog';
+import { ExportVideoDialog } from '@/components/ExportVideoDialog';
 import { VoiceService } from '@/lib/VoiceService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen } from 'lucide-react';
@@ -84,6 +85,7 @@ export default function DubbingStudioPro() {
   const [voiceVolume, setVoiceVolume] = useState(1.0);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isExportAudioDialogOpen, setIsExportAudioDialogOpen] = useState(false);
+  const [isExportVideoDialogOpen, setIsExportVideoDialogOpen] = useState(false);
   const voiceServiceRef = useRef<VoiceService | null>(null);
 
   const getVoiceService = useCallback(() => {
@@ -1198,6 +1200,7 @@ export default function DubbingStudioPro() {
                             onSaveProjectAs={handleSaveProjectAs}
                             transcriptionProvider={transcriptionProvider}
                             onOpenExportAudioDialog={() => setIsExportAudioDialogOpen(true)}
+                            onOpenExportVideoDialog={() => setIsExportVideoDialogOpen(true)}
                           />
                         </TabsContent>
                       </Tabs>
@@ -1350,6 +1353,7 @@ export default function DubbingStudioPro() {
                                 onSaveProjectAs={handleSaveProjectAs}
                                 transcriptionProvider={transcriptionProvider}
                                 onOpenExportAudioDialog={() => setIsExportAudioDialogOpen(true)}
+                                onOpenExportVideoDialog={() => setIsExportVideoDialogOpen(true)}
                               />
                             </TabsContent>
                           </Tabs>
@@ -1397,6 +1401,21 @@ export default function DubbingStudioPro() {
         onOpenChange={setIsExportAudioDialogOpen}
         videoFile={videoFile}
         videoUrl={videoUrl}
+        takes={takes}
+        getAssetManager={getAssetManager}
+        initialOriginalVolume={originalVolume}
+        initialOriginalEnabled={originalEnabled}
+        initialVoiceVolume={voiceVolume}
+        initialVoiceEnabled={voiceEnabled}
+        projectName={settings.projectName || settings.title || 'DubbiOvi_Project'}
+        projectPath={activeFilePath ? activeFilePath.replace(/[\/\\][^\/\\]+$/, '') : undefined}
+      />
+      <ExportVideoDialog
+        isOpen={isExportVideoDialogOpen}
+        onOpenChange={setIsExportVideoDialogOpen}
+        videoFile={videoFile}
+        videoUrl={videoUrl}
+        videoPath={(settings as any)?.videoPath || (videoFile as any)?.path}
         takes={takes}
         getAssetManager={getAssetManager}
         initialOriginalVolume={originalVolume}

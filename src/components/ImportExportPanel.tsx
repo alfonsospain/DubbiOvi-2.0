@@ -34,6 +34,7 @@ import {
   Copy,
   Download,
   Music,
+  Video,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { v4 as uuidv4 } from 'uuid';
@@ -63,6 +64,7 @@ interface ImportExportPanelProps {
   onSaveProjectAs?: () => void;
   transcriptionProvider?: string;
   onOpenExportAudioDialog?: () => void;
+  onOpenExportVideoDialog?: () => void;
 }
 
 const STAGE_DETAILS = {
@@ -106,6 +108,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   onSaveProjectAs,
   transcriptionProvider,
   onOpenExportAudioDialog,
+  onOpenExportVideoDialog,
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
@@ -654,6 +657,21 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                 </div>
                 <Button size="sm" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={onOpenExportAudioDialog}>
                   <Download className="h-3 w-3" /> Export Audio...
+                </Button>
+              </div>
+
+              {/* Final Video Export (Milestone 16) */}
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <Video className="h-3.5 w-3.5" /> Render Final Video (.mp4)
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">
+                    Export full video stream muxed with your selected audio mix and Take offsets.
+                  </p>
+                </div>
+                <Button size="sm" className="h-7 text-[10px] font-semibold flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onOpenExportVideoDialog}>
+                  <Download className="h-3 w-3" /> Export Video...
                 </Button>
               </div>
 

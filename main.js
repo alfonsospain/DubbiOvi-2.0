@@ -466,7 +466,9 @@ app.whenReady().then(() => {
     logDiag(`[FFmpeg Resolution] Startup check error: ${err.message}`);
   }
 
-  createWindow();
+  if (process.env.ELECTRON_TEST !== '1' && process.env.NODE_ENV !== 'test') {
+    createWindow();
+  }
   });
 }
 
@@ -1190,7 +1192,7 @@ function resolveFFmpegExecutable() {
   }
 
   // 3. Managed Runtime Directory (userData/runtimes or userData/engines)
-  const userDataDir = app.getPath('userData');
+  const userDataDir = typeof app !== 'undefined' && app ? app.getPath('userData') : process.cwd();
   const managedCandidates = [
     path.join(userDataDir, 'runtimes', 'ffmpeg', 'bin', binaryName),
     path.join(userDataDir, 'runtimes', 'ffmpeg', binaryName),
@@ -1220,14 +1222,68 @@ function resolveFFmpegExecutable() {
   return binaryName;
 }
 
+/**
+ * Multi-tier FFprobe binary path resolver matching FFmpeg resolution rules.
+ */
+function resolveFFprobeExecutable() {
+  const isWin = process.platform === 'win32';
+  const binaryName = isWin ? 'ffprobe.exe' : 'ffprobe';
+
+  // 1. Development: project-local bin/ directory
+  const devBinPath = path.join(__dirname, 'bin', binaryName);
+  const cwdBinPath = path.join(process.cwd(), 'bin', binaryName);
+  if (fs.existsSync(devBinPath)) {
+    logDiag(`[FFprobe Resolution] Found development binary at: ${devBinPath}`);
+    return devBinPath;
+  }
+  if (fs.existsSync(cwdBinPath)) {
+    logDiag(`[FFprobe Resolution] Found CWD binary at: ${cwdBinPath}`);
+    return cwdBinPath;
+  }
+
+  // 2. Packaged Application: process.resourcesPath/bin/
+  if (process.resourcesPath) {
+    const packagedBinPath = path.join(process.resourcesPath, 'bin', binaryName);
+    const packagedRootPath = path.join(process.resourcesPath, binaryName);
+    if (fs.existsSync(packagedBinPath)) {
+      logDiag(`[FFprobe Resolution] Found packaged binary at: ${packagedBinPath}`);
+      return packagedBinPath;
+    }
+    if (fs.existsSync(packagedRootPath)) {
+      logDiag(`[FFprobe Resolution] Found packaged root binary at: ${packagedRootPath}`);
+      return packagedRootPath;
+    }
+  }
+
+  // 3. Managed Runtime Directory
+  const userDataDir = typeof app !== 'undefined' && app ? app.getPath('userData') : process.cwd();
+  const managedCandidates = [
+    path.join(userDataDir, 'runtimes', 'ffmpeg', 'bin', binaryName),
+    path.join(userDataDir, 'runtimes', 'ffmpeg', binaryName),
+    path.join(userDataDir, 'engines', 'ffmpeg', binaryName),
+    path.join(userDataDir, 'bin', binaryName),
+  ];
+
+  for (const candidate of managedCandidates) {
+    if (fs.existsSync(candidate)) {
+      logDiag(`[FFprobe Resolution] Found managed runtime binary at: ${candidate}`);
+      return candidate;
+    }
+  }
+
+  logDiag(`[FFprobe Resolution] Managed/bundled FFprobe not found on disk. Falling back to system PATH ('${binaryName}').`);
+  return binaryName;
+}
+
 ipcMain.handle('show-save-dialog', async (event, options) => {
   if (!mainWindow) return { canceled: true };
   const { defaultPath, filters } = options || {};
   logDiag(`[SaveDialog IPC] Opening native Save As dialog (defaultPath: ${defaultPath})...`);
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Save Audio Mixdown As',
-    defaultPath: defaultPath || 'dubbed_audio_mixdown.wav',
+    title: 'Save File As',
+    defaultPath: defaultPath || 'dubbed_output.mp4',
     filters: filters || [
+      { name: 'MP4 Video File', extensions: ['mp4'] },
       { name: 'WAV Audio File', extensions: ['wav'] },
       { name: 'MP3 Audio File', extensions: ['mp3'] },
       { name: 'All Files', extensions: ['*'] },
@@ -1261,12 +1317,12 @@ ipcMain.handle('render-audio-mixdown', async (event, { ffmpegArgs, outputPath, p
     if (idx > 0 && ffmpegArgs[idx - 1] === '-i') {
       if (!path.isAbsolute(arg) && !arg.startsWith('http://') && !arg.startsWith('https://')) {
         const projCandidate = projectPath ? path.join(projectPath, arg) : null;
-        const userCandidate = path.join(app.getPath('userData'), arg);
+        const userCandidate = typeof app !== 'undefined' && app ? path.join(app.getPath('userData'), arg) : null;
         const cwdCandidate = path.join(process.cwd(), arg);
 
         if (projCandidate && fs.existsSync(projCandidate)) {
           return projCandidate;
-        } else if (fs.existsSync(userCandidate)) {
+        } else if (userCandidate && fs.existsSync(userCandidate)) {
           return userCandidate;
         } else if (fs.existsSync(cwdCandidate)) {
           return cwdCandidate;
@@ -1342,9 +1398,289 @@ ipcMain.handle('render-audio-mixdown', async (event, { ffmpegArgs, outputPath, p
   });
 });
 
+ipcMain.handle('render-video-export', async (event, options) => {
+  const {
+    videoPath,
+    outputPath,
+    mode = 'both', // 'both' | 'original' | 'voices' | 'silent'
+    originalVolume = 1.0,
+    originalEnabled = true,
+    voiceVolume = 1.0,
+    voiceEnabled = true,
+    takes = [],
+    projectPath,
+  } = options || {};
+
+  logDiag(`[VideoExport IPC] Starting video export (mode=${mode})...`);
+  logDiag(`[VideoExport IPC] Source video path: "${videoPath}" | Output path: "${outputPath}"`);
+
+  if (!videoPath || !outputPath) {
+    return {
+      success: false,
+      error: 'Invalid arguments: videoPath and outputPath are required.',
+    };
+  }
+
+  // 1. Resolve source video path
+  let resolvedVideoPath = videoPath;
+  if (!path.isAbsolute(resolvedVideoPath) && !resolvedVideoPath.startsWith('http://') && !resolvedVideoPath.startsWith('https://')) {
+    const projCandidate = projectPath ? path.join(projectPath, resolvedVideoPath) : null;
+    const userCandidate = typeof app !== 'undefined' && app ? path.join(app.getPath('userData'), resolvedVideoPath) : null;
+    const cwdCandidate = path.join(process.cwd(), resolvedVideoPath);
+
+    if (projCandidate && fs.existsSync(projCandidate)) {
+      resolvedVideoPath = projCandidate;
+    } else if (userCandidate && fs.existsSync(userCandidate)) {
+      resolvedVideoPath = userCandidate;
+    } else if (fs.existsSync(cwdCandidate)) {
+      resolvedVideoPath = cwdCandidate;
+    }
+  }
+
+  if (!fs.existsSync(resolvedVideoPath)) {
+    logDiag(`[VideoExport IPC] Error: Source video file does not exist at "${resolvedVideoPath}"`);
+    return {
+      success: false,
+      error: `Source video file not found at: ${resolvedVideoPath}`,
+    };
+  }
+
+  // Ensure output directory exists
+  const outDir = path.dirname(outputPath);
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+
+  const ffmpegExecPath = resolveFFmpegExecutable();
+  const ffprobeExecPath = resolveFFprobeExecutable();
+  const { spawn } = require('child_process');
+
+  // Helper to run ffprobe
+  const probeFile = (filePath) => {
+    return new Promise((resolve) => {
+      const proc = spawn(ffprobeExecPath, [
+        '-v', 'quiet',
+        '-print_format', 'json',
+        '-show_format',
+        '-show_streams',
+        filePath,
+      ], { windowsHide: true });
+      let out = '';
+      proc.stdout.on('data', d => { out += d.toString(); });
+      proc.on('close', code => {
+        if (code === 0 && out) {
+          try {
+            resolve(JSON.parse(out));
+          } catch (_) { resolve(null); }
+        } else {
+          resolve(null);
+        }
+      });
+      proc.on('error', () => resolve(null));
+    });
+  };
+
+  // Inspect source video with ffprobe
+  const sourceProbe = await probeFile(resolvedVideoPath);
+  const vStream = sourceProbe?.streams?.find((s) => s.codec_type === 'video');
+  const aStream = sourceProbe?.streams?.find((s) => s.codec_type === 'audio');
+  const sourceDuration = sourceProbe?.format?.duration ? parseFloat(sourceProbe.format.duration) : null;
+  const hasAudioStream = !!aStream;
+
+  logDiag(`[VideoExport IPC] Source Probe: hasVideo=${!!vStream}, hasAudio=${hasAudioStream}, duration=${sourceDuration}s`);
+
+  // 2. Execute Mode Export
+  let tempAudioPath = null;
+
+  try {
+    if (mode === 'silent') {
+      // Silent Mode: copy video, drop audio
+      logDiag(`[VideoExport IPC] Executing Silent Mode video export...`);
+      const ffmpegArgs = [
+        '-y',
+        '-i', resolvedVideoPath,
+        '-map', '0:v:0',
+        '-c:v', 'copy',
+        '-an',
+        outputPath,
+      ];
+
+      const res = await new Promise((resolve) => {
+        const proc = spawn(ffmpegExecPath, ffmpegArgs, { windowsHide: true });
+        let stderr = '';
+        proc.stderr.on('data', d => { stderr += d.toString(); });
+        proc.on('error', err => resolve({ success: false, error: err.message }));
+        proc.on('close', code => {
+          if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+            resolve({ success: true });
+          } else {
+            resolve({ success: false, error: stderr || `FFmpeg exited with code ${code}` });
+          }
+        });
+      });
+
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+    } else {
+      // Audio Modes: 'both' | 'original' | 'voices'
+      logDiag(`[VideoExport IPC] Executing Audio Mode export (${mode})...`);
+
+      const os = require('os');
+      tempAudioPath = path.join(os.tmpdir(), `dubbiovi_mix_${Date.now()}_${Math.floor(Math.random() * 100000)}.wav`);
+
+      let mixArgsToRun = [];
+
+      if (options.mixdownArgs && Array.isArray(options.mixdownArgs) && options.mixdownArgs.length > 0) {
+        mixArgsToRun = [...options.mixdownArgs];
+        mixArgsToRun[mixArgsToRun.length - 1] = tempAudioPath;
+
+        // If source video has no audio stream, strip [0:a] filter references
+        if (!hasAudioStream && mixArgsToRun.includes('-filter_complex')) {
+          const filterIdx = mixArgsToRun.indexOf('-filter_complex');
+          if (filterIdx !== -1 && filterIdx + 1 < mixArgsToRun.length) {
+            let fc = mixArgsToRun[filterIdx + 1];
+            let segments = fc.split(';').map(s => s.trim()).filter(s => s.length > 0 && !s.includes('[0:a]'));
+            fc = segments.join('; ').replace(/\[a0\]/g, '');
+            fc = fc.replace(/amix=inputs=(\d+)/, (match, count) => {
+              const newCount = Math.max(1, parseInt(count, 10) - 1);
+              return `amix=inputs=${newCount}`;
+            });
+            if (fc.includes('amix=inputs=1:')) {
+              fc = fc.replace(/amix=inputs=1:duration=longest:dropout_transition=0/, 'anull');
+            }
+            if (!fc || fc.trim() === '') {
+              fc = 'anullsrc=r=44100:cl=stereo[outa]';
+            }
+            mixArgsToRun[filterIdx + 1] = fc;
+          }
+        }
+      } else {
+        // Fallback simple mixdown args if mixdownArgs not provided
+        if (hasAudioStream) {
+          mixArgsToRun = ['-y', '-i', resolvedVideoPath, '-c:a', 'pcm_s16le', tempAudioPath];
+        } else {
+          mixArgsToRun = ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-c:a', 'pcm_s16le', '-t', (sourceDuration || 1).toString(), tempAudioPath];
+        }
+      }
+
+      // Resolve args for temp audio rendering
+      const resolvedMixArgs = mixArgsToRun.map((arg, idx) => {
+        if (idx > 0 && mixArgsToRun[idx - 1] === '-i') {
+          if (!path.isAbsolute(arg) && !arg.startsWith('http://') && !arg.startsWith('https://')) {
+            const projCandidate = projectPath ? path.join(projectPath, arg) : null;
+            const userCandidate = typeof app !== 'undefined' && app ? path.join(app.getPath('userData'), arg) : null;
+            const cwdCandidate = path.join(process.cwd(), arg);
+
+            if (projCandidate && fs.existsSync(projCandidate)) return projCandidate;
+            if (userCandidate && fs.existsSync(userCandidate)) return userCandidate;
+            if (fs.existsSync(cwdCandidate)) return cwdCandidate;
+          }
+        }
+        return arg;
+      });
+
+      logDiag(`[VideoExport IPC] Rendering temporary mixdown to "${tempAudioPath}"...`);
+      const renderAudioRes = await new Promise((resolve) => {
+        const proc = spawn(ffmpegExecPath, resolvedMixArgs, { windowsHide: true });
+        let stderr = '';
+        proc.stderr.on('data', d => { stderr += d.toString(); });
+        proc.on('error', err => resolve({ success: false, error: err.message }));
+        proc.on('close', code => {
+          if (code === 0 && fs.existsSync(tempAudioPath) && fs.statSync(tempAudioPath).size > 0) {
+            resolve({ success: true });
+          } else {
+            resolve({ success: false, error: stderr || `FFmpeg mixdown exited with code ${code}` });
+          }
+        });
+      });
+
+      if (!renderAudioRes.success) {
+        return { success: false, error: `Audio mixdown failed: ${renderAudioRes.error}` };
+      }
+
+      // Mux source video and temp audio into final MP4 using empirical duration strategy (-t sourceDuration if available)
+      logDiag(`[VideoExport IPC] Muxing video and audio into MP4...`);
+      const muxArgs = [
+        '-y',
+        '-i', resolvedVideoPath,
+        '-i', tempAudioPath,
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+      ];
+
+      if (sourceDuration && sourceDuration > 0) {
+        muxArgs.push('-t', sourceDuration.toString());
+      } else {
+        muxArgs.push('-shortest');
+      }
+
+      muxArgs.push(outputPath);
+
+      const muxRes = await new Promise((resolve) => {
+        const proc = spawn(ffmpegExecPath, muxArgs, { windowsHide: true });
+        let stderr = '';
+        proc.stderr.on('data', d => { stderr += d.toString(); });
+        proc.on('error', err => resolve({ success: false, error: err.message }));
+        proc.on('close', code => {
+          if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+            resolve({ success: true });
+          } else {
+            resolve({ success: false, error: stderr || `FFmpeg muxing exited with code ${code}` });
+          }
+        });
+      });
+
+      if (!muxRes.success) {
+        return { success: false, error: `FFmpeg video/audio muxing failed: ${muxRes.error}` };
+      }
+    }
+
+    // 3. Post-Export Verification via ffprobe
+    const outputProbe = await probeFile(outputPath);
+    const outVStream = outputProbe?.streams?.find((s) => s.codec_type === 'video');
+    const outAStream = outputProbe?.streams?.find((s) => s.codec_type === 'audio');
+    const outDuration = outputProbe?.format?.duration ? parseFloat(outputProbe.format.duration) : 0;
+    const fileSize = fs.existsSync(outputPath) ? fs.statSync(outputPath).size : 0;
+    const videoStreamCopied = outVStream && vStream ? (outVStream.codec_name === vStream.codec_name) : true;
+
+    logDiag(`[VideoExport IPC] Export SUCCESS! Output size=${fileSize} bytes, duration=${outDuration}s, videoCopied=${videoStreamCopied}`);
+
+    return {
+      success: true,
+      outputPath,
+      fileSize,
+      duration: outDuration,
+      videoStreamCopied,
+      videoCodec: outVStream?.codec_name,
+      audioCodec: outAStream?.codec_name,
+    };
+  } catch (err) {
+    logDiag(`[VideoExport IPC] Export Exception: ${err.message}`);
+    return {
+      success: false,
+      error: err.message || 'Video export failed.',
+    };
+  } finally {
+    // 4. Automatic temporary file cleanup
+    if (tempAudioPath && fs.existsSync(tempAudioPath)) {
+      try {
+        fs.unlinkSync(tempAudioPath);
+        logDiag(`[VideoExport IPC] Cleaned up temporary audio file: ${tempAudioPath}`);
+      } catch (e) {
+        logDiag(`[VideoExport IPC] Failed to remove temp file ${tempAudioPath}: ${e.message}`);
+      }
+    }
+  }
+});
+
 if (typeof module !== 'undefined') {
   module.exports = {
     resolveFFmpegExecutable,
+    resolveFFprobeExecutable,
   };
 }
+
 

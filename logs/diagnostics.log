@@ -85,3 +85,18 @@ TypeError: ipcMain.on is not a function
 [2026-07-28T22:15:10.918Z] Electron Version: undefined
 [2026-07-28T22:15:10.918Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
 [2026-07-28T22:15:10.920Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-29T15:31:36.737Z] --- DubbiOvi Diagnostics Startup ---
+[2026-07-29T15:31:36.739Z] Application Version: 1.3.7
+[2026-07-29T15:31:36.739Z] Platform: darwin (arm64)
+[2026-07-29T15:31:36.739Z] Node Version: v24.13.1
+[2026-07-29T15:31:36.740Z] Electron Version: undefined
+[2026-07-29T15:31:36.740Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
+[2026-07-29T15:31:36.741Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-29T15:31:50.532Z] --- DubbiOvi Diagnostics Startup ---
+[2026-07-29T15:31:50.534Z] Application Version: 1.3.7
+[2026-07-29T15:31:50.534Z] Platform: darwin (arm64)
+[2026-07-29T15:31:50.534Z] Node Version: v24.13.1
+[2026-07-29T15:31:50.534Z] Electron Version: undefined
+[2026-07-29T15:31:50.534Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
+[2026-07-29T15:31:50.535Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-29T15:31:50.535Z] [FFprobe Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffprobe

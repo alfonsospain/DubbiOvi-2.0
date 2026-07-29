@@ -51,5 +51,7 @@ contextBridge.exposeInMainWorld('electron', {
   deleteEngineModel: (engineId, modelName) => ipcRenderer.invoke('delete-engine-model', { engineId, modelName }),
   resolveAudioPath: (relativePath, projectPath) => ipcRenderer.invoke('resolve-audio-path', { relativePath, projectPath }),
   renderAudioMixdown: (options) => ipcRenderer.invoke('render-audio-mixdown', options),
+  renderVideoExport: (options) => ipcRenderer.invoke('render-video-export', options),
   getSystemDiagnostics: () => ipcRenderer.invoke('get-system-diagnostics'),
 });
+
