@@ -22,7 +22,7 @@ import { ExportAudioDialog } from '@/components/ExportAudioDialog';
 import { ExportVideoDialog } from '@/components/ExportVideoDialog';
 import { VoiceService } from '@/lib/VoiceService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen, AlertTriangle } from 'lucide-react';
+import { FileText, Settings, BookMarked, GripHorizontal, Cpu, Key, FolderOpen, AlertTriangle, Info } from 'lucide-react';
 import Timeline from '@/components/Timeline';
 import {
   exportToExcel,
@@ -643,7 +643,8 @@ export default function DubbingStudioPro() {
           nextVideoFile = null;
           toast({
             title: 'Video File Required',
-            description: `⚠️ Please reload video file: ${fileVideoName}`,
+            description: `Please reload video file: ${fileVideoName}`,
+            variant: 'info',
             duration: 8000,
           });
         } else {
@@ -1248,8 +1249,11 @@ export default function DubbingStudioPro() {
                 <Panel defaultSize={50} minSize={30}>
                   <div className="flex flex-col gap-4 h-full overflow-hidden pr-2">
                     {videoReloadHint && (
-                      <div className="bg-amber-500/15 border border-amber-600/40 dark:border-amber-500/30 text-slate-700 dark:text-amber-200 font-semibold text-xs px-3.5 py-2 rounded-md flex items-center gap-2 mb-2 animate-pulse shrink-0 shadow-sm">
-                        <span><AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 inline shrink-0 mr-1" /> Please reload video file: <strong className="text-slate-900 dark:text-amber-100 font-bold">{videoReloadHint}</strong></span>
+                      <div className="bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium text-xs px-3.5 py-2.5 rounded-md flex items-center gap-2 mb-2 shrink-0 shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <Info className="h-4 w-4 text-orange-500 shrink-0 inline" />
+                          <span>Please reload video file: <strong className="font-bold text-slate-950 dark:text-white">{videoReloadHint}</strong></span>
+                        </span>
                       </div>
                     )}
                     <VideoPlayer

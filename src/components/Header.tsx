@@ -115,7 +115,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleCopyCitation = () => {
-    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 2.0.0 Workstation Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.20683887`;
+    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 2.0.0 Workstation Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.XXXXX`;
     navigator.clipboard.writeText(citationText)
       .then(() => {
         toast({
@@ -268,16 +268,16 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* About Modal */}
       <Dialog open={isAboutOpen} onOpenChange={setIsAboutOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-primary">
-              <DubbiOviLogo />
-            </DialogTitle>
-            <DialogDescription className="text-xs font-semibold text-muted-foreground">
-              v2.0.0 Workstation Edition (July 2026)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 my-2 text-xs leading-relaxed">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0 gap-0 overflow-hidden border-border">
+          {/* Dedicated Dark Header for Logo Legibility & Official Branding */}
+          <div className="bg-[#0b132b] text-white p-5 border-b border-border/20 flex flex-col gap-1 select-none">
+            <DialogTitle className="sr-only">About DubbiOvi</DialogTitle>
+            <DubbiOviLogo />
+            <p className="text-xs font-semibold text-emerald-400/90 mt-1">
+              v2.0.0 Workstation Edition (September 2026)
+            </p>
+          </div>
+          <div className="p-6 pt-4 space-y-4 text-xs leading-relaxed">
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Description</span>
               <p className="text-foreground mt-0.5">Open-source modular audiovisual translation environment developed for teaching, research, and professional localization workflows.</p>
@@ -291,21 +291,11 @@ const Header: React.FC<HeaderProps> = ({
               </p>
             </div>
             <div>
-              <span className="font-bold text-muted-foreground text-[10px] uppercase">Repository</span>
-              <p className="text-foreground mt-0.5 flex items-center gap-1.5">
-                <Github className="h-3.5 w-3.5 text-muted-foreground" />
-                <a href="https://github.com/alfonsospain/DubbiOvi" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-mono">
-                  https://github.com/alfonsospain/DubbiOvi
-                </a>
-              </p>
-            </div>
-            <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">DOI (Digital Object Identifier)</span>
-              <p className="text-foreground mt-0.5 flex items-center gap-1.5">
-                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                <a href="https://doi.org/10.5281/zenodo.20683887" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-mono">
-                  https://doi.org/10.5281/zenodo.20683887
-                </a>
+              <p className="text-foreground mt-0.5 flex items-center gap-1.5 font-mono text-[11px]">
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-muted-foreground">https://doi.org/10.5281/zenodo.XXXXX</span>
+                <span className="text-[10px] text-muted-foreground/70 font-sans font-medium">(Pending Zenodo Registration)</span>
               </p>
             </div>
             <div>
@@ -315,18 +305,18 @@ const Header: React.FC<HeaderProps> = ({
             <div className="p-3 rounded-lg bg-secondary/40 border border-border/60 relative">
               <span className="font-bold text-[9px] text-muted-foreground uppercase tracking-wider block">Suggested Academic Citation</span>
               <pre className="font-mono text-[10.5px] mt-2 text-foreground whitespace-pre-wrap leading-normal font-medium bg-background/50 p-2.5 rounded border border-border/30">
-                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 2.0.0 Workstation Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.20683887`}
+                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 2.0.0 Workstation Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.XXXXX`}
               </pre>
               <Button size="sm" variant="secondary" onClick={handleCopyCitation} className="mt-2.5 w-full h-8 gap-1.5 text-xs">
                 <Copy className="h-3.5 w-3.5" /> Copy Citation
               </Button>
             </div>
           </div>
-          <div className="border-t pt-3 mt-1 flex flex-col items-center text-[10px] text-muted-foreground text-center space-y-0.5">
+          <div className="border-t px-6 pt-3 pb-2 flex flex-col items-center text-[10px] text-muted-foreground text-center space-y-0.5">
             <p>Built with Next.js, TypeScript, Local Storage, and Modular Service Chassis.</p>
             <p className="font-semibold text-foreground/80">University of Oviedo · 2026</p>
           </div>
-          <DialogFooter className="mt-2">
+          <DialogFooter className="px-6 pb-5 pt-2">
             <Button size="sm" onClick={() => setIsAboutOpen(false)} className="w-full sm:w-auto">Close</Button>
           </DialogFooter>
         </DialogContent>
@@ -363,8 +353,8 @@ const Header: React.FC<HeaderProps> = ({
                   Website: <a href="https://www.dubbiovi.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">www.dubbiovi.com</a>
                 </p>
                 <p className="flex items-center gap-1.5">
-                  <Github className="h-3.5 w-3.5 text-muted-foreground" />
-                  Repository: <a href="https://github.com/alfonsospain/DubbiOvi" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">github.com/alfonsospain/DubbiOvi</a>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                  DOI: <span className="text-muted-foreground font-mono text-[11px]">https://doi.org/10.5281/zenodo.XXXXX</span>
                 </p>
               </div>
             </div>
