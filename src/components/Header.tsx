@@ -274,7 +274,7 @@ const Header: React.FC<HeaderProps> = ({
           <div className="p-6 pt-4 space-y-4 text-xs leading-relaxed">
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Description</span>
-              <p className="text-foreground mt-0.5">Open-source modular audiovisual translation environment developed for teaching, research, and professional localization workflows.</p>
+              <p className="text-foreground mt-0.5">Audiovisual translation environment developed for teaching, research, and professional localization workflows.</p>
             </div>
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Developer</span>

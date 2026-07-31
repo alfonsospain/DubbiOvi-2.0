@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: 'DubbiOvi Academic Edition',
   description: 'Translate and synchronize dubbing scripts with AI-powered tools.',
   icons: {
-    icon: '/icon.svg',
+    icon: '/icon.png',
   },
 };
 

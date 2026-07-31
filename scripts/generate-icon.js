@@ -2,25 +2,31 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-const svgPath = path.join(__dirname, '..', 'public', 'icon.svg');
-const pngPath = path.join(__dirname, '..', 'public', 'icon.png');
-const icoPath = path.join(__dirname, '..', 'public', 'icon.ico');
-const icnsPath = path.join(__dirname, '..', 'public', 'icon.icns');
+const masterPngPath = path.join(__dirname, '..', 'build', 'icon-transparent.png');
 
-if (!fs.existsSync(svgPath)) {
-  console.error('[Icon Helper] Error: public/icon.svg not found.');
+const publicPngPath = path.join(__dirname, '..', 'public', 'icon.png');
+const publicIcoPath = path.join(__dirname, '..', 'public', 'icon.ico');
+const publicIcnsPath = path.join(__dirname, '..', 'public', 'icon.icns');
+
+const buildPngPath = path.join(__dirname, '..', 'build', 'icon.png');
+const buildIcoPath = path.join(__dirname, '..', 'build', 'icon.ico');
+const buildIcnsPath = path.join(__dirname, '..', 'build', 'icon.icns');
+
+if (!fs.existsSync(masterPngPath)) {
+  console.error('[Icon Helper] Error: Master artwork build/icon-transparent.png not found.');
   process.exit(1);
 }
 
 async function generateIcons() {
   try {
-    // 1. Generate 512x512 PNG for macOS
-    console.log('[Icon Helper] Generating 512x512 icon.png from icon.svg...');
-    await sharp(svgPath)
+    // 1. Generate 512x512 PNG for macOS, Web app & Electron Window
+    console.log('[Icon Helper] Generating 512x512 icon.png from master build/icon-transparent.png...');
+    await sharp(masterPngPath)
       .resize(512, 512)
       .png()
-      .toFile(pngPath);
-    console.log('[Icon Helper] Successfully generated ' + pngPath);
+      .toFile(publicPngPath);
+    fs.copyFileSync(publicPngPath, buildPngPath);
+    console.log('[Icon Helper] Successfully generated ' + publicPngPath + ' and ' + buildPngPath);
 
     // 2. Generate PNG buffers for multiple sizes for the ICO file
     console.log('[Icon Helper] Generating multi-resolution icon.ico (16x16, 32x32, 48x48, 256x256)...');
@@ -28,7 +34,7 @@ async function generateIcons() {
     const pngBuffers = [];
 
     for (const size of resolutions) {
-      const buffer = await sharp(svgPath)
+      const buffer = await sharp(masterPngPath)
         .resize(size, size)
         .png()
         .toBuffer();
@@ -74,8 +80,9 @@ async function generateIcons() {
 
     // Concatenate header and all PNG images
     const icoBuffer = Buffer.concat([icoHeader, ...pngBuffers]);
-    fs.writeFileSync(icoPath, icoBuffer);
-    console.log('[Icon Helper] Successfully generated ' + icoPath);
+    fs.writeFileSync(publicIcoPath, icoBuffer);
+    fs.writeFileSync(buildIcoPath, icoBuffer);
+    console.log('[Icon Helper] Successfully generated ' + publicIcoPath + ' and ' + buildIcoPath);
 
     // 3. Generate ICNS for macOS
     console.log('[Icon Helper] Generating multi-resolution icon.icns (16x16, 32x32, 64x64, 128x128, 256x256, 512x512, 1024x1024)...');
@@ -93,7 +100,7 @@ async function generateIcons() {
     let icnsTotalLength = 8; // Header length (icns + total size)
 
     for (const { size, type } of icnsSizes) {
-      const buffer = await sharp(svgPath)
+      const buffer = await sharp(masterPngPath)
         .resize(size, size)
         .png()
         .toBuffer();
@@ -112,8 +119,9 @@ async function generateIcons() {
     icnsHeader.writeUInt32BE(icnsTotalLength, 4);
 
     const icnsBuffer = Buffer.concat([icnsHeader, ...icnsBlocks]);
-    fs.writeFileSync(icnsPath, icnsBuffer);
-    console.log('[Icon Helper] Successfully generated ' + icnsPath);
+    fs.writeFileSync(publicIcnsPath, icnsBuffer);
+    fs.writeFileSync(buildIcnsPath, icnsBuffer);
+    console.log('[Icon Helper] Successfully generated ' + publicIcnsPath + ' and ' + buildIcnsPath);
   } catch (err) {
     console.error('[Icon Helper] Error generating icons:', err);
     process.exit(1);
