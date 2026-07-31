@@ -62,6 +62,7 @@ export default function DubbingStudioPro() {
   );
   const [takes, setTakes] = useState<Take[]>([]);
   const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoReloadHint, setVideoReloadHint] = useState<string | null>(null);
@@ -205,6 +206,144 @@ export default function DubbingStudioPro() {
     });
   }, [activeFilePath, getAssetManager]);
 
+  const handleSaveProjectAs = useCallback(async (): Promise<boolean> => {
+    const pName = settings.projectName || settings.title || 'Untitled Project';
+    const projectData = {
+      formatVersion: '1.2',
+      createdAt: new Date().toISOString(),
+      projectName: pName,
+      videoFileName: videoFile ? videoFile.name : null,
+      settings,
+      takes,
+      glossary,
+      voiceAssets: getAssetManager()?.getAllAssets() || [],
+    };
+
+    const projectDataString = JSON.stringify(projectData, null, 2);
+    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
+
+    if (isElectron) {
+      const result = await (window as any).electron.showSaveDialog({
+        title: 'Save Project As',
+        defaultPath: activeFilePath || `${pName}.dubbiovi`,
+        filters: [
+          { name: 'DubbiOvi Project', extensions: ['dubbiovi'] }
+        ]
+      });
+
+      if (result.canceled || !result.filePath) {
+        return false;
+      }
+
+      const filePath = result.filePath;
+      setActiveFilePath(filePath);
+
+      const res = await (window as any).electron.saveFile(filePath, projectDataString);
+
+      if (res.success) {
+        setIsDirty(false);
+        syncAutosave(settings, takes, glossary, videoFile, filePath);
+        toast({
+          title: 'Project Saved As',
+          description: `Successfully saved to ${filePath}`,
+        });
+        return true;
+      } else {
+        toast({
+          title: 'Save Failed',
+          description: `Failed to save project: ${res.error}`,
+          variant: 'destructive',
+        });
+        return false;
+      }
+    } else {
+      // Non-Electron browser fallback
+      const currentName = settings.projectName || settings.title || 'Untitled Project';
+      const newName = window.prompt('Enter new project name:', currentName);
+      if (newName === null) return false;
+      const trimmedName = newName.trim();
+      if (!trimmedName) {
+        toast({
+          title: 'Invalid Name',
+          description: 'Project name cannot be empty.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      const updatedSettings = {
+        ...settings,
+        projectName: trimmedName,
+        title: trimmedName,
+      };
+      setSettings(updatedSettings);
+      syncAutosave(updatedSettings, takes, glossary, videoFile);
+
+      const updatedProjectData = {
+        ...projectData,
+        projectName: trimmedName,
+        settings: updatedSettings,
+      };
+
+      const blob = new Blob([JSON.stringify(updatedProjectData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${trimmedName}.dubbiovi`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setIsDirty(false);
+      toast({
+        title: 'Project Saved As',
+        description: `Successfully exported "${trimmedName}.dubbiovi"`,
+      });
+      return true;
+    }
+  }, [settings, videoFile, takes, glossary, getAssetManager, activeFilePath, syncAutosave, toast]);
+
+  const handleSaveProject = useCallback(async (): Promise<boolean> => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
+    const pName = settings.projectName || settings.title || 'Untitled Project';
+
+    if (isElectron && activeFilePath) {
+      const projectData = {
+        formatVersion: '1.2',
+        createdAt: new Date().toISOString(),
+        projectName: pName,
+        videoFileName: videoFile ? videoFile.name : null,
+        settings,
+        takes,
+        glossary,
+        voiceAssets: getAssetManager()?.getAllAssets() || [],
+      };
+
+      const projectDataString = JSON.stringify(projectData, null, 2);
+      const res = await (window as any).electron.saveFile(activeFilePath, projectDataString);
+
+      if (res.success) {
+        setIsDirty(false);
+        toast({
+          title: 'Project Saved',
+          description: `Successfully saved to ${activeFilePath}`,
+        });
+        return true;
+      } else {
+        toast({
+          title: 'Save Failed',
+          description: `Failed to save project: ${res.error}`,
+          variant: 'destructive',
+        });
+        return false;
+      }
+    } else {
+      return await handleSaveProjectAs();
+    }
+  }, [settings, activeFilePath, videoFile, takes, glossary, getAssetManager, toast, handleSaveProjectAs]);
+
   const pushToHistory = useCallback((actionName: string, customTakes?: Take[], customGlossary?: GlossaryEntry[], customSettings?: ProjectSettings) => {
     setPast(prevPast => {
       const newState: HistoryState = {
@@ -220,6 +359,7 @@ export default function DubbingStudioPro() {
       return newPast;
     });
     setFuture([]);
+    setIsDirty(true);
   }, [takes, glossary, settings]);
 
   const handleUndo = useCallback(() => {
@@ -241,6 +381,7 @@ export default function DubbingStudioPro() {
     setTakes(previousState.takes);
     setGlossary(previousState.glossary);
     setSettings(previousState.settings);
+    setIsDirty(true);
 
     syncAutosave(previousState.settings, previousState.takes, previousState.glossary, videoFile);
 
@@ -269,6 +410,7 @@ export default function DubbingStudioPro() {
     setTakes(nextState.takes);
     setGlossary(nextState.glossary);
     setSettings(nextState.settings);
+    setIsDirty(true);
 
     syncAutosave(nextState.settings, nextState.takes, nextState.glossary, videoFile);
 
@@ -278,8 +420,79 @@ export default function DubbingStudioPro() {
     });
   }, [future, takes, glossary, settings, videoFile, syncAutosave, toast]);
 
+  // Sync dirty state to Electron main process
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electron?.setDirtyState) {
+      (window as any).electron.setDirtyState(isDirty);
+    }
+  }, [isDirty]);
+
+  // Update window and document title with project name and dirty asterisk
+  useEffect(() => {
+    const pName = settings.projectName || settings.title || 'Untitled Project';
+    const title = `${pName}${isDirty ? ' *' : ''} - DubbiOvi`;
+    document.title = title;
+    if (typeof window !== 'undefined' && (window as any).electron?.updateTitle) {
+      (window as any).electron.updateTitle(title);
+    }
+  }, [settings.projectName, settings.title, isDirty]);
+
+  // Browser beforeunload prompt for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Listen for Electron IPC save / close triggers
+  useEffect(() => {
+    const electron = typeof window !== 'undefined' ? (window as any).electron : null;
+    if (!electron) return;
+
+    const unsubSave = electron.onTriggerSave?.(() => {
+      handleSaveProject();
+    });
+
+    const unsubSaveAs = electron.onTriggerSaveAs?.(() => {
+      handleSaveProjectAs();
+    });
+
+    const unsubClose = electron.onSaveOnClose?.(async () => {
+      const success = await handleSaveProject();
+      if (success) {
+        electron.forceClose?.();
+      }
+    });
+
+    return () => {
+      if (unsubSave) unsubSave();
+      if (unsubSaveAs) unsubSaveAs();
+      if (unsubClose) unsubClose();
+    };
+  }, [handleSaveProject, handleSaveProjectAs]);
+
+  // Keyboard Shortcuts (Save: Cmd+S / Ctrl+S, Save As: Cmd+Shift+S / Ctrl+Shift+S, Undo/Redo)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      // Save / Save As shortcuts work anywhere (even inside input / textarea)
+      if (isCmdOrCtrl && key === 's') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleSaveProjectAs();
+        } else {
+          handleSaveProject();
+        }
+        return;
+      }
+
       const activeEl = document.activeElement as HTMLElement | null;
       if (activeEl) {
         const tagName = activeEl.tagName ? activeEl.tagName.toLowerCase() : '';
@@ -294,9 +507,6 @@ export default function DubbingStudioPro() {
         }
       }
 
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-      const key = e.key.toLowerCase();
-
       if (isCmdOrCtrl && key === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
@@ -310,9 +520,9 @@ export default function DubbingStudioPro() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo]);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [handleUndo, handleRedo, handleSaveProject, handleSaveProjectAs]);
 
   // Loop / Preview check
   useEffect(() => {
@@ -585,6 +795,7 @@ export default function DubbingStudioPro() {
     setVideoReloadHint(null);
     clearAutosave();
     setActiveFilePath(null);
+    setIsDirty(false);
 
     toast({
       title: 'New Project Created',
@@ -633,6 +844,7 @@ export default function DubbingStudioPro() {
       }
       setCurrentIndex(0);
       setActiveFilePath(filePath);
+      setIsDirty(false);
 
       // 6. Handle video filename reference check
       const fileVideoName = projectData.videoFileName || null;
@@ -667,136 +879,6 @@ export default function DubbingStudioPro() {
         title: 'Open Project Failed',
         description: 'Invalid or corrupt project file format.',
         variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSaveProject = async () => {
-    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
-    const pName = settings.projectName || settings.title || 'Untitled Project';
-
-    if (isElectron && activeFilePath) {
-      const projectData = {
-        formatVersion: '1.2',
-        createdAt: new Date().toISOString(),
-        projectName: pName,
-        videoFileName: videoFile ? videoFile.name : null,
-        settings,
-        takes,
-        glossary,
-        voiceAssets: getAssetManager()?.getAllAssets() || [],
-      };
-
-      const projectDataString = JSON.stringify(projectData, null, 2);
-      const res = await (window as any).electron.saveFile(activeFilePath, projectDataString);
-
-      if (res.success) {
-        toast({
-          title: 'Project Saved',
-          description: `Successfully saved to ${activeFilePath}`,
-        });
-      } else {
-        toast({
-          title: 'Save Failed',
-          description: `Failed to save project: ${res.error}`,
-          variant: 'destructive',
-        });
-      }
-    } else {
-      await handleSaveProjectAs();
-    }
-  };
-
-  const handleSaveProjectAs = async () => {
-    const pName = settings.projectName || settings.title || 'Untitled Project';
-    const projectData = {
-      formatVersion: '1.2',
-      createdAt: new Date().toISOString(),
-      projectName: pName,
-      videoFileName: videoFile ? videoFile.name : null,
-      settings,
-      takes,
-      glossary,
-      voiceAssets: getAssetManager()?.getAllAssets() || [],
-    };
-
-    const projectDataString = JSON.stringify(projectData, null, 2);
-    const isElectron = typeof window !== 'undefined' && (window as any).electron !== undefined;
-
-    if (isElectron) {
-      const result = await (window as any).electron.showSaveDialog({
-        title: 'Save Project As',
-        defaultPath: activeFilePath || `${pName}.dubbiovi`,
-        filters: [
-          { name: 'DubbiOvi Project', extensions: ['dubbiovi'] }
-        ]
-      });
-
-      if (result.canceled || !result.filePath) {
-        return;
-      }
-
-      const filePath = result.filePath;
-      setActiveFilePath(filePath);
-
-      const res = await (window as any).electron.saveFile(filePath, projectDataString);
-
-      if (res.success) {
-        syncAutosave(settings, takes, glossary, videoFile, filePath);
-        toast({
-          title: 'Project Saved As',
-          description: `Successfully saved to ${filePath}`,
-        });
-      } else {
-        toast({
-          title: 'Save Failed',
-          description: `Failed to save project: ${res.error}`,
-          variant: 'destructive',
-        });
-      }
-    } else {
-      // Non-Electron browser fallback
-      const currentName = settings.projectName || settings.title || 'Untitled Project';
-      const newName = window.prompt('Enter new project name:', currentName);
-      if (newName === null) return;
-      const trimmedName = newName.trim();
-      if (!trimmedName) {
-        toast({
-          title: 'Invalid Name',
-          description: 'Project name cannot be empty.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const updatedSettings = {
-        ...settings,
-        projectName: trimmedName,
-        title: trimmedName,
-      };
-      setSettings(updatedSettings);
-      syncAutosave(updatedSettings, takes, glossary, videoFile);
-
-      const updatedProjectData = {
-        ...projectData,
-        projectName: trimmedName,
-        settings: updatedSettings,
-      };
-
-      const blob = new Blob([JSON.stringify(updatedProjectData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${trimmedName}.dubbiovi`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: 'Project Saved As',
-        description: `Successfully exported "${trimmedName}.dubbiovi"`,
       });
     }
   };
@@ -1103,6 +1185,7 @@ export default function DubbingStudioPro() {
   return (
     <div className="flex h-screen w-full flex-col dark bg-background">
       <Header
+        isDirty={isDirty}
         projectName={settings.projectName || settings.title || 'Untitled Project'}
         onNewProject={handleNewProject}
         onOpenProject={handleOpenProject}

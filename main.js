@@ -1,6 +1,6 @@
 const electron = require('electron');
 const electronObj = typeof electron === 'object' && electron !== null ? electron : {};
-const { app, BrowserWindow, dialog, protocol, net: electronNet } = electronObj;
+const { app, BrowserWindow, dialog, protocol, net: electronNet, Menu } = electronObj;
 const ipcMain = electronObj.ipcMain || { handle: () => {}, on: () => {} };
 
 const { fork, spawn } = require('child_process');
@@ -35,6 +35,26 @@ let appSettingsService = null;
 let runtimeManager = null;
 let runtimeRepository = null;
 let runtimeExecutor = null;
+let isProjectDirty = false;
+let isForceClosing = false;
+
+ipcMain.on('set-dirty-state', (event, dirty) => {
+  isProjectDirty = !!dirty;
+});
+
+ipcMain.on('force-close', () => {
+  isForceClosing = true;
+  isProjectDirty = false;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.destroy();
+  }
+});
+
+ipcMain.on('update-title', (event, title) => {
+  if (mainWindow && !mainWindow.isDestroyed() && typeof title === 'string') {
+    mainWindow.setTitle(title);
+  }
+});
 
 // Resolve diagnostics logging directory
 const getAppUserDataPath = (sub) => {
@@ -351,11 +371,43 @@ async function createWindow() {
     } catch (err) {
       logDiag(`[Electron] Backend launch failure: ${err.message}`);
       displayStartupError(err.message, serverErrorOutput);
-      return;
     }
   }
 
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
+
+  mainWindow.on('close', (e) => {
+    if (isForceClosing) {
+      return;
+    }
+
+    if (isProjectDirty) {
+      e.preventDefault();
+
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: 'warning',
+        buttons: ['Save', "Don't Save", 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        title: 'DubbiOvi',
+        message: 'Save changes before closing?',
+        detail: 'Your changes will be lost if you don\'t save them.',
+        noLink: true,
+      });
+
+      if (choice === 0) {
+        mainWindow.webContents.send('trigger-save-on-close');
+      } else if (choice === 1) {
+        isForceClosing = true;
+        isProjectDirty = false;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.destroy();
+        }
+      } else {
+        // Cancel - keep window open
+      }
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -364,6 +416,98 @@ async function createWindow() {
       detachedWindow = null;
     }
   });
+}
+
+function createApplicationMenu() {
+  if (!Menu || typeof Menu.buildFromTemplate !== 'function') return;
+
+  const isMac = process.platform === 'darwin';
+
+  const template = [
+    ...(isMac ? [{
+      label: app.name || 'DubbiOvi',
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    }] : []),
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Save Project',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('trigger-save');
+            }
+          }
+        },
+        {
+          label: 'Save Project As...',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('trigger-save-as');
+            }
+          }
+        },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        ...(isMac ? [
+          { type: 'separator' },
+          { role: 'front' },
+          { type: 'separator' },
+          { role: 'window' }
+        ] : [
+          { role: 'close' }
+        ])
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 }
 
 const { pathToFileURL } = require('url');
@@ -470,6 +614,7 @@ app.whenReady().then(() => {
     logDiag(`[FFmpeg Resolution] Startup check error: ${err.message}`);
   }
 
+  createApplicationMenu();
   if (process.env.ELECTRON_TEST !== '1' && process.env.NODE_ENV !== 'test') {
     createWindow();
   }

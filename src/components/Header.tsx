@@ -61,6 +61,7 @@ interface HeaderProps {
   onImportClick: () => void;
   isDetached?: boolean;
   onDockVideo?: () => void;
+  isDirty?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -83,6 +84,7 @@ const Header: React.FC<HeaderProps> = ({
   onImportClick,
   isDetached = false,
   onDockVideo,
+  isDirty = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -246,7 +248,7 @@ const Header: React.FC<HeaderProps> = ({
       {/* Project Name display on the right */}
       <div className="flex items-center gap-2 text-xs font-medium text-[#A7B3D1] px-3 py-1.5 rounded bg-[#13203D] max-w-[280px] truncate border border-[#26355B] shrink-0">
         <span className="text-[9px] uppercase text-[#A7B3D1]/70 font-bold shrink-0">Project:</span>
-        <span className="text-white font-semibold truncate">{projectName}</span>
+        <span className="text-white font-semibold truncate">{projectName}{isDirty ? ' *' : ''}</span>
       </div>
 
       {isDetached && onDockVideo && (

@@ -53,5 +53,23 @@ contextBridge.exposeInMainWorld('electron', {
   renderAudioMixdown: (options) => ipcRenderer.invoke('render-audio-mixdown', options),
   renderVideoExport: (options) => ipcRenderer.invoke('render-video-export', options),
   getSystemDiagnostics: () => ipcRenderer.invoke('get-system-diagnostics'),
+  setDirtyState: (isDirty) => ipcRenderer.send('set-dirty-state', isDirty),
+  forceClose: () => ipcRenderer.send('force-close'),
+  updateTitle: (title) => ipcRenderer.send('update-title', title),
+  onSaveOnClose: (callback) => {
+    const subscription = () => callback();
+    ipcRenderer.on('trigger-save-on-close', subscription);
+    return () => ipcRenderer.removeListener('trigger-save-on-close', subscription);
+  },
+  onTriggerSave: (callback) => {
+    const subscription = () => callback();
+    ipcRenderer.on('trigger-save', subscription);
+    return () => ipcRenderer.removeListener('trigger-save', subscription);
+  },
+  onTriggerSaveAs: (callback) => {
+    const subscription = () => callback();
+    ipcRenderer.on('trigger-save-as', subscription);
+    return () => ipcRenderer.removeListener('trigger-save-as', subscription);
+  },
 });
 
