@@ -436,7 +436,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
         <Card className="border-border/60 bg-card/50 backdrop-blur-sm flex flex-col">
           <CardHeader className="pb-3 bg-secondary/5 border-b border-border/30">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <HardDriveUpload className="h-4.5 w-4.5 text-primary" /> Import Source
+              <HardDriveUpload className="h-4.5 w-4.5 text-primary" /> Select Import Method
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
               Load dialogue segments or scripts into your workspace.
@@ -444,11 +444,10 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
           </CardHeader>
           <CardContent className="pt-4 flex-grow">
             <Tabs defaultValue="script" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 h-8 text-[11px] p-0.5 bg-secondary/40">
-                <TabsTrigger value="script" className="text-[11px] py-1">Script</TabsTrigger>
-                <TabsTrigger value="json" className="text-[11px] py-1">JSON</TabsTrigger>
-                <TabsTrigger value="asr" className="text-[11px] py-1 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3 text-amber-400" /> AI Transcribe
+              <TabsList className="grid w-full grid-cols-2 h-9 p-1 bg-secondary/40">
+                <TabsTrigger value="script" className="text-xs font-semibold py-1.5">Script</TabsTrigger>
+                <TabsTrigger value="asr" className="text-xs font-semibold py-1.5 flex items-center justify-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400" /> AI Transcribe
                 </TabsTrigger>
               </TabsList>
 
@@ -750,22 +749,6 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                 <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={onExportCSV}>
                   <Download className="h-3 w-3" /> Download
                 </Button>
-              </div>
-
-              {/* JSON (Takes) */}
-              <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/10 border border-border/40 hover:bg-secondary/20 transition-colors">
-                <div className="space-y-0.5">
-                  <div className="text-[11px] font-bold text-foreground">Plain Takes JSON (.json)</div>
-                  <p className="text-[10px] text-muted-foreground leading-normal">Raw JSON list data containing only the takes list.</p>
-                </div>
-                <div className="flex gap-1.5">
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(JSON.stringify({ takes }, null, 2))}>
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="secondary" className="h-7 text-[10px] font-semibold flex items-center gap-1" onClick={() => downloadLocalFile(JSON.stringify({ takes }, null, 2), 'json', 'application/json;charset=utf-8')}>
-                    <Download className="h-3 w-3" /> Download
-                  </Button>
-                </div>
               </div>
 
               {/* TXT Script */}

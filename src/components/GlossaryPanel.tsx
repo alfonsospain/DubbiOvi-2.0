@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Download, Upload } from 'lucide-react';
+import { Plus, Trash2, Download, Upload, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import {
@@ -352,6 +352,26 @@ const GlossaryPanel: React.FC<GlossaryPanelProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Glossary Import Guidance Helper Box */}
+          <div className="p-3 rounded-md bg-secondary/30 border border-border/40 text-xs leading-normal space-y-1.5">
+            <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
+              <Info className="h-3.5 w-3.5 text-primary shrink-0" /> Glossary Import Guidance
+            </p>
+            <p className="text-muted-foreground text-[11.5px]">
+              Imported glossary files should contain at least two columns:
+            </p>
+            <ul className="list-disc list-inside font-medium text-foreground/90 pl-1 space-y-0.5 text-[11.5px]">
+              <li>Source Term</li>
+              <li>Target Term</li>
+            </ul>
+            <p className="text-muted-foreground text-[11px]">
+              An optional third column named <strong className="text-foreground/90 font-semibold">Notes</strong> may also be included.
+            </p>
+            <p className="text-[10.5px] text-muted-foreground/80 font-medium border-t border-border/30 pt-1 mt-1">
+              Supported formats: .xlsx, .csv
+            </p>
+          </div>
+
           <div className="flex items-center gap-2 mb-2">
             <Button variant="outline" size="sm" onClick={handleImportClick} className="gap-1.5 text-xs">
               <Upload className="h-3.5 w-3.5" /> Import Glossary

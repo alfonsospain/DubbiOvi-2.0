@@ -195,9 +195,6 @@ const Header: React.FC<HeaderProps> = ({
                 <MenubarItem onClick={onExportCSV} className="cursor-pointer gap-2 text-xs">
                   <FileText className="h-3.5 w-3.5 text-blue-500" /> CSV File
                 </MenubarItem>
-                <MenubarItem onClick={onExportJSON} className="cursor-pointer gap-2 text-xs">
-                  <FileCode className="h-3.5 w-3.5 text-yellow-500" /> Plain JSON (Takes)
-                </MenubarItem>
                 <MenubarItem onClick={onSaveProjectAs} className="cursor-pointer gap-2 text-xs">
                   <Save className="h-3.5 w-3.5 text-indigo-400" /> Project (.dubbiovi)
                 </MenubarItem>
@@ -213,9 +210,6 @@ const Header: React.FC<HeaderProps> = ({
                 </MenubarItem>
                 <MenubarItem onClick={onExportGlossaryXLSX} className="cursor-pointer gap-2 text-xs">
                   <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" /> Export Glossary: Excel
-                </MenubarItem>
-                <MenubarItem onClick={onExportGlossaryJSON} className="cursor-pointer gap-2 text-xs">
-                  <FileText className="h-3.5 w-3.5 text-yellow-400" /> Export Glossary: JSON
                 </MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
