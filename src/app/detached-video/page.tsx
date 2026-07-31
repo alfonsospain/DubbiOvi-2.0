@@ -57,6 +57,50 @@ export default function DetachedVideoPage() {
     };
   }, []);
 
+  // Forward video playback events to main window for Dub Preview audio sync
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const channel = new BroadcastChannel('dubbiovi-video-sync');
+
+    const sendPlaybackEvent = (eventType: string) => {
+      channel.postMessage({
+        type: 'PLAYBACK_EVENT',
+        payload: {
+          event: eventType,
+          currentTime: video.currentTime,
+          isPlaying: !video.paused,
+        },
+      });
+    };
+
+    const handleTimeUpdate = () => sendPlaybackEvent('timeupdate');
+    const handlePlay = () => sendPlaybackEvent('play');
+    const handlePause = () => sendPlaybackEvent('pause');
+    const handleSeeking = () => sendPlaybackEvent('seeking');
+    const handleSeeked = () => sendPlaybackEvent('seeked');
+    const handleEnded = () => sendPlaybackEvent('ended');
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('seeking', handleSeeking);
+    video.addEventListener('seeked', handleSeeked);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('seeking', handleSeeking);
+      video.removeEventListener('seeked', handleSeeked);
+      video.removeEventListener('ended', handleEnded);
+      channel.close();
+    };
+  }, [videoUrl]);
+
   const handleVideoFileChange = (file: File) => {
     if (videoUrl && videoUrl.startsWith('blob:')) {
       URL.revokeObjectURL(videoUrl);

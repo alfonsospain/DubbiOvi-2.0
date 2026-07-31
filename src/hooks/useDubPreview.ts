@@ -10,6 +10,7 @@ export interface UseDubPreviewOptions {
   stopPlayback: () => void;
   currentTime?: number;
   enabled?: boolean;
+  isDetachedPlaying?: boolean;
 }
 
 /**
@@ -26,9 +27,18 @@ export function useDubPreview({
   stopPlayback,
   currentTime,
   enabled = true,
+  isDetachedPlaying = false,
 }: UseDubPreviewOptions): void {
   const triggeredTakeIdsRef = useRef<Set<string>>(new Set());
   const lastTimeRef = useRef<number>(0);
+  const prevIsDetachedPlayingRef = useRef(false);
+
+  useEffect(() => {
+    if (prevIsDetachedPlayingRef.current && !isDetachedPlaying) {
+      stopPlayback();
+    }
+    prevIsDetachedPlayingRef.current = !!isDetachedPlaying;
+  }, [isDetachedPlaying, stopPlayback]);
 
   /**
    * Evaluates current playback time against Take IN timestamps (startSeconds).
@@ -40,7 +50,10 @@ export function useDubPreview({
       if (!enabled) return;
 
       const video = videoRef.current;
-      if (!video || video.paused) return;
+      const isVideoPlaying = video ? !video.paused : false;
+      const isPlaying = isVideoPlaying || isDetachedPlaying;
+
+      if (!isPlaying) return;
 
       // Handle backward seek detection during playback
       if (time < lastTimeRef.current - 0.3) {
@@ -72,7 +85,7 @@ export function useDubPreview({
         }
       }
     },
-    [enabled, videoRef, takes, playTake, stopPlayback]
+    [enabled, videoRef, takes, playTake, stopPlayback, isDetachedPlaying]
   );
 
   // Monitor currentTime prop updates if passed from parent clock / rAF

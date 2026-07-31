@@ -148,6 +148,8 @@ export default function DubbingStudioPro() {
   const [tempInSeconds, setTempInSeconds] = useState<number | null>(null);
   const [tempOutSeconds, setTempOutSeconds] = useState<number | null>(null);
   const [previewRange, setPreviewRange] = useState<{ start: number; end: number } | null>(null);
+  const [importTrigger, setImportTrigger] = useState(0);
+  const [isDetachedPlaying, setIsDetachedPlaying] = useState(false);
 
   const playbackController = useMemo(() => ({
     play: () => videoRef.current?.play().catch(err => console.error(err)),
@@ -278,14 +280,33 @@ export default function DubbingStudioPro() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (activeEl) {
+        const tagName = activeEl.tagName ? activeEl.tagName.toLowerCase() : '';
+        const isEditable =
+          tagName === 'input' ||
+          tagName === 'textarea' ||
+          activeEl.isContentEditable ||
+          activeEl.hasAttribute('contenteditable');
+
+        if (isEditable) {
+          return;
+        }
+      }
+
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-      if (isCmdOrCtrl && e.key.toLowerCase() === 'z') {
+      const key = e.key.toLowerCase();
+
+      if (isCmdOrCtrl && key === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
           handleRedo();
         } else {
           handleUndo();
         }
+      } else if (isCmdOrCtrl && key === 'y') {
+        e.preventDefault();
+        handleRedo();
       }
     };
 
@@ -340,6 +361,14 @@ export default function DubbingStudioPro() {
             takes: takes,
           }
         });
+      } else if (e.data?.type === 'PLAYBACK_EVENT' && e.data?.payload) {
+        const { currentTime: detTime, isPlaying: detPlaying } = e.data.payload;
+        if (typeof detTime === 'number') {
+          setCurrentTime(detTime);
+        }
+        if (typeof detPlaying === 'boolean') {
+          setIsDetachedPlaying(detPlaying);
+        }
       }
     };
 
@@ -901,7 +930,11 @@ export default function DubbingStudioPro() {
   };
 
   const handleImportClick = () => {
+    if (isTimelineEditorActive) {
+      setIsTimelineEditorActive(false);
+    }
     setActiveTab('data');
+    setImportTrigger(prev => prev + 1);
   };
 
   const handleTakeMerge = async (index: number, direction: 'prev' | 'next') => {
@@ -1151,6 +1184,7 @@ export default function DubbingStudioPro() {
                             voiceEnabled={voiceEnabled}
                             getVoiceService={getVoiceService}
                             getAssetManager={getAssetManager}
+                            isDetachedPlaying={isDetachedPlaying}
                             projectPath={activeFilePath ? activeFilePath.replace(/[\/\\][^\/\\]+$/, '') : undefined}
                           />
                         </TabsContent>
@@ -1201,6 +1235,7 @@ export default function DubbingStudioPro() {
                             transcriptionProvider={transcriptionProvider}
                             onOpenExportAudioDialog={() => setIsExportAudioDialogOpen(true)}
                             onOpenExportVideoDialog={() => setIsExportVideoDialogOpen(true)}
+                            importTrigger={importTrigger}
                           />
                         </TabsContent>
                       </Tabs>
@@ -1304,6 +1339,7 @@ export default function DubbingStudioPro() {
                                 voiceEnabled={voiceEnabled}
                                 getVoiceService={getVoiceService}
                                 getAssetManager={getAssetManager}
+                                isDetachedPlaying={isDetachedPlaying}
                                 projectPath={activeFilePath ? activeFilePath.replace(/[\/\\][^\/\\]+$/, '') : undefined}
                               />
                             </TabsContent>
@@ -1354,6 +1390,7 @@ export default function DubbingStudioPro() {
                                 transcriptionProvider={transcriptionProvider}
                                 onOpenExportAudioDialog={() => setIsExportAudioDialogOpen(true)}
                                 onOpenExportVideoDialog={() => setIsExportVideoDialogOpen(true)}
+                                importTrigger={importTrigger}
                               />
                             </TabsContent>
                           </Tabs>

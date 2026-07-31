@@ -65,6 +65,7 @@ interface ImportExportPanelProps {
   transcriptionProvider?: string;
   onOpenExportAudioDialog?: () => void;
   onOpenExportVideoDialog?: () => void;
+  importTrigger?: number;
 }
 
 const STAGE_DETAILS = {
@@ -109,11 +110,20 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   transcriptionProvider,
   onOpenExportAudioDialog,
   onOpenExportVideoDialog,
+  importTrigger,
 }) => {
   const { toast } = useToast();
   const [importJson, setImportJson] = useState('');
   const [importScript, setImportScript] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const prevImportTriggerRef = React.useRef<number | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (importTrigger !== undefined && importTrigger > 0 && importTrigger !== prevImportTriggerRef.current) {
+      prevImportTriggerRef.current = importTrigger;
+      fileInputRef.current?.click();
+    }
+  }, [importTrigger]);
 
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionStage, setTranscriptionStage] = useState<'preparing' | 'optimizing' | 'uploading' | 'transcribing' | 'generating' | 'completed' | null>(null);

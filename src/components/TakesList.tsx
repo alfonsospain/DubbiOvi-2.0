@@ -87,6 +87,7 @@ interface TakesListProps {
   getVoiceService?: () => VoiceService;
   getAssetManager?: () => VoiceAssetManager | null;
   projectPath?: string;
+  isDetachedPlaying?: boolean;
 }
 
 interface TakeRowProps {
@@ -492,6 +493,7 @@ const TakesList: React.FC<TakesListProps> = ({
   getVoiceService,
   getAssetManager: getAssetManagerProp,
   projectPath,
+  isDetachedPlaying,
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
@@ -633,6 +635,7 @@ const TakesList: React.FC<TakesListProps> = ({
     playTake,
     stopPlayback,
     currentTime,
+    isDetachedPlaying,
   });
 
   const handlePlayVoice = React.useCallback(
@@ -653,22 +656,31 @@ const TakesList: React.FC<TakesListProps> = ({
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
   const sourceTextRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
+  const prevSelectedTakeIndexRef = useRef<number | undefined>(undefined);
+
   useEffect(() => {
     if (
       selectedTakeIndex !== undefined &&
+      selectedTakeIndex !== prevSelectedTakeIndexRef.current &&
       selectedTakeIndex >= 0 &&
       selectedTakeIndex < takes.length
     ) {
+      prevSelectedTakeIndexRef.current = selectedTakeIndex;
       const row = rowRefs.current[selectedTakeIndex];
       if (row) {
         row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-      const sourceText = sourceTextRefs.current[selectedTakeIndex];
-      if (sourceText) {
-        sourceText.focus();
+
+        const activeEl = typeof document !== 'undefined' ? document.activeElement : null;
+        const isFocusInsideRow = activeEl ? row.contains(activeEl) : false;
+        if (!isFocusInsideRow) {
+          const sourceText = sourceTextRefs.current[selectedTakeIndex];
+          if (sourceText) {
+            sourceText.focus();
+          }
+        }
       }
     }
-  }, [selectedTakeIndex, takes]);
+  }, [selectedTakeIndex, takes.length]);
 
   const handleFieldChange = (id: string, field: keyof Take, value: string) => {
     const take = takes.find(t => t.id === id);
