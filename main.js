@@ -1,12 +1,13 @@
 const electron = require('electron');
 const electronObj = typeof electron === 'object' && electron !== null ? electron : {};
-const { app, BrowserWindow, dialog, protocol, net } = electronObj;
+const { app, BrowserWindow, dialog, protocol, net: electronNet } = electronObj;
 const ipcMain = electronObj.ipcMain || { handle: () => {}, on: () => {} };
 
 const { fork, spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
+const net = require('net');
 
 const runtimePath = fs.existsSync(path.join(__dirname, 'lib', 'runtime', 'index.js'))
   ? './lib/runtime'
@@ -62,7 +63,7 @@ function logDiag(message) {
 
 // Log application startup parameters
 logDiag('--- DubbiOvi Diagnostics Startup ---');
-logDiag(`Application Version: 1.3.7`);
+logDiag(`Application Version: ${app && typeof app.getVersion === 'function' ? app.getVersion() : '2.0.0-alpha.1'}`);
 logDiag(`Platform: ${process.platform} (${process.arch})`);
 logDiag(`Node Version: ${process.version}`);
 logDiag(`Electron Version: ${process.versions.electron}`);
@@ -249,7 +250,7 @@ function displayStartupError(message, stderr) {
 }
 
 async function createWindow() {
-  const isDev = !app.isPackaged;
+  const isDev = process.env.NODE_ENV === 'development' || (!app.isPackaged && !__dirname.includes('resources') && !__dirname.includes('Resources'));
   let port;
 
   if (isDev) {
@@ -405,7 +406,7 @@ app.whenReady().then(() => {
         };
         const mimeType = mimeTypes[ext] || 'audio/mpeg';
 
-        const res = await net.fetch(fileUrl);
+        const res = await electronNet.fetch(fileUrl);
         const headers = new Headers(res.headers);
         headers.set('Content-Type', mimeType);
         headers.set('Access-Control-Allow-Origin', '*');
