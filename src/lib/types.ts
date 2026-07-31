@@ -19,6 +19,7 @@ export interface Take {
   notes: string;
   status: 'Pending' | 'Reviewed' | 'Locked';
   voiceAssetId?: string;
+  fittedVoiceAssetId?: string;
 }
 
 export interface Language {

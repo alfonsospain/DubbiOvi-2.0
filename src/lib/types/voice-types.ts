@@ -4,6 +4,13 @@ export interface VoiceAssetMetadata {
   voiceId?: string;
   speakerName?: string;
   generatedAt: string;
+  // Duration Fitting Metadata (Milestone B2.1)
+  parentAssetId?: string;
+  isAdjusted?: boolean;
+  originalDuration?: number;
+  takeDuration?: number;
+  adjustmentRatio?: number;
+  adjustedAt?: string;
 }
 
 /**

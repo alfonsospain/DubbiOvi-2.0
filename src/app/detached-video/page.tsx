@@ -12,8 +12,20 @@ export default function DetachedVideoPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [takes, setTakes] = useState<Take[]>([]);
+  const [originalVolume, setOriginalVolume] = useState(1.0);
+  const [originalEnabled, setOriginalEnabled] = useState(true);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Sync HTML5 Video volume & muted properties dynamically with Playback Mixer
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      const effectiveVol = originalEnabled ? Math.max(0, Math.min(1, originalVolume)) : 0;
+      video.volume = effectiveVol;
+      video.muted = !originalEnabled || effectiveVol === 0;
+    }
+  }, [videoRef, videoUrl, originalVolume, originalEnabled]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -24,12 +36,31 @@ export default function DetachedVideoPage() {
       const { type, payload } = e.data || {};
       if (type === 'DETACHED_INIT' && payload) {
         setTakes(payload.takes || []);
+        if (typeof payload.originalVolume === 'number') setOriginalVolume(payload.originalVolume);
+        if (typeof payload.originalEnabled === 'boolean') setOriginalEnabled(payload.originalEnabled);
         if (payload.videoPath) {
           const url = `/api/video?path=${encodeURIComponent(payload.videoPath)}`;
           setVideoUrl(url);
         }
+        if (typeof payload.currentTime === 'number' && videoRef.current) {
+          videoRef.current.currentTime = payload.currentTime;
+        }
       } else if (type === 'TAKES_UPDATE' && payload) {
         setTakes(payload.takes || []);
+      } else if (type === 'MIXER_UPDATE' && payload) {
+        if (typeof payload.originalVolume === 'number') setOriginalVolume(payload.originalVolume);
+        if (typeof payload.originalEnabled === 'boolean') setOriginalEnabled(payload.originalEnabled);
+      } else if (type === 'PLAYBACK_COMMAND' && payload) {
+        const { action, currentTime: targetTime } = payload;
+        const video = videoRef.current;
+        if (!video) return;
+        if (action === 'play') {
+          video.play().catch(err => console.error("Detached play command failed:", err));
+        } else if (action === 'pause') {
+          video.pause();
+        } else if (action === 'seek' && typeof targetTime === 'number') {
+          video.currentTime = targetTime;
+        }
       }
     };
 

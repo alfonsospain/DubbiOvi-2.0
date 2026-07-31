@@ -152,35 +152,79 @@ export default function DubbingStudioPro() {
   const [importTrigger, setImportTrigger] = useState(0);
   const [isDetachedPlaying, setIsDetachedPlaying] = useState(false);
 
+  const sendPlaybackCommand = useCallback((action: 'play' | 'pause' | 'seek', targetTime?: number) => {
+    if (typeof window === 'undefined') return;
+    if (isDetached) {
+      const channel = new BroadcastChannel('dubbiovi-video-sync');
+      channel.postMessage({
+        type: 'PLAYBACK_COMMAND',
+        payload: { action, currentTime: targetTime }
+      });
+      channel.close();
+    }
+  }, [isDetached]);
+
   const playbackController = useMemo(() => ({
-    play: () => videoRef.current?.play().catch(err => console.error(err)),
-    pause: () => videoRef.current?.pause(),
-    togglePlayPause: () => {
-      const video = videoRef.current;
-      if (!video) return;
-      if (video.paused) {
-        video.play().catch(err => console.error(err));
+    play: () => {
+      if (isDetached) {
+        sendPlaybackCommand('play');
       } else {
-        video.pause();
+        videoRef.current?.play().catch(err => console.error(err));
+      }
+    },
+    pause: () => {
+      if (isDetached) {
+        sendPlaybackCommand('pause');
+      } else {
+        videoRef.current?.pause();
+      }
+    },
+    togglePlayPause: () => {
+      if (isDetached) {
+        if (isDetachedPlaying) {
+          sendPlaybackCommand('pause');
+        } else {
+          sendPlaybackCommand('play');
+        }
+      } else {
+        const video = videoRef.current;
+        if (!video) return;
+        if (video.paused) {
+          video.play().catch(err => console.error(err));
+        } else {
+          video.pause();
+        }
       }
     },
     seek: (time: number) => {
-      if (videoRef.current) videoRef.current.currentTime = time;
+      if (isDetached) {
+        sendPlaybackCommand('seek', time);
+      } else if (videoRef.current) {
+        videoRef.current.currentTime = time;
+      }
     },
-    getCurrentTime: () => videoRef.current?.currentTime ?? 0,
+    getCurrentTime: () => isDetached ? currentTime : (videoRef.current?.currentTime ?? currentTime),
     startPreview: (start: number, end: number) => {
-      if (videoRef.current) {
+      if (isDetached) {
+        sendPlaybackCommand('seek', start);
+        sendPlaybackCommand('play');
+        setPreviewRange({ start, end });
+      } else if (videoRef.current) {
         videoRef.current.currentTime = start;
         setPreviewRange({ start, end });
         videoRef.current.play().catch(err => console.error(err));
       }
     },
     stopPreview: () => {
-      videoRef.current?.pause();
+      if (isDetached) {
+        sendPlaybackCommand('pause');
+      } else {
+        videoRef.current?.pause();
+      }
       setPreviewRange(null);
     },
     isPreviewing: previewRange !== null,
-  }), [videoRef, previewRange]);
+  }), [videoRef, previewRange, isDetached, isDetachedPlaying, currentTime, sendPlaybackCommand]);
 
   const [past, setPast] = useState<HistoryState[]>([]);
   const [future, setFuture] = useState<HistoryState[]>([]);
@@ -569,6 +613,11 @@ export default function DubbingStudioPro() {
             videoPath: filePath,
             videoName: videoFile ? videoFile.name : null,
             takes: takes,
+            originalVolume,
+            originalEnabled,
+            voiceVolume,
+            voiceEnabled,
+            currentTime,
           }
         });
       } else if (e.data?.type === 'PLAYBACK_EVENT' && e.data?.payload) {
@@ -587,7 +636,7 @@ export default function DubbingStudioPro() {
       channel.removeEventListener('message', handleMessage);
       channel.close();
     };
-  }, [videoFile, takes]);
+  }, [videoFile, takes, originalVolume, originalEnabled, voiceVolume, voiceEnabled, currentTime]);
 
   // Live take synchronization with the detached window
   useEffect(() => {
@@ -606,6 +655,27 @@ export default function DubbingStudioPro() {
       channel.close();
     };
   }, [takes, isDetached]);
+
+  // Live Playback Mixer synchronization with the detached window
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!isDetached) return;
+
+    const channel = new BroadcastChannel('dubbiovi-video-sync');
+    channel.postMessage({
+      type: 'MIXER_UPDATE',
+      payload: {
+        originalVolume,
+        originalEnabled,
+        voiceVolume,
+        voiceEnabled,
+      }
+    });
+
+    return () => {
+      channel.close();
+    };
+  }, [originalVolume, originalEnabled, voiceVolume, voiceEnabled, isDetached]);
 
 
 
@@ -682,19 +752,32 @@ export default function DubbingStudioPro() {
 
   const handleTakeUpdate = (updatedTake: Take) => {
     const oldTake = takes.find(t => t.id === updatedTake.id);
+    let finalTake = updatedTake;
     if (oldTake) {
       const textChanged = oldTake.original !== updatedTake.original ||
                           oldTake.translation !== updatedTake.translation;
       const statusChanged = oldTake.status !== updatedTake.status;
+      const timingChanged = oldTake.startSeconds !== updatedTake.startSeconds ||
+                            oldTake.endSeconds !== updatedTake.endSeconds;
 
       if (textChanged) {
         pushToHistory("Text Edit");
       } else if (statusChanged) {
         pushToHistory("Status Change");
+      } else if (timingChanged) {
+        pushToHistory("Timing Edit");
+      }
+
+      // Re-fitting Invalidation: Whenever IN or OUT timing changes, discard fitted asset
+      if (timingChanged && oldTake.fittedVoiceAssetId && updatedTake.fittedVoiceAssetId === oldTake.fittedVoiceAssetId) {
+        finalTake = {
+          ...updatedTake,
+          fittedVoiceAssetId: undefined,
+        };
       }
     }
 
-    const newTakes = takes.map(t => t.id === updatedTake.id ? updatedTake : t);
+    const newTakes = takes.map(t => t.id === finalTake.id ? finalTake : t);
     setTakes(newTakes);
     syncAutosave(settings, newTakes, glossary, videoFile);
   };
@@ -736,7 +819,8 @@ export default function DubbingStudioPro() {
       ...take,
       startSeconds: inTime,
       endSeconds: outTime,
-      time: `${formatTimeForDisplay(inTime)} - ${formatTimeForDisplay(outTime)}`
+      time: `${formatTimeForDisplay(inTime)} - ${formatTimeForDisplay(outTime)}`,
+      fittedVoiceAssetId: undefined,
     };
     handleTakeUpdate(updatedTake);
     setTempInSeconds(inTime);

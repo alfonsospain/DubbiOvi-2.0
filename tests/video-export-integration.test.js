@@ -87,7 +87,7 @@ app.whenReady().then(async () => {
       } else if (mixInputLabels.length === 1) {
         filterComplex = filterSegments.join('; ') + `; ${mixInputLabels[0]}anull[outa]`;
       } else {
-        filterComplex = filterSegments.join('; ') + `; ${mixInputLabels.join('')}amix=inputs=${mixInputLabels.length}:duration=longest:dropout_transition=0[outa]`;
+        filterComplex = filterSegments.join('; ') + `; ${mixInputLabels.join('')}amix=inputs=${mixInputLabels.length}:duration=longest:dropout_transition=0:normalize=0[outa]`;
       }
 
       return [...inputs, '-filter_complex', filterComplex, '-map', '[outa]', '-c:a', 'pcm_s16le', tempOut];

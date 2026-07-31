@@ -121,3 +121,31 @@ TypeError: ipcMain.on is not a function
 [2026-07-31T14:36:40.835Z] Electron Version: undefined
 [2026-07-31T14:36:40.835Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
 [2026-07-31T14:36:40.837Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-31T21:58:06.195Z] --- DubbiOvi Diagnostics Startup ---
+[2026-07-31T21:58:06.198Z] Application Version: 2.0.0-alpha.1
+[2026-07-31T21:58:06.198Z] Platform: darwin (arm64)
+[2026-07-31T21:58:06.198Z] Node Version: v24.13.1
+[2026-07-31T21:58:06.198Z] Electron Version: undefined
+[2026-07-31T21:58:06.198Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
+[2026-07-31T21:58:06.199Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-31T21:58:10.173Z] --- DubbiOvi Diagnostics Startup ---
+[2026-07-31T21:58:10.177Z] Application Version: 2.0.0-alpha.1
+[2026-07-31T21:58:10.177Z] Platform: darwin (arm64)
+[2026-07-31T21:58:10.177Z] Node Version: v24.13.1
+[2026-07-31T21:58:10.177Z] Electron Version: undefined
+[2026-07-31T21:58:10.177Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
+[2026-07-31T21:58:10.178Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-31T21:58:12.928Z] --- DubbiOvi Diagnostics Startup ---
+[2026-07-31T21:58:12.930Z] Application Version: 2.0.0-alpha.1
+[2026-07-31T21:58:12.930Z] Platform: darwin (arm64)
+[2026-07-31T21:58:12.930Z] Node Version: v24.13.1
+[2026-07-31T21:58:12.930Z] Electron Version: undefined
+[2026-07-31T21:58:12.930Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
+[2026-07-31T21:58:12.931Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-31T21:58:36.740Z] --- DubbiOvi Diagnostics Startup ---
+[2026-07-31T21:58:36.741Z] Application Version: 2.0.0-alpha.1
+[2026-07-31T21:58:36.741Z] Platform: darwin (arm64)
+[2026-07-31T21:58:36.742Z] Node Version: v24.13.1
+[2026-07-31T21:58:36.742Z] Electron Version: undefined
+[2026-07-31T21:58:36.742Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
+[2026-07-31T21:58:36.743Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg

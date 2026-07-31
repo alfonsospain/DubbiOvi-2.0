@@ -42,6 +42,7 @@ import { loadApiKey, loadOpenAiApiKey, loadDeepLApiKey, loadOllamaConfig } from 
 import { VoiceService } from '@/lib/VoiceService';
 import { useTakePlayback } from '@/hooks/useTakePlayback';
 import { useDubPreview } from '@/hooks/useDubPreview';
+import { VoiceFittingService } from '@/lib/VoiceFittingService';
 import {
   Sparkles,
   Trash2,
@@ -57,6 +58,8 @@ import {
   AudioLines,
   RotateCw,
   VolumeX,
+  Gauge,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn, formatTimeForDisplay } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -88,6 +91,7 @@ interface TakesListProps {
   getAssetManager?: () => VoiceAssetManager | null;
   projectPath?: string;
   isDetachedPlaying?: boolean;
+  onFitVoiceTiming?: (take: Take) => void;
 }
 
 interface TakeRowProps {
@@ -117,6 +121,8 @@ interface TakeRowProps {
   translationProvider?: string;
   onEnterSyncMode: (index: number) => void;
   onDeleteVoice: (take: Take) => void;
+  onFitVoiceTiming?: (take: Take) => void;
+  getAssetManager?: () => VoiceAssetManager | null;
 }
 
 const TakeRow: React.FC<TakeRowProps> = ({
@@ -146,8 +152,17 @@ const TakeRow: React.FC<TakeRowProps> = ({
   translationProvider,
   onEnterSyncMode,
   onDeleteVoice,
+  onFitVoiceTiming,
+  getAssetManager,
 }) => {
   const isLocked = take.status === 'Locked';
+  const manager = getAssetManager ? getAssetManager() : null;
+  const origAsset = take.voiceAssetId && manager ? manager.getAsset(take.voiceAssetId) : null;
+  const takeDur = Math.max(0.1, take.endSeconds - take.startSeconds);
+  const voiceDur = origAsset ? origAsset.durationSeconds || takeDur : takeDur;
+  const fittingRatio = VoiceFittingService.calculateFittingRatio(takeDur, voiceDur);
+  const warningStatus = VoiceFittingService.getThresholdWarning(fittingRatio);
+  const isFitted = !!take.fittedVoiceAssetId;
   const [localOriginal, setLocalOriginal] = useState(take.original || '');
   const [localTranslation, setLocalTranslation] = useState(take.translation || '');
   const [localCharacter, setLocalCharacter] = useState(take.character || '');
@@ -374,6 +389,39 @@ const TakeRow: React.FC<TakeRowProps> = ({
             </Button>
           )}
 
+          {take.voiceAssetId && onFitVoiceTiming && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onFitVoiceTiming(take);
+              }}
+              disabled={isLocked}
+              title={
+                isFitted
+                  ? warningStatus.level === 'heavy'
+                    ? `Heavy adjustment (${fittingRatio.toFixed(2)}x speed)`
+                    : `Fitted (${fittingRatio.toFixed(2)}x speed)`
+                  : (origAsset && voiceDur <= takeDur ? 'Original (fits take timing)' : 'Fit Timing to Take')
+              }
+              className={cn(
+                'transition-colors',
+                isFitted && warningStatus.level === 'heavy'
+                  ? 'text-amber-500 hover:text-amber-400 font-bold'
+                  : isFitted
+                  ? 'text-emerald-400 hover:text-emerald-300'
+                  : 'text-muted-foreground hover:text-emerald-400'
+              )}
+            >
+              {isFitted && warningStatus.level === 'heavy' ? (
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+              ) : (
+                <Gauge className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -407,6 +455,17 @@ const TakeRow: React.FC<TakeRowProps> = ({
               {take.voiceAssetId && (
                 <>
                   <DropdownMenuSeparator />
+                  {onFitVoiceTiming && (
+                    <DropdownMenuItem
+                      onClick={() => onFitVoiceTiming(take)}
+                      disabled={isLocked}
+                      className="cursor-pointer gap-2 text-emerald-400 focus:text-emerald-300"
+                    >
+                      <Gauge className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Fit Timing</span>
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuItem
                     onClick={() => onGenerateVoice(take)}
                     disabled={isLocked || isGeneratingVoice}
@@ -494,6 +553,7 @@ const TakesList: React.FC<TakesListProps> = ({
   getAssetManager: getAssetManagerProp,
   projectPath,
   isDetachedPlaying,
+  onFitVoiceTiming,
 }) => {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState<string | null>(null);
@@ -572,17 +632,36 @@ const TakesList: React.FC<TakesListProps> = ({
         providerId: normalizedProviderId,
       });
 
-      const updatedTake: Take = {
+      let updatedTake: Take = {
         ...take,
         voiceAssetId: asset.id,
       };
 
+      // Automatically perform Duration Fitting (Milestone B2.1)
+      const fitResult = await VoiceFittingService.fitVoiceForTake({
+        take: updatedTake,
+        originalAsset: asset,
+        getAssetManager: resolveAssetManager,
+        projectPath,
+      });
+
+      if (fitResult.success && fitResult.updatedTake) {
+        updatedTake = fitResult.updatedTake;
+      }
+
       onTakeUpdate(updatedTake);
 
-      toast({
-        title: 'Voice Generated',
-        description: `Synthesized AI voice asset for Take (${take.character || take.id}).`,
-      });
+      if (fitResult.ratio > 1.0) {
+        toast({
+          title: 'Voice Generated & Fitted',
+          description: `Synthesized & duration-fitted AI voice for Take (${take.character || take.id}) at ${fitResult.ratio.toFixed(2)}x speed.`,
+        });
+      } else {
+        toast({
+          title: 'Voice Generated',
+          description: `Synthesized AI voice for Take (${take.character || take.id}). Audio fits take duration natively.`,
+        });
+      }
     } catch (error: any) {
       console.error('[TakesList] Voice generation failed:', error);
       toast({
@@ -592,6 +671,40 @@ const TakesList: React.FC<TakesListProps> = ({
       });
     } finally {
       setGeneratingVoiceId(null);
+    }
+  };
+
+  const handleFitVoiceTiming = async (take: Take) => {
+    const manager = resolveAssetManager();
+    if (!take.voiceAssetId || !manager) return;
+
+    const originalAsset = manager.getAsset(take.voiceAssetId);
+    if (!originalAsset) return;
+
+    try {
+      const fitResult = await VoiceFittingService.fitVoiceForTake({
+        take,
+        originalAsset,
+        getAssetManager: resolveAssetManager,
+        projectPath,
+      });
+
+      if (fitResult.success && fitResult.updatedTake) {
+        onTakeUpdate(fitResult.updatedTake);
+        if (fitResult.ratio > 1.0) {
+          toast({
+            title: 'Timing Fitted',
+            description: `Voice duration fitted to take timing (${fitResult.ratio.toFixed(2)}x speed).`,
+          });
+        } else {
+          toast({
+            title: 'Original Timing Preserved',
+            description: 'Voice duration already fits within take. No timing adjustment needed.',
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error('[TakesList] Duration fitting failed:', err);
     }
   };
 
@@ -927,6 +1040,8 @@ const TakesList: React.FC<TakesListProps> = ({
                   hasApiKey={hasApiKey}
                   translationProvider={translationProvider}
                   onEnterSyncMode={onEnterSyncMode}
+                  onFitVoiceTiming={onFitVoiceTiming || handleFitVoiceTiming}
+                  getAssetManager={resolveAssetManager}
                 />
               );
             })}

@@ -1442,6 +1442,111 @@ ipcMain.handle('show-save-dialog', async (event, options) => {
   return result;
 });
 
+ipcMain.handle('adjust-voice-timing', async (event, { inputRelativePath, outputRelativePath, ratio, targetDuration, projectPath }) => {
+  logDiag(`[AdjustVoiceTiming IPC] Adjusting voice timing: ratio=${ratio}, input="${inputRelativePath}", output="${outputRelativePath}"`);
+
+  if (!inputRelativePath || !outputRelativePath || typeof ratio !== 'number' || ratio <= 0) {
+    return {
+      success: false,
+      error: 'Invalid arguments: inputRelativePath, outputRelativePath, and ratio (>0) are required.',
+    };
+  }
+
+  // Resolve absolute paths
+  let inputPath = inputRelativePath;
+  if (!path.isAbsolute(inputPath)) {
+    const projCandidate = projectPath ? path.join(projectPath, inputRelativePath) : null;
+    const userCandidate = typeof app !== 'undefined' && app ? path.join(app.getPath('userData'), inputRelativePath) : null;
+    const cwdCandidate = path.join(process.cwd(), inputRelativePath);
+    if (projCandidate && fs.existsSync(projCandidate)) {
+      inputPath = projCandidate;
+    } else if (userCandidate && fs.existsSync(userCandidate)) {
+      inputPath = userCandidate;
+    } else if (fs.existsSync(cwdCandidate)) {
+      inputPath = cwdCandidate;
+    } else if (projCandidate) {
+      inputPath = projCandidate;
+    } else {
+      inputPath = userCandidate || cwdCandidate;
+    }
+  }
+
+  let outputPath = outputRelativePath;
+  if (!path.isAbsolute(outputPath)) {
+    const baseDir = projectPath || (typeof app !== 'undefined' && app ? app.getPath('userData') : process.cwd());
+    outputPath = path.join(baseDir, outputRelativePath);
+  }
+
+  const outDir = path.dirname(outputPath);
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+
+  // Chain FFmpeg atempo filters (supported range per filter is 0.5 to 100.0)
+  let currentRatio = ratio;
+  const filterList = [];
+  while (currentRatio > 100.0) {
+    filterList.push('atempo=100.0');
+    currentRatio /= 100.0;
+  }
+  while (currentRatio < 0.5) {
+    filterList.push('atempo=0.5');
+    currentRatio /= 0.5;
+  }
+  filterList.push(`atempo=${currentRatio.toFixed(4)}`);
+  const filterString = filterList.join(',');
+
+  const ffmpegExecPath = resolveFFmpegExecutable();
+  const ffmpegArgs = [
+    '-y',
+    '-i', inputPath,
+    '-filter:a', filterString,
+    '-c:a', 'pcm_s16le',
+    outputPath,
+  ];
+
+  logDiag(`[AdjustVoiceTiming IPC] Executing FFmpeg: ${ffmpegExecPath} ${ffmpegArgs.join(' ')}`);
+
+  return new Promise((resolve) => {
+    const { spawn } = require('child_process');
+    const ffmpegProc = spawn(ffmpegExecPath, ffmpegArgs, { windowsHide: true });
+
+    let stderr = '';
+    ffmpegProc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    ffmpegProc.on('error', (err) => {
+      logDiag(`[AdjustVoiceTiming IPC] FFmpeg error: ${err.message}`);
+      resolve({ success: false, error: `FFmpeg binary error: ${err.message}` });
+    });
+
+    ffmpegProc.on('close', (code) => {
+      const fileExists = fs.existsSync(outputPath);
+      const fileSize = fileExists ? fs.statSync(outputPath).size : 0;
+      if (code === 0 && fileExists && fileSize > 0) {
+        logDiag(`[AdjustVoiceTiming IPC] SUCCESS: ${fileSize} bytes written to ${outputPath}`);
+        resolve({
+          success: true,
+          outputPath,
+          relativePath: outputRelativePath,
+          fileSize,
+          durationSeconds: targetDuration || 0,
+          adjustmentRatio: ratio,
+        });
+      } else {
+        const errorMsg = stderr || `FFmpeg process exited with code ${code}`;
+        logDiag(`[AdjustVoiceTiming IPC] FAILURE: ${errorMsg}`);
+        resolve({
+          success: false,
+          exitCode: code,
+          error: errorMsg,
+        });
+      }
+    });
+  });
+});
+
 ipcMain.handle('render-audio-mixdown', async (event, { ffmpegArgs, outputPath, projectPath }) => {
   logDiag(`[AudioMixdown IPC] Starting FFmpeg audio mixdown render...`);
   logDiag(`[AudioMixdown IPC] Path returned by native Save dialog: "${outputPath}"`);
@@ -1696,7 +1801,7 @@ ipcMain.handle('render-video-export', async (event, options) => {
               return `amix=inputs=${newCount}`;
             });
             if (fc.includes('amix=inputs=1:')) {
-              fc = fc.replace(/amix=inputs=1:duration=longest:dropout_transition=0/, 'anull');
+              fc = fc.replace(/amix=inputs=1:duration=longest:dropout_transition=0(:normalize=0)?/, 'anull');
             }
             if (!fc || fc.trim() === '') {
               fc = 'anullsrc=r=44100:cl=stereo[outa]';

@@ -74,8 +74,15 @@ export class VoiceAssetManager {
    * Resolves the active Voice Asset currently linked to a Take.
    */
   public getActiveAssetForTake(take: Take): VoiceAsset | null {
-    if (!take || !take.voiceAssetId) return null;
-    return this.getAsset(take.voiceAssetId);
+    if (!take) return null;
+    if (take.fittedVoiceAssetId) {
+      const fitted = this.getAsset(take.fittedVoiceAssetId);
+      if (fitted) return fitted;
+    }
+    if (take.voiceAssetId) {
+      return this.getAsset(take.voiceAssetId);
+    }
+    return null;
   }
 
   /**
@@ -147,38 +154,45 @@ export class VoiceAssetManager {
   public rehydrateFromTakes(takes: Take[]): void {
     if (!Array.isArray(takes)) return;
     for (const take of takes) {
-      if (!take || !take.voiceAssetId) continue;
-      if (this.assets.has(take.voiceAssetId)) continue;
+      if (!take) continue;
+      const assetIdsToRehydrate = [take.voiceAssetId, take.fittedVoiceAssetId].filter(
+        (id): id is string => !!id
+      );
 
-      const extMatch = take.voiceAssetId.match(/\.(wav|mp3|ogg)$/i);
-      const format: 'wav' | 'mp3' | 'ogg' = extMatch
-        ? (extMatch[1].toLowerCase() as 'wav' | 'mp3' | 'ogg')
-        : take.voiceAssetId.includes('.mp3')
-        ? 'mp3'
-        : 'wav';
+      for (const assetId of assetIdsToRehydrate) {
+        if (this.assets.has(assetId)) continue;
 
-      const filename = take.voiceAssetId.endsWith(`.${format}`)
-        ? take.voiceAssetId
-        : `${take.voiceAssetId}.${format}`;
+        const extMatch = assetId.match(/\.(wav|mp3|ogg)$/i);
+        const format: 'wav' | 'mp3' | 'ogg' = extMatch
+          ? (extMatch[1].toLowerCase() as 'wav' | 'mp3' | 'ogg')
+          : assetId.includes('.mp3')
+          ? 'mp3'
+          : 'wav';
 
-      const relativePath = take.voiceAssetId.startsWith('Audio/')
-        ? take.voiceAssetId
-        : `Audio/${filename}`;
+        const filename = assetId.endsWith(`.${format}`)
+          ? assetId
+          : `${assetId}.${format}`;
 
-      this.registerAsset({
-        id: take.voiceAssetId,
-        takeId: take.id,
-        relativePath,
-        filename,
-        format,
-        sampleRate: 24000,
-        durationSeconds: 0,
-        metadata: {
-          generatorProviderId: 'rehydrated',
-          generatorModelName: 'rehydrated',
-          generatedAt: new Date().toISOString(),
-        },
-      });
+        const relativePath = assetId.startsWith('Audio/')
+          ? assetId
+          : `Audio/${filename}`;
+
+        this.registerAsset({
+          id: assetId,
+          takeId: take.id,
+          relativePath,
+          filename,
+          format,
+          sampleRate: 24000,
+          durationSeconds: 0,
+          metadata: {
+            generatorProviderId: 'rehydrated',
+            generatorModelName: 'rehydrated',
+            generatedAt: new Date().toISOString(),
+            isAdjusted: assetId === take.fittedVoiceAssetId,
+          },
+        });
+      }
     }
   }
 

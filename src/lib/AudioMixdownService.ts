@@ -97,7 +97,7 @@ export class AudioMixdownService {
     } else {
       filterComplex =
         filterSegments.join('; ') +
-        `; ${mixInputLabels.join('')}amix=inputs=${mixInputLabels.length}:duration=longest:dropout_transition=0[outa]`;
+        `; ${mixInputLabels.join('')}amix=inputs=${mixInputLabels.length}:duration=longest:dropout_transition=0:normalize=0[outa]`;
     }
 
     const codec = options.outputFormat === 'mp3' ? 'libmp3lame' : 'pcm_s16le';
