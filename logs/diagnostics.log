@@ -114,3 +114,10 @@ TypeError: ipcMain.on is not a function
 [2026-07-29T17:13:31.514Z] Electron Version: undefined
 [2026-07-29T17:13:31.514Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
 [2026-07-29T17:13:31.515Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg
+[2026-07-31T14:36:40.832Z] --- DubbiOvi Diagnostics Startup ---
+[2026-07-31T14:36:40.834Z] Application Version: 1.3.7
+[2026-07-31T14:36:40.834Z] Platform: darwin (arm64)
+[2026-07-31T14:36:40.834Z] Node Version: v24.13.1
+[2026-07-31T14:36:40.835Z] Electron Version: undefined
+[2026-07-31T14:36:40.835Z] Log file path: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/logs/diagnostics.log
+[2026-07-31T14:36:40.837Z] [FFmpeg Resolution] Found development binary at: /Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/bin/ffmpeg

@@ -17,18 +17,21 @@
     "!node_modules/**/*.node",
     "!node_modules/**/*.dylib"
   ],
-  "extraResources": [
-    {
-      "from": "bin",
-      "to": "bin",
-      "filter": ["**/*"]
-    }
-  ],
   "mac": {
     "target": [
       {
         "target": "dmg",
         "arch": ["universal"]
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "ffmpeg",
+          "ffprobe"
+        ]
       }
     ],
     "icon": "public/icon.png",
@@ -66,6 +69,16 @@
         "target": "nsis",
         "arch": [
           "x64"
+        ]
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "ffmpeg.exe",
+          "ffprobe.exe"
         ]
       }
     ],
