@@ -27,19 +27,6 @@ export default function DetachedVideoPage() {
         if (payload.videoPath) {
           const url = `/api/video?path=${encodeURIComponent(payload.videoPath)}`;
           setVideoUrl(url);
-          
-          try {
-            // Fetch the local video file over HTTP to construct a File object
-            // so that the AudioWaveform component can decode the track locally.
-            const response = await fetch(url);
-            if (response.ok) {
-              const blob = await response.blob();
-              const file = new File([blob], payload.videoName || 'video.mp4', { type: 'video/mp4' });
-              setVideoFile(file);
-            }
-          } catch (err) {
-            console.error('Failed to fetch video file for waveform decoding:', err);
-          }
         }
       } else if (type === 'TAKES_UPDATE' && payload) {
         setTakes(payload.takes || []);

@@ -16,6 +16,7 @@ export interface PlaybackController {
 
 interface AudioWaveformProps {
   videoFile: File | null;
+  videoUrl?: string | null;
   currentTime: number;
   duration: number;
   tempInSeconds?: number | null;
@@ -23,16 +24,19 @@ interface AudioWaveformProps {
   onTempInSecondsChange?: (val: number) => void;
   onTempOutSecondsChange?: (val: number) => void;
   playbackController?: PlaybackController;
+  onSeek?: (time: number) => void;
 }
 
 enum DragTarget {
   None = 'none',
   InMarker = 'in',
   OutMarker = 'out',
+  Playhead = 'playhead',
 }
 
 export const AudioWaveform: React.FC<AudioWaveformProps> = ({
   videoFile,
+  videoUrl,
   currentTime,
   duration,
   tempInSeconds = null,
@@ -40,6 +44,7 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
   onTempInSecondsChange,
   onTempOutSecondsChange,
   playbackController,
+  onSeek,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,22 +91,41 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     };
   }, []);
 
-  // Decode audio track asynchronously
+  // Helper to trigger seeking without handling playback logic internally
+  const performSeek = (time: number) => {
+    if (onSeek) {
+      onSeek(time);
+    } else if (playbackController) {
+      playbackController.seek(time);
+    }
+  };
+
+  // Decode audio track asynchronously from videoFile or videoUrl
   useEffect(() => {
-    if (!videoFile) {
+    if (!videoFile && !videoUrl) {
       setPeaks([]);
       return;
     }
 
-    // Prevent duplicate decoding of same file
-    if (decodingRef.current === videoFile.name) return;
-    decodingRef.current = videoFile.name;
+    const decodeKey = videoFile ? videoFile.name : videoUrl!;
+    if (decodingRef.current === decodeKey) return;
+    decodingRef.current = decodeKey;
 
     setIsLoading(true);
 
     const decode = async () => {
       try {
-        const arrayBuffer = await videoFile.arrayBuffer();
+        let arrayBuffer: ArrayBuffer;
+        if (videoFile) {
+          arrayBuffer = await videoFile.arrayBuffer();
+        } else if (videoUrl) {
+          const response = await fetch(videoUrl);
+          if (!response.ok) throw new Error(`HTTP ${response.status} fetching video for waveform`);
+          arrayBuffer = await response.arrayBuffer();
+        } else {
+          return;
+        }
+
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
         if (!AudioContextClass) {
           throw new Error('Web Audio API not supported.');
@@ -134,13 +158,14 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
         setPeaks(normalized);
       } catch (err) {
         console.error('Waveform decoding failed:', err);
+        decodingRef.current = null;
       } finally {
         setIsLoading(false);
       }
     };
 
     decode();
-  }, [videoFile]);
+  }, [videoFile, videoUrl]);
 
   // Redraw waveform canvas when peaks or currentTime changes
   useEffect(() => {
@@ -205,8 +230,8 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     return ratio * duration;
   };
 
-  // Pointer Event Listeners
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, target: DragTarget) => {
+  // Pointer Event Listeners for IN/OUT markers and waveform background playhead seek
+  const handleMarkerPointerDown = (e: React.PointerEvent<HTMLDivElement>, target: DragTarget) => {
     if (e.button !== 0) return; // Left click only
 
     if (playbackController) {
@@ -218,30 +243,41 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     e.stopPropagation();
   };
 
+  const handleContainerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return; // Left click only
+
+    // If marker drag is active, skip container seeking
+    if (dragRef.current.target !== DragTarget.None) return;
+
+    const clickedTime = xToTime(e.clientX);
+    dragRef.current.target = DragTarget.Playhead;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    performSeek(clickedTime);
+  };
+
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const { target } = dragRef.current;
     if (target === DragTarget.None) return;
 
     e.preventDefault();
-    e.stopPropagation();
 
     const newTime = xToTime(e.clientX);
+
+    if (target === DragTarget.Playhead) {
+      performSeek(newTime);
+      return;
+    }
+
     const MIN_DURATION = 0.2; // Keep at least 200ms gap
 
     if (target === DragTarget.InMarker) {
       const clampedIn = Math.max(0, Math.min(newTime, dragRef.current.currentOut - MIN_DURATION));
       dragRef.current.currentIn = clampedIn;
-      
-      if (playbackController) {
-        playbackController.seek(clampedIn);
-      }
+      performSeek(clampedIn);
     } else if (target === DragTarget.OutMarker) {
       const clampedOut = Math.min(duration, Math.max(newTime, dragRef.current.currentIn + MIN_DURATION));
       dragRef.current.currentOut = clampedOut;
-
-      if (playbackController) {
-        playbackController.seek(clampedOut);
-      }
+      performSeek(clampedOut);
     }
 
     // Schedule style redraw inside animation frame
@@ -254,7 +290,10 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     const { target, currentIn, currentOut } = dragRef.current;
     if (target === DragTarget.None) return;
 
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+
     dragRef.current.target = DragTarget.None;
 
     if (dragRef.current.rafId !== null) {
@@ -297,7 +336,7 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     }
   };
 
-  if (!videoFile) return null;
+  if (!videoFile && !videoUrl) return null;
 
   const initialInPct = tempInSeconds !== null && tempInSeconds !== undefined ? timeToX(tempInSeconds) : 0;
   const initialOutPct = tempOutSeconds !== null && tempOutSeconds !== undefined ? timeToX(tempOutSeconds) : 0;
@@ -314,14 +353,16 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
       </div>
       <div 
         ref={containerRef}
-        className="relative h-14 w-full bg-timeline-bg rounded overflow-hidden touch-none border border-border/20"
+        className="relative h-14 w-full bg-timeline-bg rounded overflow-hidden touch-none border border-border/20 cursor-pointer"
+        onPointerDown={handleContainerPointerDown}
         onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
         <canvas
           ref={canvasRef}
           width={800}
           height={56}
-          className="h-full w-full block"
+          className="h-full w-full block pointer-events-none"
         />
         
         {/* Highlighted region segment */}
@@ -342,7 +383,7 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
             ref={inMarkerRef}
             className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-10 cursor-ew-resize pointer-events-auto"
             style={{ left: `${initialInPct}%` }}
-            onPointerDown={(e) => handlePointerDown(e, DragTarget.InMarker)}
+            onPointerDown={(e) => handleMarkerPointerDown(e, DragTarget.InMarker)}
             onPointerUp={handlePointerUp}
           >
             {/* Grab hitbox wrapper */}
@@ -364,7 +405,7 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
             ref={outMarkerRef}
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 cursor-ew-resize pointer-events-auto"
             style={{ left: `${initialOutPct}%` }}
-            onPointerDown={(e) => handlePointerDown(e, DragTarget.OutMarker)}
+            onPointerDown={(e) => handleMarkerPointerDown(e, DragTarget.OutMarker)}
             onPointerUp={handlePointerUp}
           >
             {/* Grab hitbox wrapper */}

@@ -233,6 +233,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         {videoUrl && (
           <AudioWaveform
             videoFile={videoFile}
+            videoUrl={videoUrl}
             currentTime={currentTime}
             duration={videoDuration}
             tempInSeconds={tempInSeconds}
@@ -240,6 +241,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             onTempInSecondsChange={onTempInSecondsChange}
             onTempOutSecondsChange={onTempOutSecondsChange}
             playbackController={playbackController}
+            onSeek={(time) => {
+              if (videoRef.current) {
+                videoRef.current.currentTime = time;
+              }
+            }}
           />
         )}
 
