@@ -7,8 +7,11 @@ const { fork, spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
-require('tsx/cjs');
-const { RuntimeManager, RuntimeRepository, RuntimeExecutor } = require('./src/runtime');
+
+const runtimePath = fs.existsSync(path.join(__dirname, 'lib', 'runtime', 'index.js'))
+  ? './lib/runtime'
+  : (fs.existsSync(path.join(__dirname, 'src', 'runtime', 'index.js')) ? './src/runtime' : './lib/runtime');
+const { RuntimeManager, RuntimeRepository, RuntimeExecutor } = require(runtimePath);
 const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers');
 const EngineRegistry = require('./engine-registry');
 const LocalEngineManager = require('./local-engine-manager');
