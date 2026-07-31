@@ -2,7 +2,7 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-const masterPngPath = path.join(__dirname, '..', 'build', 'icon-transparent.png');
+const masterPngPath = path.join(__dirname, '..', 'build', 'icon-app.png');
 
 const publicPngPath = path.join(__dirname, '..', 'public', 'icon.png');
 const publicIcoPath = path.join(__dirname, '..', 'public', 'icon.ico');
@@ -13,14 +13,14 @@ const buildIcoPath = path.join(__dirname, '..', 'build', 'icon.ico');
 const buildIcnsPath = path.join(__dirname, '..', 'build', 'icon.icns');
 
 if (!fs.existsSync(masterPngPath)) {
-  console.error('[Icon Helper] Error: Master artwork build/icon-transparent.png not found.');
+  console.error('[Icon Helper] Error: Master artwork build/icon-app.png not found.');
   process.exit(1);
 }
 
 async function generateIcons() {
   try {
     // 1. Generate 512x512 PNG for macOS, Web app & Electron Window
-    console.log('[Icon Helper] Generating 512x512 icon.png from master build/icon-transparent.png...');
+    console.log('[Icon Helper] Generating 512x512 icon.png from master build/icon-app.png...');
     await sharp(masterPngPath)
       .resize(512, 512)
       .png()

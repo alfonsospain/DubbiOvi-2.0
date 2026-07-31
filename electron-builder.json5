@@ -37,7 +37,7 @@
       }
     ],
     "x64ArchFiles": "**/bin/*",
-    "icon": "public/icon.png",
+    "icon": "build/icon.icns",
     "category": "public.app-category.education",
     "fileAssociations": [
       {
@@ -45,7 +45,7 @@
         "name": "DubbiOvi Project",
         "description": "DubbiOvi Project File",
         "role": "Editor",
-        "icon": "public/icon.icns"
+        "icon": "build/icon.icns"
       }
     ]
   },
@@ -85,14 +85,14 @@
         ]
       }
     ],
-    "icon": "public/icon.ico",
+    "icon": "build/icon.ico",
     "fileAssociations": [
       {
         "ext": "dubbiovi",
         "name": "DubbiOvi Project",
         "description": "DubbiOvi Project File",
         "role": "Editor",
-        "icon": "public/icon.ico"
+        "icon": "build/icon.ico"
       }
     ]
   },
