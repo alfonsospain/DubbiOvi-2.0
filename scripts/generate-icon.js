@@ -2,25 +2,49 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-const masterPngPath = path.join(__dirname, '..', 'build', 'icon-app.png');
+const canonicalMasterPath = path.join(__dirname, '..', 'assets', 'icons', 'icon-app.png');
+const fallbackMasterPath = path.join(__dirname, '..', 'build', 'icon-app.png');
 
-const publicPngPath = path.join(__dirname, '..', 'public', 'icon.png');
-const publicIcoPath = path.join(__dirname, '..', 'public', 'icon.ico');
-const publicIcnsPath = path.join(__dirname, '..', 'public', 'icon.icns');
+const publicDir = path.join(__dirname, '..', 'public');
+const buildDir = path.join(__dirname, '..', 'build');
 
-const buildPngPath = path.join(__dirname, '..', 'build', 'icon.png');
-const buildIcoPath = path.join(__dirname, '..', 'build', 'icon.ico');
-const buildIcnsPath = path.join(__dirname, '..', 'build', 'icon.icns');
+const publicPngPath = path.join(publicDir, 'icon.png');
+const publicIcoPath = path.join(publicDir, 'icon.ico');
+const publicIcnsPath = path.join(publicDir, 'icon.icns');
+
+const buildPngPath = path.join(buildDir, 'icon.png');
+const buildIcoPath = path.join(buildDir, 'icon.ico');
+const buildIcnsPath = path.join(buildDir, 'icon.icns');
+const buildMasterPath = path.join(buildDir, 'icon-app.png');
+
+// Ensure destination directories exist
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+if (!fs.existsSync(buildDir)) {
+  fs.mkdirSync(buildDir, { recursive: true });
+}
+
+let masterPngPath = canonicalMasterPath;
 
 if (!fs.existsSync(masterPngPath)) {
-  console.error('[Icon Helper] Error: Master artwork build/icon-app.png not found.');
-  process.exit(1);
+  if (fs.existsSync(fallbackMasterPath)) {
+    masterPngPath = fallbackMasterPath;
+  } else {
+    console.error('[Icon Helper] Error: Canonical master artwork assets/icons/icon-app.png not found.');
+    process.exit(1);
+  }
+}
+
+// Copy master artwork to build/icon-app.png if not already there
+if (masterPngPath !== buildMasterPath) {
+  fs.copyFileSync(masterPngPath, buildMasterPath);
 }
 
 async function generateIcons() {
   try {
     // 1. Generate 512x512 PNG for macOS, Web app & Electron Window
-    console.log('[Icon Helper] Generating 512x512 icon.png from master build/icon-app.png...');
+    console.log('[Icon Helper] Generating 512x512 icon.png from master artwork...');
     await sharp(masterPngPath)
       .resize(512, 512)
       .png()

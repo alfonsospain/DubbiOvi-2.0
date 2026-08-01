@@ -21,22 +21,21 @@ async function runOfficialIconPipelineTests() {
   }
 
   const rootDir = path.resolve(__dirname, '..');
-  const masterAppIcon = path.join(rootDir, 'build', 'icon-app.png');
-  const transparentIcon = path.join(rootDir, 'build', 'icon-transparent.png');
+  const canonicalMasterIcon = path.join(rootDir, 'assets', 'icons', 'icon-app.png');
+  const canonicalTransparentIcon = path.join(rootDir, 'assets', 'icons', 'icon-transparent.png');
 
-  // Test 1: Canonical master asset existence
-  console.log('[Test 1] Verifying canonical master icon asset...');
-  assert(fs.existsSync(masterAppIcon), 'Canonical master build/icon-app.png exists');
-  const appIconStat = fs.statSync(masterAppIcon);
-  assert(appIconStat.size > 500000, `build/icon-app.png is high-resolution non-transparent PNG (${appIconStat.size} bytes)`);
-  assert(fs.existsSync(transparentIcon), 'build/icon-transparent.png remains in repo for website/doc branding');
+  // Test 1: Canonical master asset existence in assets/icons/
+  console.log('[Test 1] Verifying canonical master icon asset in assets/icons/...');
+  assert(fs.existsSync(canonicalMasterIcon), 'Canonical master assets/icons/icon-app.png exists');
+  const appIconStat = fs.statSync(canonicalMasterIcon);
+  assert(appIconStat.size > 500000, `assets/icons/icon-app.png is high-resolution master PNG (${appIconStat.size} bytes)`);
+  assert(fs.existsSync(canonicalTransparentIcon), 'assets/icons/icon-transparent.png exists in repo for branding');
 
   // Test 2: Generate-icon script configuration
   console.log('\n[Test 2] Verifying scripts/generate-icon.js source target...');
   const scriptPath = path.join(rootDir, 'scripts', 'generate-icon.js');
   const scriptContent = fs.readFileSync(scriptPath, 'utf8');
-  assert(scriptContent.includes("build/icon-app.png") || scriptContent.includes("icon-app.png"), 'scripts/generate-icon.js uses build/icon-app.png as master artwork source');
-  assert(!scriptContent.includes("const masterPngPath = path.join(__dirname, '..', 'build', 'icon-transparent.png');"), 'scripts/generate-icon.js no longer uses build/icon-transparent.png as master source');
+  assert(scriptContent.includes("assets/icons/icon-app.png") || scriptContent.includes("icon-app.png"), 'scripts/generate-icon.js uses icon-app.png as master artwork source');
 
   // Test 3: Icon Generation Execution
   console.log('\n[Test 3] Executing npm run generate-icon...');
@@ -53,6 +52,7 @@ async function runOfficialIconPipelineTests() {
     path.join(rootDir, 'public', 'icon.png'),
     path.join(rootDir, 'public', 'icon.ico'),
     path.join(rootDir, 'public', 'icon.icns'),
+    path.join(rootDir, 'build', 'icon-app.png'),
     path.join(rootDir, 'build', 'icon.png'),
     path.join(rootDir, 'build', 'icon.ico'),
     path.join(rootDir, 'build', 'icon.icns'),
