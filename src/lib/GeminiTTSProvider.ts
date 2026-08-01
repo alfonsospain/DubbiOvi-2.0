@@ -176,7 +176,23 @@ export class GeminiTTSProvider implements VoiceProvider {
       voiceToUse = VALID_GEMINI_VOICES.has(storedVoice.toLowerCase()) ? storedVoice : DEFAULT_GEMINI_VOICE;
     }
 
-    const modelToUse = request.modelName && request.modelName.includes('gemini') ? request.modelName : 'gemini-2.5-flash-preview-tts';
+    const DEFAULT_GEMINI_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+    const VALID_GEMINI_TTS_MODELS = new Set([
+      'gemini-2.5-flash-preview-tts',
+      'gemini-2.5-pro-preview-tts',
+      'gemini-3.1-flash-tts-preview',
+    ]);
+
+    const rawModel = (request.modelName || activeModelSetting || '').trim();
+    let modelToUse = DEFAULT_GEMINI_TTS_MODEL;
+
+    if (rawModel && VALID_GEMINI_TTS_MODELS.has(rawModel)) {
+      modelToUse = rawModel;
+    } else if (rawModel) {
+      console.warn(
+        `[GeminiTTSProvider] Invalid or unrecognized Gemini TTS model '${rawModel}' ignored. Falling back to default: '${DEFAULT_GEMINI_TTS_MODEL}'.`
+      );
+    }
 
     const payload = {
       contents: [

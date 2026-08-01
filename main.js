@@ -742,9 +742,17 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
   const tempWavPath = path.join(app.getPath('temp'), `whisper_${tempId}.wav`);
   const tempJsonPath = `${tempWavPath}.json`;
 
-  const cleanup = () => {
+  const cleanup = (isError = false) => {
     try {
-      if (fs.existsSync(tempWavPath)) fs.unlinkSync(tempWavPath);
+      if (fs.existsSync(tempWavPath)) {
+        if (isError) {
+          const preservedPath = path.join('/tmp', `dubbiovi_failed_whisper_${tempId}.wav`);
+          fs.copyFileSync(tempWavPath, preservedPath);
+          logDiag(`[WhisperLocal] PRESERVED_FAILED_WAV: ${preservedPath}`);
+          console.error(`[WhisperLocal] PRESERVED_FAILED_WAV: ${preservedPath}`);
+        }
+        fs.unlinkSync(tempWavPath);
+      }
       if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
     } catch (err) {
       logDiag(`[WhisperLocal] Cleanup error: ${err.message}`);
@@ -815,7 +823,7 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
       });
 
       child.on('error', (err) => {
-        cleanup();
+        cleanup(true);
         logDiag(`[WhisperLocal] Process spawn error: ${err.message}`);
         reject(new Error(`Failed to execute whisper-cli binary: ${err.message}`));
       });
@@ -826,7 +834,7 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
         logDiag(`[WhisperLocal] Full stderr:\n${stderrOutput || '(empty)'}`);
 
         if (code !== 0 || signal !== null) {
-          cleanup();
+          cleanup(true);
           const signalInfo = signal ? ` (signal: ${signal})` : '';
           reject(new Error(`whisper-cli exited with code ${code}${signalInfo}. Stderr details: ${stderrOutput}`));
           return;
@@ -838,16 +846,16 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
           }
           const rawData = fs.readFileSync(tempJsonPath, 'utf8');
           const jsonData = JSON.parse(rawData);
-          cleanup();
+          cleanup(false);
           resolve(jsonData);
         } catch (err) {
-          cleanup();
+          cleanup(true);
           reject(err);
         }
       });
     });
   } catch (error) {
-    cleanup();
+    cleanup(true);
     logDiag(`[WhisperLocal] Error in run-whisper-local handler: ${error.message}`);
     throw error;
   }
