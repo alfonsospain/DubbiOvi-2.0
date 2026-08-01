@@ -780,8 +780,17 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
       throw new Error(`Whisper model file not found at: ${resolvedModelPath}. Please download 'ggml-tiny.bin' and place it in the 'models/whisper/' folder.`);
     }
 
-    const osVersionStr = typeof os.version === 'function' ? os.version() : os.type();
     const args = ['-m', resolvedModelPath, '-f', tempWavPath, '-oj'];
+
+    // Intel Macs (macOS x64) experience SIGSEGV crashes when whisper.cpp initializes Metal GPU acceleration
+    // on older Intel integrated/discrete GPUs. Therefore, force CPU-only execution on Intel macOS by passing '-ng' (--no-gpu).
+    // Apple Silicon (darwin arm64), Windows, and Linux remain unaffected with GPU acceleration enabled.
+    const isIntelMac = process.platform === 'darwin' && process.arch !== 'arm64';
+    if (isIntelMac) {
+      args.push('-ng');
+    }
+
+    const osVersionStr = typeof os.version === 'function' ? os.version() : os.type();
     const fullCommandLine = `${cliPath} ${args.map(a => (a.includes(' ') ? `"${a}"` : a)).join(' ')}`;
 
     logDiag(`[WhisperLocal] Environment: platform=${process.platform}, arch=${process.arch}, macOS/OS Version=${osVersionStr} (Kernel: ${os.release()})`);
