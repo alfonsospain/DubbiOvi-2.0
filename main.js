@@ -782,12 +782,13 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
 
     const args = ['-m', resolvedModelPath, '-f', tempWavPath, '-oj'];
 
-    // Intel Macs (macOS x64) experience SIGSEGV crashes when whisper.cpp initializes Metal GPU acceleration
-    // on older Intel integrated/discrete GPUs. Therefore, force CPU-only execution on Intel macOS by passing '-ng' (--no-gpu).
-    // Apple Silicon (darwin arm64), Windows, and Linux remain unaffected with GPU acceleration enabled.
-    const isIntelMac = process.platform === 'darwin' && process.arch !== 'arm64';
+    // Older Intel Macs may experience SIGSEGV crashes during whisper.cpp inference.
+    // Use the most conservative execution configuration for Intel macOS by disabling
+    // GPU acceleration and Flash Attention. Apple Silicon, Windows, and Linux remain unchanged.
+    const isIntelMac = process.platform === 'darwin' && process.arch === 'x64';
+
     if (isIntelMac) {
-      args.push('-ng');
+      args.push('-ng', '-nfa');
     }
 
     const osVersionStr = typeof os.version === 'function' ? os.version() : os.type();
