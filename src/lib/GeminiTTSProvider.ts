@@ -212,24 +212,26 @@ export class GeminiTTSProvider implements VoiceProvider {
       },
     };
 
+    const requestUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`;
+    const loggedUrl = requestUrl.split('?')[0];
+    console.log(`[GeminiTTSProvider] Requesting URL: ${loggedUrl}`);
+
     let response: Response;
     try {
-      response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
     } catch (fetchErr: any) {
       throw new Error(`Gemini API Connection Error: ${fetchErr.message || String(fetchErr)}`);
     }
 
     if (!response.ok) {
       const rawText = await response.text();
+      console.error(`[GeminiTTSProvider] Complete HTTP Response Body (HTTP ${response.status}):\n${rawText}`);
       let errDetail = `HTTP ${response.status} ${response.statusText}`;
       try {
         const errJson = JSON.parse(rawText);
