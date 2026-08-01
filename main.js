@@ -8,6 +8,7 @@ const path = require('path');
 const http = require('http');
 const fs = require('fs');
 const net = require('net');
+const os = require('os');
 
 const runtimePath = fs.existsSync(path.join(__dirname, 'lib', 'runtime', 'index.js'))
   ? './lib/runtime'
@@ -754,17 +755,21 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
     fs.writeFileSync(tempWavPath, Buffer.from(audioBuffer));
 
     let cliPath = null;
+    let detectedRuntimeVersion = 'unknown';
     if (runtimeManager) {
       const runtimeInfo = runtimeManager.getRuntime('whisper', '1.9.1');
       if (runtimeInfo && runtimeInfo.executablePath && fs.existsSync(runtimeInfo.executablePath)) {
         cliPath = runtimeInfo.executablePath;
+        detectedRuntimeVersion = runtimeInfo.version || '1.9.1';
       }
     }
     if (!cliPath && localEngineManager) {
       cliPath = localEngineManager.locateExecutable('whisper');
+      if (cliPath) detectedRuntimeVersion = 'legacy-local-engine';
     }
     if (!cliPath) {
       cliPath = WhisperBinaryLocator.locate(app);
+      if (cliPath) detectedRuntimeVersion = 'fallback-binary-locator';
     }
 
     const resolvedModelPath = localEngineManager
@@ -775,14 +780,25 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
       throw new Error(`Whisper model file not found at: ${resolvedModelPath}. Please download 'ggml-tiny.bin' and place it in the 'models/whisper/' folder.`);
     }
 
+    const osVersionStr = typeof os.version === 'function' ? os.version() : os.type();
+    const args = ['-m', resolvedModelPath, '-f', tempWavPath, '-oj'];
+    const fullCommandLine = `${cliPath} ${args.map(a => (a.includes(' ') ? `"${a}"` : a)).join(' ')}`;
+
+    logDiag(`[WhisperLocal] Environment: platform=${process.platform}, arch=${process.arch}, macOS/OS Version=${osVersionStr} (Kernel: ${os.release()})`);
+    logDiag(`[WhisperLocal] Detected Whisper runtime version: ${detectedRuntimeVersion}`);
+    logDiag(`[WhisperLocal] Command line: ${fullCommandLine}`);
     logDiag(`[WhisperLocal] Spawning CLI: ${cliPath}`);
     logDiag(`[WhisperLocal] Model path: ${resolvedModelPath}`);
     logDiag(`[WhisperLocal] Input audio: ${tempWavPath}`);
 
     return await new Promise((resolve, reject) => {
-      const args = ['-m', resolvedModelPath, '-f', tempWavPath, '-oj'];
       const child = spawn(cliPath, args);
+      let stdoutOutput = '';
       let stderrOutput = '';
+
+      child.stdout.on('data', (data) => {
+        stdoutOutput += data.toString();
+      });
 
       child.stderr.on('data', (data) => {
         stderrOutput += data.toString();
@@ -790,13 +806,19 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
 
       child.on('error', (err) => {
         cleanup();
+        logDiag(`[WhisperLocal] Process spawn error: ${err.message}`);
         reject(new Error(`Failed to execute whisper-cli binary: ${err.message}`));
       });
 
-      child.on('close', (code) => {
-        if (code !== 0) {
+      child.on('close', (code, signal) => {
+        logDiag(`[WhisperLocal] Process exited with exitCode: ${code}, signal: ${signal}`);
+        logDiag(`[WhisperLocal] Full stdout:\n${stdoutOutput || '(empty)'}`);
+        logDiag(`[WhisperLocal] Full stderr:\n${stderrOutput || '(empty)'}`);
+
+        if (code !== 0 || signal !== null) {
           cleanup();
-          reject(new Error(`whisper-cli exited with code ${code}. Stderr details: ${stderrOutput}`));
+          const signalInfo = signal ? ` (signal: ${signal})` : '';
+          reject(new Error(`whisper-cli exited with code ${code}${signalInfo}. Stderr details: ${stderrOutput}`));
           return;
         }
 
