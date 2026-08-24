@@ -1,0 +1,208 @@
+# THIRD-PARTY SOFTWARE LICENSES AND NOTICES
+
+DubbiOvi includes or redistributes third-party software components. These components remain subject to their respective licenses and copyright notices. The license applicable to DubbiOvi itself does not replace or modify the licenses of these third-party components.
+
+---
+
+## 1. Bundled Runtimes and Executables
+
+### FFmpeg and FFprobe
+- **Component**: FFmpeg / FFprobe multimedia framework
+- **Version**: 8.1.2
+- **Distribution Mode**: Executed as independent standalone processes via Node.js `child_process.spawn`. No static or dynamic library linking into DubbiOvi codebase.
+- **Binaries**:
+  - macOS: FFmpeg 8.1.2-tessus from Evermeet (`bin/ffmpeg`, `bin/ffprobe`)
+  - Windows: FFmpeg 8.1.2 Essentials Build from gyan.dev (`bin/ffmpeg.exe`, `bin/ffprobe.exe`)
+- **License**: GNU General Public License version 3 or later (GPL-3.0-or-later)
+- **Upstream Project**: https://ffmpeg.org / https://evermeet.cx/ffmpeg / https://www.gyan.dev/ffmpeg/
+- **Copyright**: Copyright (c) 2000-2025 the FFmpeg developers
+
+#### GNU GENERAL PUBLIC LICENSE Version 3 (GPL-3.0)
+```
+GNU GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
+
+Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
+
+Preamble
+
+The GNU General Public License is a free, copyleft license for
+software and other kinds of works.
+
+[Full GNU GPL v3 text applicable to FFmpeg binaries...]
+```
+*Note on GPL Source Availability*: See Section 6 below.
+
+---
+
+### Piper Neural TTS Engine
+- **Component**: Piper Neural Text-to-Speech Engine
+- **Version**: 1.6.0 (`piper1-gpl`)
+- **Distribution Mode**: Downloaded runtime package executed as an independent standalone binary process (`piper`).
+- **License**: GNU General Public License version 3 or later (GPL-3.0-or-later)
+- **Upstream Project**: https://github.com/OHF-voice/piper1-gpl
+- **Copyright**: Copyright (c) 2023-2024 OHF-Voice / Michael Hansen
+- **Package Details**: Runtime package includes `piper_tts-1.6.0.dist-info` and `COPYING` file (GPL-3.0).
+
+---
+
+### Whisper.cpp Engine
+- **Component**: Whisper.cpp C++ Speech Recognition Engine
+- **Version**: 1.9.1
+- **Distribution Mode**: Downloaded runtime package executed as an independent standalone process (`whisper-cli`).
+- **License**: MIT License
+- **Upstream Project**: https://github.com/ggerganov/whisper.cpp
+- **Copyright**: Copyright (c) 2023-2024 Georgi Gerganov
+
+#### MIT License Text (Whisper.cpp)
+```
+MIT License
+
+Copyright (c) 2023-2024 Georgi Gerganov
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## 2. Core Frameworks and Application Shell
+
+### Electron Shell
+- **Component**: Electron Desktop Application Shell
+- **Version**: 31.7.7
+- **License**: MIT License
+- **Upstream Project**: https://github.com/electron/electron
+- **Copyright**: Copyright (c) Electron contributors / Copyright (c) GitHub Inc.
+
+### Next.js
+- **Component**: Next.js Web Framework
+- **Version**: 15.3.8
+- **License**: MIT License
+- **Upstream Project**: https://github.com/vercel/next.js
+- **Copyright**: Copyright (c) 2024 Vercel, Inc.
+
+### React / React DOM
+- **Component**: React UI Library / React DOM
+- **Version**: 18.3.1
+- **License**: MIT License
+- **Upstream Project**: https://github.com/facebook/react
+- **Copyright**: Copyright (c) Meta Platforms, Inc. and affiliates.
+
+---
+
+## 3. NPM Production Dependencies Summary
+
+DubbiOvi utilizes open-source Node.js npm packages for its production runtime. A complete, machine-readable inventory of all npm package versions, repository links, and exact SPDX license identifiers is maintained at:
+- `docs/licenses/npm-licenses.json`
+- `docs/licenses/npm-licenses.csv`
+
+### Direct Production Dependencies Summary
+- **@genkit-ai/google-genai** (v1.20.0): Apache-2.0 — Copyright Google LLC
+- **@genkit-ai/next** (v1.20.0): Apache-2.0 — Copyright Google LLC
+- **@hookform/resolvers** (v4.1.3): MIT — Copyright (c) Bezael Perez
+- **@radix-ui/react-*** (18 UI primitive modules v1.x/v2.x): MIT — Copyright (c) WorkOS
+- **class-variance-authority** (v0.7.1): Apache-2.0 — Copyright (c) Joe Bell
+- **clsx** (v2.1.1): MIT — Copyright (c) Luke Edwards
+- **date-fns** (v3.6.0): MIT — Copyright (c) 2021 Sasha Koss
+- **docx** (v9.7.1): MIT — Copyright (c) Dolan Miu
+- **dotenv** (v16.5.0): BSD-2-Clause — Copyright (c) 2015 Motdotla
+- **embla-carousel-react** (v8.6.0): MIT — Copyright (c) Patric Kalén
+- **genkit** (v1.20.0): Apache-2.0 — Copyright Google LLC
+- **lucide-react** (v0.475.0): ISC — Copyright (c) Lucide Contributors
+- **mammoth** (v1.8.0): BSD-2-Clause — Copyright (c) 2013-2024 Michael Williamson
+- **next** (v15.3.8): MIT — Copyright (c) 2024 Vercel, Inc.
+- **patch-package** (v8.0.0): MIT — Copyright (c) 2017 David Sheldrick
+- **react** / **react-dom** (v18.3.1): MIT — Copyright (c) Meta Platforms, Inc.
+- **react-day-picker** (v8.10.1): MIT — Copyright (c) Giampaolo Bellavite
+- **react-hook-form** (v7.54.2): MIT — Copyright (c) Bezael Perez
+- **react-resizable-panels** (v2.0.22): MIT — Copyright (c) Brian Vaughn
+- **recharts** (v2.15.1): MIT — Copyright (c) Recharts Group
+- **tailwind-merge** (v3.0.1): MIT — Copyright (c) Dany Shaanan
+- **tailwindcss-animate** (v1.0.7): MIT — Copyright (c) Brandon McConnell
+- **uuid** (v10.0.0): MIT — Copyright (c) 2010-2020 Robert Kieffer
+- **xlsx** (v0.18.5): Apache-2.0 — Copyright (c) 2012-present SheetJS LLC
+- **zod** (v3.24.2): MIT — Copyright (c) Colin McDonnell
+
+### Dual-Licensed Dependency Disclaimers
+For packages offered under dual open-source licenses, DubbiOvi relies on the following permissive licensing terms:
+- **jszip**: Dual-licensed `MIT OR GPL-3.0-or-later`. Relied upon under **MIT**.
+- **node-forge**: Dual-licensed `BSD-3-Clause OR GPL-2.0`. Relied upon under **BSD-3-Clause**.
+- **json-schema**: Dual-licensed `AFL-2.1 OR BSD-3-Clause`. Relied upon under **BSD-3-Clause**.
+
+### Build-Time / Development Exclusions
+- **sharp / @img/sharp-libvips-darwin-arm64** (`LGPL-3.0-or-later`): Used strictly during build-time icon generation (`scripts/generate-icon.js`) and explicitly excluded from packaged application binaries via `electron-builder.json5`. Not distributed to end-users.
+- **caniuse-lite** (`CC-BY-4.0`): Transitive build dependency of Next.js CSS compilation.
+
+---
+
+## 4. AI Model Licensing and Asset Notices
+
+AI model weights and Voice assets are distributed and downloaded separately from software runtimes.
+
+### Whisper ASR Models (`ggml-tiny.bin`, `ggml-base.bin`, etc.)
+- **Software/Weight License**: MIT License
+- **Original Weights Creator**: OpenAI (https://github.com/openai/whisper)
+- **Converted Model Repository**: ggerganov/whisper.cpp (HuggingFace)
+- **Copyright**: Copyright (c) 2022 OpenAI
+
+```
+MIT License
+
+Copyright (c) 2022 OpenAI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+```
+
+### Piper Voice Models (`*.onnx` and `*.onnx.json`)
+- **License Status**: Voice-specific dataset license (independent from Piper software engine).
+- **Upstream Repository**: rhasspy/piper-voices (HuggingFace)
+- **Model Licensing Terms**:
+  - Individual ONNX voice models are trained on distinct speech corpora with varying dataset licenses (e.g., CC0-1.0, CC-BY-4.0, Open Data).
+  - Each voice model download includes its accompanying `.onnx.json` descriptor file containing creator and dataset attribution metadata.
+  - Users downloading optional voice models are presented with model-specific license and attribution information within the DubbiOvi model downloader dialog.
+
+---
+
+## 5. External APIs and Cloud Services
+
+DubbiOvi supports optional integrations with cloud AI providers (e.g., Google Gemini API via `@genkit-ai/google-genai`) and local server instances (e.g., Ollama LLM server).
+- Access to external cloud APIs occurs solely through standard HTTP/REST network requests.
+- No proprietary cloud server software, API backend code, or external service infrastructure is bundled or redistributed by DubbiOvi.
+
+---
+
+## 6. GPL Source Availability Notice [PENDING PRE-RELEASE ACTION]
+
+> [!IMPORTANT]
+> **Status: PENDING PRE-RELEASE COMPLIANCE ACTION**
+> DubbiOvi redistributes pre-compiled binary executables of **FFmpeg** and **Piper TTS** licensed under the GNU General Public License version 3 (GPL-3.0-or-later).
+>
+> Because these executables are spawned as separate processes via Node.js `child_process.spawn` and are not statically or dynamically linked into DubbiOvi's application code, DubbiOvi itself remains a separate work.
+>
+> The exact GPL-3.0 Section 6 source-availability distribution mechanism (such as hosting corresponding source archives alongside release binaries under Section 6d) will be finalized and implemented prior to the stable public release. No formal written offer or source distribution is established at this pre-release stage.

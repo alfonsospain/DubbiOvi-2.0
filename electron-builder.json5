@@ -12,6 +12,8 @@
     "lib/**/*",
     ".next/standalone/**/*",
     "package.json",
+    "THIRD-PARTY-LICENSES",
+    "docs/licenses/**/*",
     "!node_modules/@img/**/*",
     "!node_modules/sharp/**/*",
     "!node_modules/@next/swc-darwin-arm64/**/*",
