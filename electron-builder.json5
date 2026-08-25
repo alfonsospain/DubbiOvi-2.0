@@ -13,6 +13,7 @@
     ".next/standalone/**/*",
     "package.json",
     "THIRD-PARTY-LICENSES",
+    "licenses/**/*",
     "docs/licenses/**/*",
     "!node_modules/@img/**/*",
     "!node_modules/sharp/**/*",

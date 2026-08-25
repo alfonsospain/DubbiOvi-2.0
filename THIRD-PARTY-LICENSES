@@ -2,65 +2,62 @@
 
 DubbiOvi includes or redistributes third-party software components. These components remain subject to their respective licenses and copyright notices. The license applicable to DubbiOvi itself does not replace or modify the licenses of these third-party components.
 
+Verbatim full license text files corresponding to distributed third-party software components are preserved in the root [`licenses/`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/) directory of this application distribution.
+
 ---
 
 ## 1. Bundled Runtimes and Executables
 
 ### FFmpeg and FFprobe
-- **Component**: FFmpeg / FFprobe multimedia framework
+- **Component**: FFmpeg / FFprobe multimedia processing framework
 - **Version**: 8.1.2
-- **Distribution Mode**: Executed as independent standalone processes via Node.js `child_process.spawn`. No static or dynamic library linking into DubbiOvi codebase.
-- **Binaries**:
+- **License**: GNU General Public License version 3 or later (GPL-3.0-or-later)
+- **License Text Reference**: [`licenses/GPL-3.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/GPL-3.0.txt)
+- **Distribution Mode**: Shipped inside Electron application `extraResources` (`bin/ffmpeg`, `bin/ffprobe` on macOS; `bin/ffmpeg.exe`, `bin/ffprobe.exe` on Windows). Executed as independent standalone processes via Node.js `child_process.spawn`. No static or dynamic library linking into DubbiOvi application code.
+- **Binaries Provenance**:
   - macOS: FFmpeg 8.1.2-tessus from Evermeet (`bin/ffmpeg`, `bin/ffprobe`)
   - Windows: FFmpeg 8.1.2 Essentials Build from gyan.dev (`bin/ffmpeg.exe`, `bin/ffprobe.exe`)
-- **License**: GNU General Public License version 3 or later (GPL-3.0-or-later)
 - **Upstream Project**: https://ffmpeg.org / https://evermeet.cx/ffmpeg / https://www.gyan.dev/ffmpeg/
 - **Copyright**: Copyright (c) 2000-2025 the FFmpeg developers
+- **Codec Patent Notice**: Independent of software licensing, processing certain audio/video codecs (e.g. H.264/AVC, H.265/HEVC) may be subject to third-party patent portfolios (e.g., Via Licensing Alliance). Compliance with open-source software licenses does not grant patent indemnification for commercial codec usage.
 
-#### GNU GENERAL PUBLIC LICENSE Version 3 (GPL-3.0)
-```
-GNU GENERAL PUBLIC LICENSE
-Version 3, 29 June 2007
-
-Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
-Everyone is permitted to copy and distribute verbatim copies
-of this license document, but changing it is not allowed.
-
-Preamble
-
-The GNU General Public License is a free, copyleft license for
-software and other kinds of works.
-
-[Full GNU GPL v3 text applicable to FFmpeg binaries...]
-```
-*Note on GPL Source Availability*: See Section 6 below.
+> [!IMPORTANT]
+> **Status: REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION**
+> DubbiOvi redistributes pre-compiled binary executables of **FFmpeg** licensed under GPL-3.0-or-later.
+> While these executables operate as isolated external processes spawned via Node.js `child_process.spawn`, the exact GPL-3.0 Section 6 Corresponding Source delivery and build-reproducibility mechanism (such as hosting source archives matching release binaries under Section 6d) remains a pending pre-release compliance action that will be finalized prior to public distribution.
 
 ---
 
 ### Piper Neural TTS Engine
-- **Component**: Piper Neural Text-to-Speech Engine
-- **Version**: 1.6.0 (`piper1-gpl`)
-- **Distribution Mode**: Downloaded runtime package executed as an independent standalone binary process (`piper`).
+- **Component**: Piper Neural Text-to-Speech Engine (`piper1-gpl`)
+- **Version**: 1.6.0
 - **License**: GNU General Public License version 3 or later (GPL-3.0-or-later)
+- **License Text Reference**: [`licenses/GPL-3.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/GPL-3.0.txt)
+- **Distribution Mode**: On-demand downloaded runtime package executed as an independent standalone binary process (`piper`) via `child_process.spawn`. No C++ or Python code imports, bindings, or shared library linking.
 - **Upstream Project**: https://github.com/OHF-voice/piper1-gpl
 - **Copyright**: Copyright (c) 2023-2024 OHF-Voice / Michael Hansen
-- **Package Details**: Runtime package includes `piper_tts-1.6.0.dist-info` and `COPYING` file (GPL-3.0).
+- **Runtime Package Details**: Downloaded archive contains `piper` binary executable, `piper_tts-1.6.0.dist-info`, and `COPYING` file (GPL-3.0).
+
+> [!IMPORTANT]
+> **Status: REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION**
+> DubbiOvi provides automated download capabilities for the **Piper Neural TTS** engine runtime licensed under GPL-3.0-or-later.
+> The exact GPL-3.0 Section 6 Corresponding Source distribution mechanism for pre-built Piper release archives remains classified as a pending pre-release action.
 
 ---
 
 ### Whisper.cpp Engine
 - **Component**: Whisper.cpp C++ Speech Recognition Engine
 - **Version**: 1.9.1
-- **Distribution Mode**: Downloaded runtime package executed as an independent standalone process (`whisper-cli`).
 - **License**: MIT License
-- **Upstream Project**: https://github.com/ggerganov/whisper.cpp
-- **Copyright**: Copyright (c) 2023-2024 Georgi Gerganov
+- **License Text Reference**: [`licenses/MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt)
+- **Distribution Mode**: On-demand downloaded runtime package executed as an independent standalone binary process (`whisper-cli`) via Node.js `child_process.spawn`. Not statically or dynamically embedded into DubbiOvi source code.
+- **Upstream Project**: https://github.com/ggml-org/whisper.cpp
+- **Copyright**: Copyright (c) 2023-2026 Georgi Gerganov / The ggml authors
+- **Scope Notice**: DubbiOvi utilizes only the core C++ whisper execution CLI binary (`whisper-cli`). The optional example file `examples/ffmpeg-transcode.cpp` (licensed under GPL-2.0 in the upstream repository) is neither compiled, included, nor distributed.
 
-#### MIT License Text (Whisper.cpp)
+#### MIT License Notice (Whisper.cpp)
 ```
-MIT License
-
-Copyright (c) 2023-2024 Georgi Gerganov
+Copyright (c) 2023-2026 Georgi Gerganov / The ggml authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -71,14 +68,6 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 ```
 
 ---
@@ -86,70 +75,77 @@ SOFTWARE.
 ## 2. Core Frameworks and Application Shell
 
 ### Electron Shell
-- **Component**: Electron Desktop Application Shell
+- **Component**: Electron Desktop Application Shell Framework
 - **Version**: 31.7.7
 - **License**: MIT License
+- **License Text Reference**: [`licenses/MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt)
 - **Upstream Project**: https://github.com/electron/electron
-- **Copyright**: Copyright (c) Electron contributors / Copyright (c) GitHub Inc.
+- **Copyright**: Copyright (c) Electron contributors / Copyright (c) 2013-2020 GitHub Inc.
 
 ### Next.js
-- **Component**: Next.js Web Framework
+- **Component**: Next.js Web Framework (compiled to `.next/standalone`)
 - **Version**: 15.3.8
 - **License**: MIT License
+- **License Text Reference**: [`licenses/MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt)
 - **Upstream Project**: https://github.com/vercel/next.js
 - **Copyright**: Copyright (c) 2024 Vercel, Inc.
 
 ### React / React DOM
-- **Component**: React UI Library / React DOM
+- **Component**: React UI Rendering Engine / React DOM
 - **Version**: 18.3.1
 - **License**: MIT License
+- **License Text Reference**: [`licenses/MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt)
 - **Upstream Project**: https://github.com/facebook/react
 - **Copyright**: Copyright (c) Meta Platforms, Inc. and affiliates.
 
 ---
 
-## 3. NPM Production Dependencies Summary
+## 3. NPM Production Dependencies Compliance Inventory
 
-DubbiOvi utilizes open-source Node.js npm packages for its production runtime. A complete, machine-readable inventory of all npm package versions, repository links, and exact SPDX license identifiers is maintained at:
-- `docs/licenses/npm-licenses.json`
-- `docs/licenses/npm-licenses.csv`
+DubbiOvi utilizes direct and transitive open-source Node.js npm packages for its production runtime. The vast majority are distributed under permissive open-source licenses, principally MIT, Apache-2.0, ISC, and BSD-2-Clause / BSD-3-Clause. Full machine-readable inventories containing complete dependency trees, exact SPDX license identifiers, repository links, and resolved package metadata are maintained at:
+- [`docs/licenses/npm-licenses.json`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/docs/licenses/npm-licenses.json)
+- [`docs/licenses/npm-licenses.csv`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/docs/licenses/npm-licenses.csv)
 
-### Direct Production Dependencies Summary
-- **@genkit-ai/google-genai** (v1.20.0): Apache-2.0 — Copyright Google LLC
-- **@genkit-ai/next** (v1.20.0): Apache-2.0 — Copyright Google LLC
-- **@hookform/resolvers** (v4.1.3): MIT — Copyright (c) Bezael Perez
-- **@radix-ui/react-*** (18 UI primitive modules v1.x/v2.x): MIT — Copyright (c) WorkOS
-- **class-variance-authority** (v0.7.1): Apache-2.0 — Copyright (c) Joe Bell
-- **clsx** (v2.1.1): MIT — Copyright (c) Luke Edwards
-- **date-fns** (v3.6.0): MIT — Copyright (c) 2021 Sasha Koss
-- **docx** (v9.7.1): MIT — Copyright (c) Dolan Miu
-- **dotenv** (v16.5.0): BSD-2-Clause — Copyright (c) 2015 Motdotla
-- **embla-carousel-react** (v8.6.0): MIT — Copyright (c) Patric Kalén
-- **genkit** (v1.20.0): Apache-2.0 — Copyright Google LLC
-- **lucide-react** (v0.475.0): ISC — Copyright (c) Lucide Contributors
-- **mammoth** (v1.8.0): BSD-2-Clause — Copyright (c) 2013-2024 Michael Williamson
-- **next** (v15.3.8): MIT — Copyright (c) 2024 Vercel, Inc.
-- **patch-package** (v8.0.0): MIT — Copyright (c) 2017 David Sheldrick
-- **react** / **react-dom** (v18.3.1): MIT — Copyright (c) Meta Platforms, Inc.
-- **react-day-picker** (v8.10.1): MIT — Copyright (c) Giampaolo Bellavite
-- **react-hook-form** (v7.54.2): MIT — Copyright (c) Bezael Perez
-- **react-resizable-panels** (v2.0.22): MIT — Copyright (c) Brian Vaughn
-- **recharts** (v2.15.1): MIT — Copyright (c) Recharts Group
-- **tailwind-merge** (v3.0.1): MIT — Copyright (c) Dany Shaanan
-- **tailwindcss-animate** (v1.0.7): MIT — Copyright (c) Brandon McConnell
-- **uuid** (v10.0.0): MIT — Copyright (c) 2010-2020 Robert Kieffer
-- **xlsx** (v0.18.5): Apache-2.0 — Copyright (c) 2012-present SheetJS LLC
-- **zod** (v3.24.2): MIT — Copyright (c) Colin McDonnell
+### Itemized Direct Production Dependencies Summary
+
+| Package | Version | License | License File | Copyright / Publisher Notice | Source / Repository |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **@genkit-ai/google-genai** | 1.20.0 | Apache-2.0 | [`APACHE-2.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/APACHE-2.0.txt) | Copyright Google LLC | https://github.com/firebase/genkit |
+| **@genkit-ai/next** | 1.20.0 | Apache-2.0 | [`APACHE-2.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/APACHE-2.0.txt) | Copyright Google LLC | https://github.com/firebase/genkit |
+| **@hookform/resolvers** | 4.1.3 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Bezael Perez | https://github.com/react-hook-form/resolvers |
+| **@radix-ui/react-*** (18 primitives) | 1.1.x – 2.1.x | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) WorkOS / Radix UI | https://github.com/radix-ui/primitives |
+| **class-variance-authority** | 0.7.1 | Apache-2.0 | [`APACHE-2.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/APACHE-2.0.txt) | Copyright (c) Joe Bell | https://github.com/joe-bell/cva |
+| **clsx** | 2.1.1 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Luke Edwards | https://github.com/lukeed/clsx |
+| **date-fns** | 3.6.0 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) 2021 Sasha Koss | https://github.com/date-fns/date-fns |
+| **docx** | 9.7.1 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Dolan Miu | https://github.com/dolanmiu/docx |
+| **dotenv** | 16.5.0 | BSD-2-Clause | [`BSD-2-CLAUSE.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/BSD-2-CLAUSE.txt) | Copyright (c) 2015 Motdotla | https://github.com/motdotla/dotenv |
+| **embla-carousel-react** | 8.6.0 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Patric Kalén / David Jerleke | https://github.com/davidjerleke/embla-carousel |
+| **genkit** | 1.20.0 | Apache-2.0 | [`APACHE-2.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/APACHE-2.0.txt) | Copyright Google LLC | https://github.com/firebase/genkit |
+| **lucide-react** | 0.475.0 | ISC | [`ISC.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/ISC.txt) | Copyright (c) Lucide Contributors / Eric Fennis | https://github.com/lucide-icons/lucide |
+| **mammoth** | 1.11.0 | BSD-2-Clause | [`BSD-2-CLAUSE.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/BSD-2-CLAUSE.txt) | Copyright (c) 2013-2024 Michael Williamson | https://github.com/mwilliamson/mammoth.js |
+| **next** | 15.3.8 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) 2024 Vercel, Inc. | https://github.com/vercel/next.js |
+| **patch-package** | 8.0.0 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) 2017 David Sheldrick | https://github.com/ds300/patch-package |
+| **react** / **react-dom** | 18.3.1 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Meta Platforms, Inc. | https://github.com/facebook/react |
+| **react-day-picker** | 8.10.1 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Giampaolo Bellavite | https://github.com/gpbl/react-day-picker |
+| **react-hook-form** | 7.54.2 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Bezael Perez | https://github.com/react-hook-form/react-hook-form |
+| **react-resizable-panels** | 2.1.9 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Brian Vaughn | https://github.com/bvaughn/react-resizable-panels |
+| **recharts** | 2.15.1 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Recharts Group | https://github.com/recharts/recharts |
+| **tailwind-merge** | 3.0.1 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Dany Shaanan / Dany Castillo | https://github.com/dcastil/tailwind-merge |
+| **tailwindcss-animate** | 1.0.7 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Brandon McConnell / Jamie Kyle | https://github.com/jamiebuilds/tailwindcss-animate |
+| **uuid** | 10.0.0 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) 2010-2020 Robert Kieffer | https://github.com/uuidjs/uuid |
+| **xlsx** | 0.18.5 | Apache-2.0 | [`APACHE-2.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/APACHE-2.0.txt) | Copyright (c) 2012-present SheetJS LLC | https://github.com/SheetJS/sheetjs |
+| **zod** | 3.24.2 | MIT | [`MIT.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/MIT.txt) | Copyright (c) Colin McDonnell | https://github.com/colinhacks/zod |
 
 ### Dual-Licensed Dependency Disclaimers
-For packages offered under dual open-source licenses, DubbiOvi relies on the following permissive licensing terms:
+For transitive dependencies offered under dual open-source licenses, DubbiOvi relies on permissive terms as follows:
 - **jszip**: Dual-licensed `MIT OR GPL-3.0-or-later`. Relied upon under **MIT**.
-- **node-forge**: Dual-licensed `BSD-3-Clause OR GPL-2.0`. Relied upon under **BSD-3-Clause**.
-- **json-schema**: Dual-licensed `AFL-2.1 OR BSD-3-Clause`. Relied upon under **BSD-3-Clause**.
+- **node-forge**: Dual-licensed `BSD-3-Clause OR GPL-2.0`. Relied upon under **BSD-3-Clause** ([`licenses/BSD-3-CLAUSE.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/BSD-3-CLAUSE.txt)).
+- **json-schema**: Dual-licensed `AFL-2.1 OR BSD-3-Clause`. Relied upon under **BSD-3-Clause** ([`licenses/BSD-3-CLAUSE.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/BSD-3-CLAUSE.txt)).
 
 ### Build-Time / Development Exclusions
-- **sharp / @img/sharp-libvips-darwin-arm64** (`LGPL-3.0-or-later`): Used strictly during build-time icon generation (`scripts/generate-icon.js`) and explicitly excluded from packaged application binaries via `electron-builder.json5`. Not distributed to end-users.
-- **caniuse-lite** (`CC-BY-4.0`): Transitive build dependency of Next.js CSS compilation.
+- **sharp** (v0.33.4) & **@img/sharp-libvips-***: Used strictly during build-time icon generation (`scripts/generate-icon.js`) and explicitly excluded from packaged application binaries via `electron-builder.json5` file rules. Neither Sharp nor libvips native libraries are distributed to end users.
+  - *Institutional Note*: This verified finding requires updating the Sharp/libvips row in the institutional OTC software registration template (*plantilla de registro de software*) to reflect its non-distributed, build-time status.
+- **caniuse-lite**: Transitive build dependency of Next.js CSS compilation, excluded from app bundle distribution.
 
 ---
 
@@ -163,46 +159,20 @@ AI model weights and Voice assets are distributed and downloaded separately from
 - **Converted Model Repository**: ggerganov/whisper.cpp (HuggingFace)
 - **Copyright**: Copyright (c) 2022 OpenAI
 
-```
-MIT License
-
-Copyright (c) 2022 OpenAI
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-```
-
 ### Piper Voice Models (`*.onnx` and `*.onnx.json`)
 - **License Status**: Voice-specific dataset license (independent from Piper software engine).
 - **Upstream Repository**: rhasspy/piper-voices (HuggingFace)
 - **Model Licensing Terms**:
   - Individual ONNX voice models are trained on distinct speech corpora with varying dataset licenses (e.g., CC0-1.0, CC-BY-4.0, Open Data).
   - Each voice model download includes its accompanying `.onnx.json` descriptor file containing creator and dataset attribution metadata.
-  - Users downloading optional voice models are presented with model-specific license and attribution information within the DubbiOvi model downloader dialog.
 
 ---
 
-## 5. External APIs and Cloud Services
+## 5. Subprocess Integration Architecture Notice
 
-DubbiOvi supports optional integrations with cloud AI providers (e.g., Google Gemini API via `@genkit-ai/google-genai`) and local server instances (e.g., Ollama LLM server).
-- Access to external cloud APIs occurs solely through standard HTTP/REST network requests.
-- No proprietary cloud server software, API backend code, or external service infrastructure is bundled or redistributed by DubbiOvi.
+The multimedia framework **FFmpeg** and speech synthesis engine **Piper** are integrated into DubbiOvi exclusively as isolated external binary processes.
+- Execution occurs strictly via Node.js `child_process.spawn`.
+- Communication is limited to command-line parameters, standard input/output streams, and temporary disk files.
+- No static library linking, dynamic library loading (`dlopen`, `.dylib`, `.dll`, `.so`), shared memory IPC, or C/C++/Python language bindings are used.
 
----
-
-## 6. GPL Source Availability Notice [PENDING PRE-RELEASE ACTION]
-
-> [!IMPORTANT]
-> **Status: PENDING PRE-RELEASE COMPLIANCE ACTION**
-> DubbiOvi redistributes pre-compiled binary executables of **FFmpeg** and **Piper TTS** licensed under the GNU General Public License version 3 (GPL-3.0-or-later).
->
-> Because these executables are spawned as separate processes via Node.js `child_process.spawn` and are not statically or dynamically linked into DubbiOvi's application code, DubbiOvi itself remains a separate work.
->
-> The exact GPL-3.0 Section 6 source-availability distribution mechanism (such as hosting corresponding source archives alongside release binaries under Section 6d) will be finalized and implemented prior to the stable public release. No formal written offer or source distribution is established at this pre-release stage.
+This verified technical architecture — operating independent binary executables with process boundary isolation and no shared memory or static/dynamic code linking — supports treating FFmpeg and Piper as separate components whose GPL compliance is managed independently from DubbiOvi's own application codebase.

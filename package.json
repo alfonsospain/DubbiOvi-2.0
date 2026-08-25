@@ -11,6 +11,7 @@
     "compile:runtime": "tsc src/runtime/index.ts --outDir lib/runtime --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop",
     "build:next": "npm run compile:runtime && next build && node scripts/copy-standalone.js",
     "generate-icon": "node scripts/generate-icon.js",
+    "generate-notices": "node scripts/generate-third-party-notices.js",
     "electron:dev": "npm run compile:runtime && electron .",
     "electron:build": "npm run generate-icon && npm run build:next && electron-builder --mac",
     "electron:build:win": "npm run generate-icon && npm run build:next && electron-builder --win",
