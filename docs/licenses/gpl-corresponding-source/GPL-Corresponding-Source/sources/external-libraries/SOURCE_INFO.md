@@ -1,0 +1,33 @@
+# Upstream Source Information — External Libraries
+
+This directory contains verified exact upstream source code archives for non-system external libraries statically incorporated into distributed binaries where exact provider versions or commits have been independently verified and successfully downloaded from upstream releases.
+
+## Verified External Library Source Index (27 Verified Archives)
+
+- `amf-6ec0295.tar.gz`: AMF headers (`v1.5.2-1-g6ec0295`, Commit `6ec0295`)
+- `aom-b973895c4c.tar.gz`: libaom (`v3.14.1-100-gb973895c4c`, Commit `b973895c4c`)
+- `avisynthplus-fcb9c8a.tar.gz`: AviSynthPlus (`v3.7.5-337-gfcb9c8a2`, Commit `fcb9c8a`)
+- `ffnvcodec-1b5a81a.tar.gz`: ffnvcodec headers (`n13.0.19.0-5-g1b5a81a`, Commit `1b5a81a`)
+- `gsm-1.0.24.tar.gz`: libgsm (`1.0.24`)
+- `lame-3.100.tar.gz`: libmp3lame (`3.100`)
+- `libssh-0.12.0.tar.xz`: libssh (`0.12.0`)
+- `libtheora-1.2.0.tar.gz`: libtheora (`v1.2.0`)
+- `libwebp-3757b8a.tar.gz`: libwebp (`v1.6.0-192-g3757b8a`, Commit `3757b8a`)
+- `opencore-amr-0.1.6.tar.gz`: libopencore-amrnb / amrwb (`0.1.6`)
+- `openmpt-1d77fab8.tar.gz`: libopenmpt (`libopenmpt-0.6.28-25-g1d77fab8`, Commit `1d77fab8`)
+- `opus-3da9f7a6.tar.gz`: libopus (`v1.6.1-50-g3da9f7a6`, Commit `3da9f7a6`)
+- `rubberband-1.8.1.tar.bz2`: librubberband (`v1.8.1`)
+- `sdl2-b8b3f5ef2.tar.gz`: SDL (`release-2.32.0-218-gb8b3f5ef2`, Commit `b8b3f5ef2`)
+- `speex-0589522.tar.gz`: libspeex (`Speex-1.2.1-51-g0589522`, Commit `0589522`)
+- `srt-c39196c.tar.gz`: libsrt (`v1.5.5-9-gc39196c`, Commit `c39196c`)
+- `vaapi-2.24.0.tar.gz`: VAAPI (`2.24.0`)
+- `vidstab-92bc0b0.tar.gz`: libvidstab (`v1.1.1-24-g92bc0b0`, Commit `92bc0b0`)
+- `vmaf-60016fbd.tar.gz`: libvmaf (`v3.2.0-2-g60016fbd`, Commit `60016fbd`)
+- `vo-amrwbenc-0.1.3.tar.gz`: vo-amrwbenc (`0.1.3`)
+- `vorbis-e3c9861f.tar.gz`: libvorbis (`v1.3.7-36-ge3c9861f`, Commit `e3c9861f`)
+- `vpl-2.16.0.tar.gz`: VPL (`2.16`, Tag `v2.16.0`)
+- `vpx-91bba32d5.tar.gz`: libvpx (`v1.16.0-152-g91bba32d5`, Commit `91bba32d5`)
+- `x265-b81f650.tar.gz`: libx265 (`4.2-59-gb81f650`, Commit `b81f650`)
+- `xvid-1.3.7.tar.gz`: libxvid (`v1.3.7`)
+- `zeromq-4.3.5.tar.gz`: libzmq (`4.3.5`)
+- `zimg-b364757.tar.gz`: libzimg (`release-3.0.6-222-gb364757`, Commit `b364757`)

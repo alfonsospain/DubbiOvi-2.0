@@ -1,0 +1,10 @@
+--- ffmpeg.h.orig	2024-05-30 00:39:32
++++ ffmpeg.h	2024-06-20 13:21:15
+@@ -886,5 +886,7 @@
+ 
+ int muxer_thread(void *arg);
+ int encoder_thread(void *arg);
++
++void set_relative_fontconfig_path(void);
+ 
+ #endif /* FFTOOLS_FFMPEG_H */

@@ -1,0 +1,47 @@
+--- ffmpeg.c.orig	2024-05-30 00:39:32
++++ ffmpeg.c	2024-06-20 13:21:15
+@@ -890,6 +890,33 @@
+ #endif
+ }
+ 
++void set_relative_fontconfig_path(void)
++{
++#if !HAVE_WINDOWS_H
++    char subdir[] = "/fonts";
++#else
++    char subdir[] = "\\fonts";
++#endif
++
++    char *curdir = (char *) av_malloc (PATH_MAX);
++    char *fontdir = (char *) av_malloc (PATH_MAX);
++
++    getcwd (curdir, PATH_MAX);
++
++    strncpy( fontdir, curdir, PATH_MAX );
++    fontdir[PATH_MAX-1] = '\0';
++
++    if( strlen(curdir) < (PATH_MAX - 7) )
++    {
++        strncat( fontdir, subdir, 7 );
++    }
++
++    setenv( "FONTCONFIG_PATH", fontdir, 0 );
++
++    av_free( fontdir );
++    av_free( curdir );
++}
++
+ int main(int argc, char **argv)
+ {
+     Scheduler *sch = NULL;
+@@ -897,6 +924,10 @@
+     int ret;
+     BenchmarkTimeStamps ti;
+ 
++#if CONFIG_STATIC
++    set_relative_fontconfig_path();
++#endif
++
+     init_dynload();
+ 
+     setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this */
