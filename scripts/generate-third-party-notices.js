@@ -344,6 +344,11 @@ function generateSpanishDoc(targetPath) {
               new TextRun({ text: '  - macOS: FFmpeg 8.1.2-tessus de Evermeet (bin/ffmpeg, bin/ffprobe en extraResources)\n  - Windows: FFmpeg 8.1.2 Essentials Build de gyan.dev (bin/ffmpeg.exe, bin/ffprobe.exe en extraResources)\n\n', size: 19 }),
               new TextRun({ text: '• Modo de integración: ', bold: true, size: 20 }),
               new TextRun({ text: 'Proceso externo independiente, invocado mediante child_process.spawn. No existe enlace estático ni dinámico entre el código de DubbiOvi y las librerías de FFmpeg.\n\n', size: 19 }),
+              new TextRun({ text: '• Diligencia con proveedores de binarios:\n', bold: true, size: 20 }),
+              new TextRun({ text: '  - macOS (Evermeet / Tessus): El empaquetador confirmó que sus scripts de compilación son privados. Se declararon e incluyeron en el paquete de cumplimiento dos modificaciones de código fuente (fallback FONTCONFIG_PATH en ffmpeg.c/h y banner de versión en fftools/opt_common.c). Las versiones de librerías externas sin manifiesto del proveedor se declaran como no resueltas.\n', size: 19 }),
+              new TextRun({ text: '  - Windows (gyan.dev / Gyan Doshi): El empaquetador confirmó que sus scripts de compilación son privados y que ni FFmpeg ni las librerías externas contienen parches. Las fuentes de librerías externas verificadas se incluyen en el paquete de cumplimiento; las versiones omitidas se declaran como no resueltas.\n\n', size: 19 }),
+              new TextRun({ text: '• Entrega del Código Fuente Correspondiente (Corresponding Source):\n', bold: true, size: 20 }),
+              new TextRun({ text: 'Los materiales de cumplimiento GPL para FFmpeg se suministran como un activo de entrega independiente (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz) que acompaña a la distribución de DubbiOvi 2.0.0. Dicho paquete contiene el código fuente vanilla de FFmpeg 8.1.2, los parches declarados, la configuración de compilación, los registros de procedencia y los archivos de código fuente de librerías externas verificadas.\n\n', size: 19 }),
               new TextRun({ text: '• Repositorios de código fuente correspondientes:\n', bold: true, size: 20 }),
               new TextRun({ text: '  - Evermeet (macOS): ', size: 19 }),
               createLinkRun('https://evermeet.cx/ffmpeg/', 'https://evermeet.cx/ffmpeg/'),
@@ -357,8 +362,8 @@ function generateSpanishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'ESTADO DE CUMPLIMIENTO GPL (SECCIÓN 6): REQUIERE REVISIÓN / ACCIÓN PENDIENTE PRE-LANZAMIENTO',
-            'DubbiOvi redistribuye ejecutables precompilados de FFmpeg bajo GPL-3.0. El mecanismo exacto de entrega del Código Fuente Correspondiente (Corresponding Source) y reproducibilidad de builds conforme a la Sección 6 de la GPL-3.0 queda clasificado como un ítem de REQUIERE REVISIÓN / ACCIÓN PENDIENTE PRE-LANZAMIENTO que se formalizará de forma definitiva antes de la distribución pública oficial.'
+            'ENTREGA DEL CÓDIGO FUENTE CORRESPONDIENTE (GPL-3.0 SECCIÓN 6)',
+            'Los materiales de cumplimiento de Código Fuente Correspondiente (Corresponding Source) recopilados para la redistribución de FFmpeg 8.1.2 se suministran como un activo de código fuente separado (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz). Este paquete incluye el código fuente upstream vanilla, los parches declarados por los empaquetadores, los parámetros de configuración y los archivos de código fuente de librerías externas independientemente verificados.'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 
@@ -370,9 +375,13 @@ function generateSpanishDoc(targetPath) {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: 'DubbiOvi permite la descarga bajo demanda e interacción con el motor de síntesis de voz Piper (versión 1.6.0, proyecto OHF-Voice/piper1-gpl), publicado bajo la licencia GNU General Public License v3.0 o posterior.\n\n', size: 20 }),
+              new TextRun({ text: 'DubbiOvi permite la descarga bajo demanda e interacción con el motor de síntesis de voz Piper (versión interna 1.6.0, proyecto OHF-Voice/piper1-gpl), publicado bajo la licencia GNU General Public License v3.0 o posterior.\n\n', size: 20 }),
               new TextRun({ text: '• Modo de integración: ', bold: true, size: 20 }),
               new TextRun({ text: 'Proceso externo independiente, ejecutado como binario CLI mediante child_process.spawn. No existen importaciones de código (import piper_tts) ni bindings de Python o C++ en el código fuente de DubbiOvi.\n\n', size: 19 }),
+              new TextRun({ text: '• Procedencia y especificación de empaquetado: ', bold: true, size: 20 }),
+              new TextRun({ text: 'El runtime ejecutable de producción se basa en la versión 1.6.0 de OHF-Voice/piper1-gpl (etiqueta v1.6.0, commit f04d52c5528ac7cf2d73757f57990ff490f75005). Se conserva la especificación PyInstaller (piper.spec) del entorno de empaquetado de Piper 1.6.0 de DubbiOvi; la vinculación unívoca de compilación única con el binario ejecutable distribuido no ha podido ser re-verificada de forma independiente.\n\n', size: 19 }),
+              new TextRun({ text: '• Entrega del Código Fuente Correspondiente (Corresponding Source):\n', bold: true, size: 20 }),
+              new TextRun({ text: 'El archivo de código fuente oficial de Piper v1.6.0, la especificación PyInstaller preservada, las instrucciones de compilación y los registros de procedencia forman parte del paquete de cumplimiento distribuido por separado (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).\n\n', size: 19 }),
               new TextRun({ text: '• Código fuente upstream: ', bold: true, size: 20 }),
               createLinkRun('https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0', 'https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0'),
               new TextRun({ text: '\n', size: 19 }),
@@ -380,8 +389,8 @@ function generateSpanishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'ESTADO DE CUMPLIMIENTO GPL (SECCIÓN 6): REQUIERE REVISIÓN / ACCIÓN PENDIENTE PRE-LANZAMIENTO',
-            'El mecanismo formal de disponibilidad del Código Fuente Correspondiente (Corresponding Source) para los paquetes de runtime descargables de Piper se mantiene clasificado como REQUIERE REVISIÓN / ACCIÓN PENDIENTE PRE-LANZAMIENTO.'
+            'ENTREGA DEL CÓDIGO FUENTE CORRESPONDIENTE (GPL-3.0 SECCIÓN 6)',
+            'Los materiales de cumplimiento de Código Fuente Correspondiente para el motor Piper 1.6.0 (incluyendo el archivo de código fuente upstream v1.6.0, la especificación PyInstaller preservada, las instrucciones de empaquetado y los checksums de procedencia) se distribuyen de forma independiente dentro del paquete de código fuente GPL (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 
@@ -674,6 +683,11 @@ function generateEnglishDoc(targetPath) {
               new TextRun({ text: '  - macOS: FFmpeg 8.1.2-tessus from Evermeet (bin/ffmpeg, bin/ffprobe in extraResources)\n  - Windows: FFmpeg 8.1.2 Essentials Build from gyan.dev (bin/ffmpeg.exe, bin/ffprobe.exe in extraResources)\n\n', size: 19 }),
               new TextRun({ text: '• Integration Architecture: ', bold: true, size: 20 }),
               new TextRun({ text: 'Executed as isolated external binary subprocesses via Node.js child_process.spawn. No static or dynamic library linking exists between DubbiOvi code and FFmpeg libraries.\n\n', size: 19 }),
+              new TextRun({ text: '• Packager Due Diligence:\n', bold: true, size: 20 }),
+              new TextRun({ text: '  - macOS (Evermeet / Tessus): Packager confirmed build scripts are private. Two downstream source modifications were identified (FONTCONFIG_PATH fallback in ffmpeg.c/h and version string banner in fftools/opt_common.c), both represented in the compliance package. Individual external-library versions with no provider manifest remain unresolved and documented transparently.\n', size: 19 }),
+              new TextRun({ text: '  - Windows (gyan.dev / Gyan Doshi): Packager confirmed build scripts are private and FFmpeg/external-libs are unpatched. Empirically verified external library sources are included in the compliance package; omitted versions are disclosed as unresolved.\n\n', size: 19 }),
+              new TextRun({ text: '• Corresponding Source Delivery:\n', bold: true, size: 20 }),
+              new TextRun({ text: 'GPL Corresponding Source compliance materials for FFmpeg binaries are provided as a separate release asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz) accompanying DubbiOvi 2.0.0. This asset contains vanilla FFmpeg 8.1.2 source code, provider-confirmed patch files, build configuration parameters, provenance records, and verified external library source archives.\n\n', size: 19 }),
               new TextRun({ text: '• Upstream Repositories:\n', bold: true, size: 20 }),
               new TextRun({ text: '  - Evermeet (macOS): ', size: 19 }),
               createLinkRun('https://evermeet.cx/ffmpeg/', 'https://evermeet.cx/ffmpeg/'),
@@ -687,8 +701,8 @@ function generateEnglishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'GPL SECTION 6 COMPLIANCE STATUS: REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION',
-            'DubbiOvi redistributes pre-compiled FFmpeg binaries under GPL-3.0. The exact Corresponding Source delivery and build-reproducibility mechanism under GPL-3.0 Section 6 remains classified as a REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION that will be finalized prior to official public distribution.'
+            'CORRESPONDING SOURCE DELIVERY (GPL-3.0 SECTION 6)',
+            'GPL Corresponding Source compliance materials collected for the redistribution of FFmpeg 8.1.2 are supplied as a separate source asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz). This asset includes upstream vanilla source code, packager-declared patch files, build configuration parameters, and independently verified external library source archives.'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 
@@ -700,9 +714,13 @@ function generateEnglishDoc(targetPath) {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: 'DubbiOvi enables on-demand downloading and execution of the Piper Neural Text-to-Speech runtime (version 1.6.0, OHF-Voice/piper1-gpl project), licensed under GPL-3.0-or-later.\n\n', size: 20 }),
+              new TextRun({ text: 'DubbiOvi enables on-demand downloading and execution of the Piper Neural Text-to-Speech runtime (internal version 1.6.0, OHF-Voice/piper1-gpl project), licensed under GPL-3.0-or-later.\n\n', size: 20 }),
               new TextRun({ text: '• Integration Architecture: ', bold: true, size: 20 }),
               new TextRun({ text: 'Executed as an isolated CLI binary process via child_process.spawn. No Python/C++ code imports (import piper_tts) or language bindings exist in DubbiOvi codebase.\n\n', size: 19 }),
+              new TextRun({ text: '• Provenance & Packaging Specification: ', bold: true, size: 20 }),
+              new TextRun({ text: 'The production runtime is built from OHF-Voice/piper1-gpl version 1.6.0 (tag v1.6.0, commit f04d52c5528ac7cf2d73757f57990ff490f75005). PyInstaller specification (piper.spec) preserved from the DubbiOvi Piper 1.6.0 packaging workspace; exact single-build linkage to the distributed production binary could not be independently re-verified.\n\n', size: 19 }),
+              new TextRun({ text: '• Corresponding Source Delivery:\n', bold: true, size: 20 }),
+              new TextRun({ text: 'The official Piper v1.6.0 source archive, preserved PyInstaller spec, build instructions, and provenance records are included in the separate GPL compliance release asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).\n\n', size: 19 }),
               new TextRun({ text: '• Upstream Source: ', bold: true, size: 20 }),
               createLinkRun('https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0', 'https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0'),
               new TextRun({ text: '\n', size: 19 }),
@@ -710,8 +728,8 @@ function generateEnglishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'GPL SECTION 6 COMPLIANCE STATUS: REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION',
-            'The formal Corresponding Source delivery mechanism for downloaded Piper runtime archives remains classified as a REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION.'
+            'CORRESPONDING SOURCE DELIVERY (GPL-3.0 SECTION 6)',
+            'Corresponding Source compliance materials for the Piper 1.6.0 engine (including the upstream v1.6.0 source archive, preserved PyInstaller specification, build documentation, and provenance checksums) are distributed independently in the GPL source asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 

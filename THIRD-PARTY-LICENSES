@@ -21,10 +21,10 @@ Verbatim full license text files corresponding to distributed third-party softwa
 - **Copyright**: Copyright (c) 2000-2025 the FFmpeg developers
 - **Codec Patent Notice**: Independent of software licensing, processing certain audio/video codecs (e.g. H.264/AVC, H.265/HEVC) may be subject to third-party patent portfolios (e.g., Via Licensing Alliance). Compliance with open-source software licenses does not grant patent indemnification for commercial codec usage.
 
-> [!IMPORTANT]
-> **Status: REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION**
+> [!NOTE]
+> **GPL Section 6 Corresponding Source Delivery**
 > DubbiOvi redistributes pre-compiled binary executables of **FFmpeg** licensed under GPL-3.0-or-later.
-> While these executables operate as isolated external processes spawned via Node.js `child_process.spawn`, the exact GPL-3.0 Section 6 Corresponding Source delivery and build-reproducibility mechanism (such as hosting source archives matching release binaries under Section 6d) remains a pending pre-release compliance action that will be finalized prior to public distribution.
+> These executables operate as isolated external binary subprocesses via Node.js `child_process.spawn`. GPL Corresponding Source materials for FFmpeg binaries are provided as a separate source-compliance release asset (`DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz`) accompanying DubbiOvi 2.0.0. The asset contains vanilla FFmpeg 8.1.2 source code, provider-confirmed patch files, build configuration parameters, provenance records, and verified external library source archives.
 
 ---
 
@@ -34,14 +34,15 @@ Verbatim full license text files corresponding to distributed third-party softwa
 - **License**: GNU General Public License version 3 or later (GPL-3.0-or-later)
 - **License Text Reference**: [`licenses/GPL-3.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/GPL-3.0.txt)
 - **Distribution Mode**: On-demand downloaded runtime package executed as an independent standalone binary process (`piper`) via `child_process.spawn`. No C++ or Python code imports, bindings, or shared library linking.
-- **Upstream Project**: https://github.com/OHF-voice/piper1-gpl
+- **Upstream Project**: https://github.com/OHF-voice/piper1-gpl (Tag `v1.6.0`, Commit `f04d52c5528ac7cf2d73757f57990ff490f75005`)
 - **Copyright**: Copyright (c) 2023-2024 OHF-Voice / Michael Hansen
 - **Runtime Package Details**: Downloaded archive contains `piper` binary executable, `piper_tts-1.6.0.dist-info`, and `COPYING` file (GPL-3.0).
+- **Packaging Specification Note**: PyInstaller specification (`piper.spec`) preserved from the DubbiOvi Piper 1.6.0 packaging workspace; exact single-build linkage to the distributed production binary could not be independently re-verified.
 
-> [!IMPORTANT]
-> **Status: REQUIRES REVIEW / PENDING PRE-RELEASE COMPLIANCE ACTION**
+> [!NOTE]
+> **GPL Section 6 Corresponding Source Delivery**
 > DubbiOvi provides automated download capabilities for the **Piper Neural TTS** engine runtime licensed under GPL-3.0-or-later.
-> The exact GPL-3.0 Section 6 Corresponding Source distribution mechanism for pre-built Piper release archives remains classified as a pending pre-release action.
+> Corresponding Source materials for Piper 1.6.0 (including the upstream v1.6.0 source archive, preserved PyInstaller specification `piper.spec`, build instructions, and provenance checksums) are distributed independently within the separate GPL source compliance asset (`DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz`).
 
 ---
 
