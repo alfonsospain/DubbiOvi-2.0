@@ -313,7 +313,7 @@ function generateSpanishDoc(targetPath) {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: 'El paquete Sharp (publicado bajo Apache License 2.0, Copyright 2013 Lovell Fuller and contributors) se utiliza en el proyecto exclusivamente como una dependencia de desarrollo (devDependency) durante el proceso de compilación para la generación de los iconos de la aplicación (scripts/generate-icon.js).\n\nConforme a la configuración de empaquetado de Electron (electron-builder.json5), el paquete Sharp y sus módulos derivados se excluyen explícitamente del paquete ejecutable distribuido a los usuarios finales. No se distribuye el binario de Sharp a los usuarios.\n\nNota institucional: Este hallazgo verificado requiere actualizar la fila correspondiente a Sharp/libvips en la plantilla de registro de software de la OTC para reflejar su estado no distribuido en tiempo de compilación.', size: 20, color: COLOR_TEXT }),
+              new TextRun({ text: 'El paquete Sharp (publicado bajo Apache License 2.0, Copyright 2013 Lovell Fuller and contributors) se utiliza en el proyecto exclusivamente como una dependencia de desarrollo (devDependency) durante el proceso de compilación para la generación de los iconos de la aplicación (scripts/generate-icon.js).\n\nConforme a la configuración de empaquetado de Electron (electron-builder.json5), el paquete Sharp y sus módulos derivados se excluyen explícitamente del paquete ejecutable distribuido a los usuarios finales. No se distribuye el binario de Sharp a los usuarios.', size: 20, color: COLOR_TEXT }),
             ],
             spaceAfter: 200,
           }),
@@ -347,8 +347,6 @@ function generateSpanishDoc(targetPath) {
               new TextRun({ text: '• Diligencia con proveedores de binarios:\n', bold: true, size: 20 }),
               new TextRun({ text: '  - macOS (Evermeet / Tessus): El empaquetador confirmó que sus scripts de compilación son privados. Se declararon e incluyeron en el paquete de cumplimiento dos modificaciones de código fuente (fallback FONTCONFIG_PATH en ffmpeg.c/h y banner de versión en fftools/opt_common.c). Las versiones de librerías externas sin manifiesto del proveedor se declaran como no resueltas.\n', size: 19 }),
               new TextRun({ text: '  - Windows (gyan.dev / Gyan Doshi): El empaquetador confirmó que sus scripts de compilación son privados y que ni FFmpeg ni las librerías externas contienen parches. Las fuentes de librerías externas verificadas se incluyen en el paquete de cumplimiento; las versiones omitidas se declaran como no resueltas.\n\n', size: 19 }),
-              new TextRun({ text: '• Entrega del Código Fuente Correspondiente (Corresponding Source):\n', bold: true, size: 20 }),
-              new TextRun({ text: 'Los materiales de cumplimiento GPL para FFmpeg se suministran como un activo de entrega independiente (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz) que acompaña a la distribución de DubbiOvi 2.0.0. Dicho paquete contiene el código fuente vanilla de FFmpeg 8.1.2, los parches declarados, la configuración de compilación, los registros de procedencia y los archivos de código fuente de librerías externas verificadas.\n\n', size: 19 }),
               new TextRun({ text: '• Repositorios de código fuente correspondientes:\n', bold: true, size: 20 }),
               new TextRun({ text: '  - Evermeet (macOS): ', size: 19 }),
               createLinkRun('https://evermeet.cx/ffmpeg/', 'https://evermeet.cx/ffmpeg/'),
@@ -362,8 +360,8 @@ function generateSpanishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'ENTREGA DEL CÓDIGO FUENTE CORRESPONDIENTE (GPL-3.0 SECCIÓN 6)',
-            'Los materiales de cumplimiento de Código Fuente Correspondiente (Corresponding Source) recopilados para la redistribución de FFmpeg 8.1.2 se suministran como un activo de código fuente separado (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz). Este paquete incluye el código fuente upstream vanilla, los parches declarados por los empaquetadores, los parámetros de configuración y los archivos de código fuente de librerías externas independientemente verificados.'
+            'MATERIALES DE CÓDIGO FUENTE Y CUMPLIMIENTO GPL-3.0 (SECCIÓN 6)',
+            'Los materiales recopilados para facilitar el código fuente correspondiente a la redistribución de FFmpeg 8.1.2 se suministran como un archivo independiente denominado DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz. Este paquete incluye el código fuente upstream verificado, los parches declarados por los responsables de los builds utilizados, los parámetros de configuración, documentación de procedencia y los archivos de código fuente de las bibliotecas externas cuya versión ha podido verificarse de forma independiente. Las limitaciones existentes respecto de determinadas subdependencias cuya versión exacta no ha podido determinarse se documentan expresamente en el propio paquete.'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 
@@ -380,8 +378,6 @@ function generateSpanishDoc(targetPath) {
               new TextRun({ text: 'Proceso externo independiente, ejecutado como binario CLI mediante child_process.spawn. No existen importaciones de código (import piper_tts) ni bindings de Python o C++ en el código fuente de DubbiOvi.\n\n', size: 19 }),
               new TextRun({ text: '• Procedencia y especificación de empaquetado: ', bold: true, size: 20 }),
               new TextRun({ text: 'El runtime ejecutable de producción se basa en la versión 1.6.0 de OHF-Voice/piper1-gpl (etiqueta v1.6.0, commit f04d52c5528ac7cf2d73757f57990ff490f75005). Se conserva la especificación PyInstaller (piper.spec) del entorno de empaquetado de Piper 1.6.0 de DubbiOvi; la vinculación unívoca de compilación única con el binario ejecutable distribuido no ha podido ser re-verificada de forma independiente.\n\n', size: 19 }),
-              new TextRun({ text: '• Entrega del Código Fuente Correspondiente (Corresponding Source):\n', bold: true, size: 20 }),
-              new TextRun({ text: 'El archivo de código fuente oficial de Piper v1.6.0, la especificación PyInstaller preservada, las instrucciones de compilación y los registros de procedencia forman parte del paquete de cumplimiento distribuido por separado (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).\n\n', size: 19 }),
               new TextRun({ text: '• Código fuente upstream: ', bold: true, size: 20 }),
               createLinkRun('https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0', 'https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0'),
               new TextRun({ text: '\n', size: 19 }),
@@ -389,8 +385,8 @@ function generateSpanishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'ENTREGA DEL CÓDIGO FUENTE CORRESPONDIENTE (GPL-3.0 SECCIÓN 6)',
-            'Los materiales de cumplimiento de Código Fuente Correspondiente para el motor Piper 1.6.0 (incluyendo el archivo de código fuente upstream v1.6.0, la especificación PyInstaller preservada, las instrucciones de empaquetado y los checksums de procedencia) se distribuyen de forma independiente dentro del paquete de código fuente GPL (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).'
+            'MATERIALES DE CÓDIGO FUENTE Y CUMPLIMIENTO GPL-3.0 (SECCIÓN 6)',
+            'Los materiales recopilados para facilitar el código fuente correspondiente al motor Piper 1.6.0 se distribuyen de forma independiente dentro del paquete DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz. Estos materiales incluyen el código fuente upstream correspondiente a Piper 1.6.0, la especificación PyInstaller preservada, las instrucciones de empaquetado y la documentación y checksums de procedencia disponibles.'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 
@@ -652,7 +648,7 @@ function generateEnglishDoc(targetPath) {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: 'The Sharp package (Apache License 2.0, Copyright 2013 Lovell Fuller and contributors) is utilized in the repository strictly as a development dependency (devDependency) for build-time icon generation (scripts/generate-icon.js).\n\nIn accordance with Electron packaging configuration (electron-builder.json5), Sharp and its native binary modules are explicitly excluded from application distribution builds. Sharp is not shipped to end users.\n\nInstitutional Note: This verified finding requires updating the corresponding Sharp/libvips entry in the institutional OTC software registration form to reflect its non-distributed, build-time status.', size: 20, color: COLOR_TEXT }),
+              new TextRun({ text: 'The Sharp package (Apache License 2.0, Copyright 2013 Lovell Fuller and contributors) is utilized in the repository strictly as a development dependency (devDependency) for build-time icon generation (scripts/generate-icon.js).\n\nIn accordance with Electron packaging configuration (electron-builder.json5), Sharp and its native binary modules are explicitly excluded from application distribution builds. Sharp is not shipped to end users.', size: 20, color: COLOR_TEXT }),
             ],
             spaceAfter: 200,
           }),
@@ -686,8 +682,6 @@ function generateEnglishDoc(targetPath) {
               new TextRun({ text: '• Packager Due Diligence:\n', bold: true, size: 20 }),
               new TextRun({ text: '  - macOS (Evermeet / Tessus): Packager confirmed build scripts are private. Two downstream source modifications were identified (FONTCONFIG_PATH fallback in ffmpeg.c/h and version string banner in fftools/opt_common.c), both represented in the compliance package. Individual external-library versions with no provider manifest remain unresolved and documented transparently.\n', size: 19 }),
               new TextRun({ text: '  - Windows (gyan.dev / Gyan Doshi): Packager confirmed build scripts are private and FFmpeg/external-libs are unpatched. Empirically verified external library sources are included in the compliance package; omitted versions are disclosed as unresolved.\n\n', size: 19 }),
-              new TextRun({ text: '• Corresponding Source Delivery:\n', bold: true, size: 20 }),
-              new TextRun({ text: 'GPL Corresponding Source compliance materials for FFmpeg binaries are provided as a separate release asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz) accompanying DubbiOvi 2.0.0. This asset contains vanilla FFmpeg 8.1.2 source code, provider-confirmed patch files, build configuration parameters, provenance records, and verified external library source archives.\n\n', size: 19 }),
               new TextRun({ text: '• Upstream Repositories:\n', bold: true, size: 20 }),
               new TextRun({ text: '  - Evermeet (macOS): ', size: 19 }),
               createLinkRun('https://evermeet.cx/ffmpeg/', 'https://evermeet.cx/ffmpeg/'),
@@ -701,8 +695,8 @@ function generateEnglishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'CORRESPONDING SOURCE DELIVERY (GPL-3.0 SECTION 6)',
-            'GPL Corresponding Source compliance materials collected for the redistribution of FFmpeg 8.1.2 are supplied as a separate source asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz). This asset includes upstream vanilla source code, packager-declared patch files, build configuration parameters, and independently verified external library source archives.'
+            'GPL-3.0 SECTION 6 SOURCE MATERIALS AND COMPLIANCE',
+            'The materials collected to facilitate the corresponding source for the redistribution of FFmpeg 8.1.2 are supplied as a separate file named DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz. The package includes verified upstream source code, patches declared by the maintainers of the builds used, configuration parameters, provenance documentation, and source archives for external libraries whose exact versions could be independently verified. Any limitations concerning subdependencies whose exact versions could not be determined are explicitly documented within the package.'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 
@@ -719,8 +713,6 @@ function generateEnglishDoc(targetPath) {
               new TextRun({ text: 'Executed as an isolated CLI binary process via child_process.spawn. No Python/C++ code imports (import piper_tts) or language bindings exist in DubbiOvi codebase.\n\n', size: 19 }),
               new TextRun({ text: '• Provenance & Packaging Specification: ', bold: true, size: 20 }),
               new TextRun({ text: 'The production runtime is built from OHF-Voice/piper1-gpl version 1.6.0 (tag v1.6.0, commit f04d52c5528ac7cf2d73757f57990ff490f75005). PyInstaller specification (piper.spec) preserved from the DubbiOvi Piper 1.6.0 packaging workspace; exact single-build linkage to the distributed production binary could not be independently re-verified.\n\n', size: 19 }),
-              new TextRun({ text: '• Corresponding Source Delivery:\n', bold: true, size: 20 }),
-              new TextRun({ text: 'The official Piper v1.6.0 source archive, preserved PyInstaller spec, build instructions, and provenance records are included in the separate GPL compliance release asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).\n\n', size: 19 }),
               new TextRun({ text: '• Upstream Source: ', bold: true, size: 20 }),
               createLinkRun('https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0', 'https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.6.0'),
               new TextRun({ text: '\n', size: 19 }),
@@ -728,8 +720,8 @@ function generateEnglishDoc(targetPath) {
             spaceAfter: 140,
           }),
           createCallout(
-            'CORRESPONDING SOURCE DELIVERY (GPL-3.0 SECTION 6)',
-            'Corresponding Source compliance materials for the Piper 1.6.0 engine (including the upstream v1.6.0 source archive, preserved PyInstaller specification, build documentation, and provenance checksums) are distributed independently in the GPL source asset (DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz).'
+            'GPL-3.0 SECTION 6 SOURCE MATERIALS AND COMPLIANCE',
+            'The materials collected to facilitate the corresponding source for the Piper 1.6.0 engine are distributed separately within the DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz package. These materials include the upstream source code corresponding to Piper 1.6.0, the preserved PyInstaller specification, packaging instructions, and the available provenance documentation and checksums.'
           ),
           new Paragraph({ text: '', spaceAfter: 200 }),
 
