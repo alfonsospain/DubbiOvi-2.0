@@ -1,6 +1,6 @@
 # Summary of Third-Party Compliance & GPL Corresponding Source — DubbiOvi 2.0
 
-This summary details the third-party open-source compliance status, architecture, provider due-diligence results, and GPL Corresponding Source distribution mechanism for **DubbiOvi 2.0 Workstation Edition** prepared for the Office of Technology Transfer (OTC) of the University of Oviedo.
+This summary details the third-party open-source compliance status, architecture, provider due-diligence results, and GPL Corresponding Source distribution mechanism for **DubbiOvi 2.0** prepared for the Office of Technology Transfer (OTC) of the University of Oviedo.
 
 ---
 
@@ -10,13 +10,13 @@ DubbiOvi 2.0 incorporates open-source third-party components under three distinc
 
 1. **Permissive Open-Source Libraries (MIT, Apache-2.0, ISC, BSD)**:
    - Frameworks (Electron 31.7.7, Next.js 15.3.8, React 18.3.1) and Node.js npm packages are governed by permissive open-source licenses. Full machine-readable inventories are maintained at `docs/licenses/npm-licenses.json` and `docs/licenses/npm-licenses.csv`.
-   - **Sharp (v0.33.4)** is a build-time development tool (`devDependency`) used for icon generation; Sharp and libvips native binaries are explicitly excluded from packaged application distributions via `electron-builder.json5`.
+   - **Sharp (v0.33.4)** is a build-time development tool (`devDependency`) used for icon generation; Sharp and libvips native binaries are explicitly excluded from packaged application distributions via `electron-builder.json5`. Direct inspection of the inspected macOS .app and DMG found no Sharp, @img, libvips, native Sharp .node, or related .dylib files. Final artifact verification for Windows remains pending until a packaged Windows executable artifact is available.
 
 2. **Isolated Subprocess Executables (FFmpeg 8.1.2 & Piper 1.6.0)**:
    - Third-party GPL binaries are integrated exclusively as standalone external executables invoked via Node.js `child_process.spawn`.
    - No static linking, dynamic library loading (`.dylib`, `.dll`, `.so`), shared memory IPC, or language bindings exist between DubbiOvi application code and GPL component libraries.
 
-3. **GPL Corresponding Source Release-Asset Delivery (GPL-3.0 Section 6)**:
+3. **GPL Corresponding Source Release-Asset Delivery (GPL-3.0 Section 6 / Artículo 6 de la GPL-3.0)**:
    - Source-compliance materials for distributed GPL components are collected into a separate source release asset (`DubbiOvi-2.0.0-GPL-Corresponding-Source.tar.xz`).
    - The asset is distributed independently alongside application binaries and is maintained outside normal application Git history.
 
@@ -27,9 +27,9 @@ DubbiOvi 2.0 incorporates open-source third-party components under three distinc
 ### A. FFmpeg / FFprobe (v8.1.2)
 - **License**: `GPL-3.0-or-later` (compiled with `--enable-gpl --enable-version3`).
 - **macOS Binaries Provider**: Evermeet (`evermeet.cx`, maintained by Tessus).
-  - *Due Diligence Result*: Maintainer confirmed build scripts are private. Tessus declared two downstream source modifications (`FONTCONFIG_PATH` fallback in `ffmpeg.c/h` and version string banner in `fftools/opt_common.c`), both represented as minimal patch files in the compliance package. Individual external-library versions with no provider manifest remain unresolved and documented transparently.
+  - *Due Diligence Result*: Maintainer confirmed build scripts are private. Historical build metadata for external libraries is maintained and publicly available via the Evermeet info API (`https://evermeet.cx/ffmpeg/info/ffmpeg/8.1.2`). Tessus confirmed two downstream source modifications (`FONTCONFIG_PATH` fallback in `ffmpeg.c/h` and version string banner in `fftools/opt_common.c`), both represented as patch files in the technical source materials, and directly confirmed `libxml2 2.11.5`.
 - **Windows Binaries Provider**: gyan.dev (`gyan.dev`, maintained by Gyan Doshi).
-  - *Due Diligence Result*: Maintainer confirmed build scripts are private and FFmpeg and external libraries are unpatched. Empirically verified external library source archives are included in the compliance asset; omitted versions are disclosed as unresolved.
+  - *Due Diligence Result*: Maintainer confirmed custom build scripts are private and that no downstream patches are applied to FFmpeg or its external libraries. Empirically verified external library source archives are included in the source materials.
 
 ### B. Piper Neural TTS Engine (v1.6.0)
 - **License**: `GPL-3.0-or-later` (Upstream `OHF-Voice/piper1-gpl`).
