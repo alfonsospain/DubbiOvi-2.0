@@ -1,27 +1,27 @@
-# DubbiOvi
+# DubbiOvi 2.0
 
 ### Open Audiovisual Translation Environment
 
 **An open-access, AI-assisted platform for audiovisual translation, developed at the University of Oviedo (Spain).**
 
 **Website:** https://dubbiovi.com
-**DOI:** https://doi.org/10.5281/zenodo.20683887
-**Current Release:** v1.3.7 Academic Edition
-**License:** MIT License
+**DOI:** https://doi.org/10.5281/zenodo.22850190
+**Current Release:** DubbiOvi 2.0
+**License:** EUPL-1.2
 
 ---
 
 # Overview
 
-DubbiOvi is an open-source, AI-assisted audiovisual translation (AVT) environment designed for **education, academic research, and professional workflows**.
+DubbiOvi 2.0 is an open-source, AI-assisted audiovisual translation (AVT) environment designed for **education, academic research, and professional workflows**.
 
-Developed at the **University of Oviedo**, DubbiOvi provides a local-first workspace for transcription, dialogue segmentation, translation, terminology management, project organisation, and document export.
+Developed at the **University of Oviedo**, DubbiOvi 2.0 provides a local-first workspace for transcription, dialogue segmentation, translation, terminology management, project organisation, and document export.
 
 The platform has been created to support the teaching and practice of dubbing translation while promoting **Open Science**, **responsible AI**, **privacy by design**, and **knowledge transfer**.
 
 ---
 
-# Why DubbiOvi?
+# Why DubbiOvi 2.0?
 
 * Free for academic and professional use
 * Local-first architecture
@@ -77,7 +77,7 @@ The platform has been created to support the teaching and practice of dubbing tr
 
 # Privacy
 
-DubbiOvi follows a **local-first philosophy**.
+DubbiOvi 2.0 follows a **local-first philosophy**.
 
 Your audiovisual projects remain on your own computer.
 
@@ -136,7 +136,7 @@ For longer productions, we recommend:
 
 ### Translation Without AI
 
-DubbiOvi is fully functional without AI services.
+DubbiOvi 2.0 is fully functional without AI services.
 
 Users may:
 
@@ -176,9 +176,9 @@ Users may:
 
 # Citation
 
-If you use DubbiOvi in research, teaching, or publications, please cite:
+If you use DubbiOvi 2.0 in research, teaching, or publications, please cite:
 
-> Rodríguez Fernández-Peña, A. C. (2026). *DubbiOvi* (Version 1.3.7 Academic Edition). University of Oviedo. https://doi.org/10.5281/zenodo.20683887
+> Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi 2.0 (Version 2.0.0). University of Oviedo. https://doi.org/10.5281/zenodo.22850190
 
 A `CITATION.cff` file is included in this repository to facilitate software citation through GitHub.
 
@@ -198,12 +198,12 @@ Email: [rodriguezalfonso@uniovi.es](mailto:rodriguezalfonso@uniovi.es)
 
 # License
 
-DubbiOvi is distributed under the **MIT License**.
+DubbiOvi 2.0 is distributed under the European Union Public Licence v1.2 (EUPL-1.2).
 
 ---
 
 # Acknowledgements
 
-DubbiOvi has been developed as part of the TradDisc Group & the University of Oviedo's commitment to **Open Science**, **educational innovation**, and **knowledge transfer**.
+DubbiOvi 2.0 has been developed as part of the TradDisc Group & the University of Oviedo's commitment to **Open Science**, **educational innovation**, and **knowledge transfer**.
 
 The project builds upon advances in Artificial Intelligence and open-source software to make audiovisual translation technologies more accessible to researchers, educators, students, and professionals worldwide.
