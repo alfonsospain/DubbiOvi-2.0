@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'DubbiOvi Academic Edition',
+  title: 'DubbiOvi 2.0',
   description: 'Translate and synchronize dubbing scripts with AI-powered tools.',
   icons: {
     icon: '/icon.png',

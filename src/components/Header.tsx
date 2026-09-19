@@ -117,7 +117,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleCopyCitation = () => {
-    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi (Version 2.0.0 Workstation Edition). Alfonso Digital Lab, University of Oviedo. https://doi.org/10.5281/zenodo.XXXXX`;
+    const citationText = `Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi 2.0 [Computer software]. University of Oviedo. https://doi.org/10.5281/zenodo.22850190`;
     navigator.clipboard.writeText(citationText)
       .then(() => {
         toast({
@@ -270,7 +270,7 @@ const Header: React.FC<HeaderProps> = ({
             <DialogTitle className="sr-only">About DubbiOvi</DialogTitle>
             <DubbiOviLogo />
             <p className="text-xs font-semibold text-emerald-400/90 mt-1">
-              v2.0.0 Workstation Edition (September 2026)
+              v2.0 · University of Oviedo · 2026
             </p>
           </div>
           <div className="p-6 pt-4 space-y-4 text-xs leading-relaxed">
@@ -290,18 +290,17 @@ const Header: React.FC<HeaderProps> = ({
               <span className="font-bold text-muted-foreground text-[10px] uppercase">DOI (Digital Object Identifier)</span>
               <p className="text-foreground mt-0.5 flex items-center gap-1.5 font-mono text-[11px]">
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="text-muted-foreground">https://doi.org/10.5281/zenodo.XXXXX</span>
-                <span className="text-[10px] text-muted-foreground/70 font-sans font-medium">(Pending Zenodo Registration)</span>
+                <a href="https://doi.org/10.5281/zenodo.22850190" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">https://doi.org/10.5281/zenodo.22850190</a>
               </p>
             </div>
             <div>
               <span className="font-bold text-muted-foreground text-[10px] uppercase">Copyright</span>
-              <p className="text-foreground mt-0.5">© Universidad de Oviedo, 2026. All rights reserved.</p>
+              <p className="text-foreground mt-0.5">© 2026 Universidad de Oviedo. Licensed under EUPL-1.2.</p>
             </div>
             <div className="p-3 rounded-lg bg-secondary/40 border border-border/60 relative">
               <span className="font-bold text-[9px] text-muted-foreground uppercase tracking-wider block">Suggested Academic Citation</span>
               <pre className="font-mono text-[10.5px] mt-2 text-foreground whitespace-pre-wrap leading-normal font-medium bg-background/50 p-2.5 rounded border border-border/30">
-                {`Rodríguez Fernández-Peña, A. C. (2026).\nDubbiOvi (Version 2.0.0 Workstation Edition).\nAlfonso Digital Lab, University of Oviedo.\nhttps://doi.org/10.5281/zenodo.XXXXX`}
+                {`Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi 2.0 [Computer software]. University of Oviedo. https://doi.org/10.5281/zenodo.22850190`}
               </pre>
               <Button size="sm" variant="secondary" onClick={handleCopyCitation} className="mt-2.5 w-full h-8 gap-1.5 text-xs">
                 <Copy className="h-3.5 w-3.5" /> Copy Citation
@@ -327,7 +326,7 @@ const Header: React.FC<HeaderProps> = ({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3.5 my-2 text-xs leading-normal">
-            <p className="font-semibold text-foreground text-sm">Need help using DubbiOvi?</p>
+            <p className="font-semibold text-foreground text-sm">Need help with DubbiOvi 2.0?</p>
             <p className="text-muted-foreground">
               For bug reports, feature requests, suggestions, teaching applications, research collaborations or academic partnerships, please contact:
             </p>
@@ -350,11 +349,11 @@ const Header: React.FC<HeaderProps> = ({
                 </p>
                 <p className="flex items-center gap-1.5">
                   <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                  DOI: <span className="text-muted-foreground font-mono text-[11px]">https://doi.org/10.5281/zenodo.XXXXX</span>
+                  DOI: <a href="https://doi.org/10.5281/zenodo.22850190" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-mono text-[11px]">https://doi.org/10.5281/zenodo.22850190</a>
                 </p>
               </div>
             </div>
-            <p className="text-muted-foreground italic text-center font-medium mt-1">Thank you for helping improve DubbiOvi.</p>
+            <p className="text-muted-foreground italic text-center font-medium mt-1">Thank you for using and supporting DubbiOvi 2.0.</p>
           </div>
           <DialogFooter>
             <Button size="sm" onClick={() => setIsHelpOpen(false)} className="w-full sm:w-auto">Close</Button>
