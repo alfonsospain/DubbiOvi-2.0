@@ -102,6 +102,71 @@ function createDocumentSheetSvg() {
 }
 
 /**
+ * Builds the SVG markup for small-size document sheet representations (16x16 up to 64x64).
+ * Optimized for maximum readability in Finder List view and small UI contexts:
+ * - Tighter outer padding so paper sheet occupies more pixels on canvas
+ * - Crisp, higher-contrast paper border stroke (#94A3B8)
+ * - Defined fold geometry with clear contrast
+ * - Compact drop shadows to prevent blurriness at tiny resolutions
+ */
+function createSmallDocumentSheetSvg() {
+  return `
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="docSmallShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#090d16" flood-opacity="0.28" />
+    </filter>
+    <filter id="foldSmallShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="-6" dy="8" stdDeviation="8" flood-color="#090d16" flood-opacity="0.30" />
+    </filter>
+    <linearGradient id="smallSheetGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="65%" stop-color="#F9FAFB" />
+      <stop offset="100%" stop-color="#EFF2F7" />
+    </linearGradient>
+    <linearGradient id="smallFoldFlapGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="35%" stop-color="#F8FAFC" />
+      <stop offset="75%" stop-color="#E2E8F0" />
+      <stop offset="100%" stop-color="#CBD5E1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Optimized paper sheet: width 720, height 880 (left: 152, right: 872; top: 72, bottom: 952) -->
+  <g filter="url(#docSmallShadow)">
+    <path d="
+      M 184 72
+      L 692 72
+      L 872 252
+      L 872 920
+      A 32 32 0 0 1 840 952
+      L 184 952
+      A 32 32 0 0 1 152 920
+      L 152 104
+      A 32 32 0 0 1 184 72
+      Z
+    " fill="url(#smallSheetGrad)" stroke="#94A3B8" stroke-width="4" />
+  </g>
+
+  <!-- Fold shadow cast onto the sheet -->
+  <path d="M 692 72 L 872 252 L 692 252 Z" fill="#090d16" opacity="0.16" filter="url(#foldSmallShadow)" />
+
+  <!-- Folded Corner Flap -->
+  <path d="
+    M 692 72
+    L 692 238
+    A 14 14 0 0 0 706 252
+    L 872 252
+    Z
+  " fill="url(#smallFoldFlapGrad)" stroke="#94A3B8" stroke-width="3" />
+
+  <!-- Crease boundary stroke -->
+  <line x1="692" y1="72" x2="872" y2="252" stroke="#94A3B8" stroke-width="3" />
+</svg>
+`;
+}
+
+/**
  * Encodes an array of raw PNG buffers into a multi-resolution Windows .ico file.
  */
 function createIcoBuffer(resolutions, pngBuffers) {
@@ -142,12 +207,11 @@ function createIcoBuffer(resolutions, pngBuffers) {
 async function generateDocumentIcons() {
   console.log('[Document Icon Helper] Generating clean master document icon from assets/icons/icon-app.png...');
 
-  // 1. Render sheet base from SVG (1024x1024)
+  // 1. Render sheet base from SVG (1024x1024) - Large Master
   const sheetSvg = Buffer.from(createDocumentSheetSvg());
   const sheetBuffer = await sharp(sheetSvg).png().toBuffer();
 
-  // 2. Prepare refined DubbiOvi emblem from assets/icons/icon-app.png
-  // Extract square squircle (1092x1092) centered at (627, 627) and resize cleanly to 280x280
+  // 2. Prepare refined DubbiOvi emblem from assets/icons/icon-app.png for large master (280x280)
   const emblemSize = 280;
   const squareEmblem = await sharp(appIconSourcePath)
     .extract({ left: 81, top: 81, width: 1092, height: 1092 })
@@ -203,12 +267,55 @@ async function generateDocumentIcons() {
   fs.writeFileSync(outputPngPath, masterDocIconBuffer);
   console.log(`[Document Icon Helper] Wrote clean master icon to ${outputPngPath}`);
 
-  // 5. Generate multi-resolution Windows ICO (16, 24, 32, 48, 64, 256)
+  // 5. Prepare optimized small-size document icon composition (for 16x16, 24x24, 32x32, 48x48, 64x64)
+  // Features enlarged emblem (500x500), reduced whitespace, and crisp boundary for micro-legibility
+  const smallSheetSvg = Buffer.from(createSmallDocumentSheetSvg());
+  const smallSheetBuffer = await sharp(smallSheetSvg).png().toBuffer();
+
+  const smallEmblemSize = 500;
+  const smallSquareEmblem = await sharp(appIconSourcePath)
+    .extract({ left: 81, top: 81, width: 1092, height: 1092 })
+    .resize(smallEmblemSize, smallEmblemSize, {
+      fit: 'fill',
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    })
+    .png()
+    .toBuffer();
+
+  const smallPad = 30;
+  const smallShadowBoxSize = smallEmblemSize + smallPad * 2;
+  const smallRx = Math.round(smallEmblemSize * 0.22);
+  const smallBadgeShadowSvg = `
+    <svg width="${smallShadowBoxSize}" height="${smallShadowBoxSize}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="smallBadgeShadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#090d16" flood-opacity="0.25" />
+        </filter>
+      </defs>
+      <rect x="${smallPad}" y="${smallPad}" width="${smallEmblemSize}" height="${smallEmblemSize}" rx="${smallRx}" fill="#090d16" filter="url(#smallBadgeShadow)" opacity="0.8" />
+    </svg>
+  `;
+  const smallShadowBuf = await sharp(Buffer.from(smallBadgeShadowSvg)).png().toBuffer();
+  const smallShadowedBadge = await sharp(smallShadowBuf)
+    .composite([{ input: smallSquareEmblem, left: smallPad, top: smallPad }])
+    .png()
+    .toBuffer();
+
+  const smallLeft = Math.round(512 - smallShadowBoxSize / 2);
+  const smallTop = Math.round(602 - smallShadowBoxSize / 2);
+  const smallDocIconBuffer = await sharp(smallSheetBuffer)
+    .composite([{ input: smallShadowedBadge, left: smallLeft, top: smallTop }])
+    .png()
+    .toBuffer();
+
+  // 6. Generate multi-resolution Windows ICO (16, 24, 32, 48, 64, 256)
+  // Sizes <= 64 use optimized small-size composition; size 256 uses approved large master
   console.log('[Document Icon Helper] Generating build/document.ico for Windows...');
   const icoResolutions = [16, 24, 32, 48, 64, 256];
   const icoBuffers = [];
   for (const size of icoResolutions) {
-    const buf = await sharp(masterDocIconBuffer)
+    const sourceBuffer = size <= 64 ? smallDocIconBuffer : masterDocIconBuffer;
+    const buf = await sharp(sourceBuffer)
       .resize(size, size)
       .png()
       .toBuffer();
@@ -218,7 +325,8 @@ async function generateDocumentIcons() {
   fs.writeFileSync(outputBuildIcoPath, icoBuffer);
   console.log(`[Document Icon Helper] Wrote Windows ICO to ${outputBuildIcoPath}`);
 
-  // 6. Generate multi-resolution macOS ICNS using standard iconset and iconutil
+  // 7. Generate multi-resolution macOS ICNS using standard iconset and iconutil
+  // Sizes <= 64 use optimized small-size composition; sizes >= 128 use approved large master
   console.log('[Document Icon Helper] Generating build/document.icns for macOS via iconutil...');
   const tempIconsetDir = path.join(buildDir, 'document.iconset');
   if (fs.existsSync(tempIconsetDir)) {
@@ -239,10 +347,9 @@ async function generateDocumentIcons() {
     { name: 'icon_512x512@2x.png', size: 1024 }
   ];
 
-  const sourceMaster = fs.existsSync(outputPngPath) ? outputPngPath : masterDocIconBuffer;
-
   for (const entry of iconsetEntries) {
-    await sharp(sourceMaster)
+    const sourceBuffer = entry.size <= 64 ? smallDocIconBuffer : masterDocIconBuffer;
+    await sharp(sourceBuffer)
       .resize(entry.size, entry.size)
       .png()
       .toFile(path.join(tempIconsetDir, entry.name));
