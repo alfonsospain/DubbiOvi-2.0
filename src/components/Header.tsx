@@ -267,7 +267,7 @@ const Header: React.FC<HeaderProps> = ({
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0 gap-0 overflow-hidden border-border">
           {/* Dedicated Dark Header for Logo Legibility & Official Branding */}
           <div className="bg-[#0b132b] text-white p-5 border-b border-border/20 flex flex-col gap-1 select-none">
-            <DialogTitle className="sr-only">About DubbiOvi</DialogTitle>
+            <DialogTitle className="sr-only">About DubbiOvi 2.0</DialogTitle>
             <DubbiOviLogo />
             <p className="text-xs font-semibold text-emerald-400/90 mt-1">
               v2.0 · University of Oviedo · 2026

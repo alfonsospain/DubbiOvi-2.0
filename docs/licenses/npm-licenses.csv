@@ -461,7 +461,7 @@
 "dotenv-expand@11.0.7","BSD-2-Clause","https://github.com/motdotla/dotenv-expand"
 "dotenv@16.5.0","BSD-2-Clause","https://github.com/motdotla/dotenv"
 "dotprompt@1.1.2","ISC","https://github.com/google/dotprompt"
-"dubbiovi@2.0.0-alpha.1","UNLICENSED",""
+"dubbiovi@2.0.0","UNLICENSED",""
 "duck@0.1.12","BSD*","https://github.com/mwilliamson/duck.js"
 "dunder-proto@1.0.1","MIT","https://github.com/es-shims/dunder-proto"
 "duplexer2@0.1.4","BSD-3-Clause","https://github.com/deoxxa/duplexer2"

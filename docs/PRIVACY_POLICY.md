@@ -165,7 +165,7 @@ https://dubbiovi.com
 
 GitHub repository:
 
-https://github.com/alfonsospain/DubbiOvi
+https://github.com/alfonsospain/DubbiOvi-2.0
 
 12. Changes to this Privacy Policy
 
