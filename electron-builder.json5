@@ -42,13 +42,35 @@
     "x64ArchFiles": "**/bin/*",
     "icon": "build/icon.icns",
     "category": "public.app-category.education",
+    "extendInfo": {
+      "UTExportedTypeDeclarations": [
+        {
+          "UTTypeIdentifier": "com.dubbiovi.project",
+          "UTTypeDescription": "DubbiOvi Project File",
+          "UTTypeConformsTo": [
+            "public.data",
+            "public.content"
+          ],
+          "UTTypeIconFile": "document.icns",
+          "UTTypeTagSpecification": {
+            "public.filename-extension": [
+              "dubbiovi"
+            ],
+            "public.mime-type": [
+              "application/x-dubbiovi"
+            ]
+          }
+        }
+      ]
+    },
     "fileAssociations": [
       {
         "ext": "dubbiovi",
         "name": "DubbiOvi Project",
         "description": "DubbiOvi Project File",
         "role": "Editor",
-        "icon": "build/icon.icns"
+        "rank": "Owner",
+        "icon": "build/document.icns"
       }
     ]
   },
@@ -95,7 +117,7 @@
         "name": "DubbiOvi Project",
         "description": "DubbiOvi Project File",
         "role": "Editor",
-        "icon": "build/icon.ico"
+        "icon": "build/document.ico"
       }
     ]
   },
