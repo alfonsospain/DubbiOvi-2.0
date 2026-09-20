@@ -327,40 +327,44 @@ async function generateDocumentIcons() {
 
   // 7. Generate multi-resolution macOS ICNS using standard iconset and iconutil
   // Sizes <= 64 use optimized small-size composition; sizes >= 128 use approved large master
-  console.log('[Document Icon Helper] Generating build/document.icns for macOS via iconutil...');
-  const tempIconsetDir = path.join(buildDir, 'document.iconset');
-  if (fs.existsSync(tempIconsetDir)) {
+  if (process.platform === 'darwin') {
+    console.log('[Document Icon Helper] Generating build/document.icns for macOS via iconutil...');
+    const tempIconsetDir = path.join(buildDir, 'document.iconset');
+    if (fs.existsSync(tempIconsetDir)) {
+      fs.rmSync(tempIconsetDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(tempIconsetDir, { recursive: true });
+
+    const iconsetEntries = [
+      { name: 'icon_16x16.png', size: 16 },
+      { name: 'icon_16x16@2x.png', size: 32 },
+      { name: 'icon_32x32.png', size: 32 },
+      { name: 'icon_32x32@2x.png', size: 64 },
+      { name: 'icon_128x128.png', size: 128 },
+      { name: 'icon_128x128@2x.png', size: 256 },
+      { name: 'icon_256x256.png', size: 256 },
+      { name: 'icon_256x256@2x.png', size: 512 },
+      { name: 'icon_512x512.png', size: 512 },
+      { name: 'icon_512x512@2x.png', size: 1024 }
+    ];
+
+    for (const entry of iconsetEntries) {
+      const sourceBuffer = entry.size <= 64 ? smallDocIconBuffer : masterDocIconBuffer;
+      await sharp(sourceBuffer)
+        .resize(entry.size, entry.size)
+        .png()
+        .toFile(path.join(tempIconsetDir, entry.name));
+    }
+
+    const { execSync } = require('child_process');
+    execSync(`iconutil -c icns "${tempIconsetDir}" -o "${outputBuildIcnsPath}"`);
+
+    // Clean up temporary iconset
     fs.rmSync(tempIconsetDir, { recursive: true, force: true });
+    console.log(`[Document Icon Helper] Wrote macOS ICNS to ${outputBuildIcnsPath}`);
+  } else {
+    console.log(`[Document Icon Helper] Skipping macOS ICNS generation on ${process.platform}`);
   }
-  fs.mkdirSync(tempIconsetDir, { recursive: true });
-
-  const iconsetEntries = [
-    { name: 'icon_16x16.png', size: 16 },
-    { name: 'icon_16x16@2x.png', size: 32 },
-    { name: 'icon_32x32.png', size: 32 },
-    { name: 'icon_32x32@2x.png', size: 64 },
-    { name: 'icon_128x128.png', size: 128 },
-    { name: 'icon_128x128@2x.png', size: 256 },
-    { name: 'icon_256x256.png', size: 256 },
-    { name: 'icon_256x256@2x.png', size: 512 },
-    { name: 'icon_512x512.png', size: 512 },
-    { name: 'icon_512x512@2x.png', size: 1024 }
-  ];
-
-  for (const entry of iconsetEntries) {
-    const sourceBuffer = entry.size <= 64 ? smallDocIconBuffer : masterDocIconBuffer;
-    await sharp(sourceBuffer)
-      .resize(entry.size, entry.size)
-      .png()
-      .toFile(path.join(tempIconsetDir, entry.name));
-  }
-
-  const { execSync } = require('child_process');
-  execSync(`iconutil -c icns "${tempIconsetDir}" -o "${outputBuildIcnsPath}"`);
-
-  // Clean up temporary iconset
-  fs.rmSync(tempIconsetDir, { recursive: true, force: true });
-  console.log(`[Document Icon Helper] Wrote macOS ICNS to ${outputBuildIcnsPath}`);
 
   console.log('[Document Icon Helper] Successfully completed document icon generation.');
 }

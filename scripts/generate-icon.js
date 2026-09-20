@@ -109,38 +109,42 @@ async function generateIcons() {
     console.log('[Icon Helper] Successfully generated ' + publicIcoPath + ' and ' + buildIcoPath);
 
     // 3. Generate ICNS for macOS using standard iconset and iconutil
-    console.log('[Icon Helper] Generating build/icon.icns for macOS via iconutil...');
-    const tempIconsetDir = path.join(buildDir, 'icon.iconset');
-    if (fs.existsSync(tempIconsetDir)) {
+    if (process.platform === 'darwin') {
+      console.log('[Icon Helper] Generating build/icon.icns for macOS via iconutil...');
+      const tempIconsetDir = path.join(buildDir, 'icon.iconset');
+      if (fs.existsSync(tempIconsetDir)) {
+        fs.rmSync(tempIconsetDir, { recursive: true, force: true });
+      }
+      fs.mkdirSync(tempIconsetDir, { recursive: true });
+
+      const iconsetEntries = [
+        { name: 'icon_16x16.png', size: 16 },
+        { name: 'icon_16x16@2x.png', size: 32 },
+        { name: 'icon_32x32.png', size: 32 },
+        { name: 'icon_32x32@2x.png', size: 64 },
+        { name: 'icon_128x128.png', size: 128 },
+        { name: 'icon_128x128@2x.png', size: 256 },
+        { name: 'icon_256x256.png', size: 256 },
+        { name: 'icon_256x256@2x.png', size: 512 },
+        { name: 'icon_512x512.png', size: 512 },
+        { name: 'icon_512x512@2x.png', size: 1024 }
+      ];
+
+      for (const entry of iconsetEntries) {
+        await sharp(masterPngPath)
+          .resize(entry.size, entry.size)
+          .png()
+          .toFile(path.join(tempIconsetDir, entry.name));
+      }
+
+      const { execSync } = require('child_process');
+      execSync(`iconutil -c icns "${tempIconsetDir}" -o "${buildIcnsPath}"`);
+      fs.copyFileSync(buildIcnsPath, publicIcnsPath);
       fs.rmSync(tempIconsetDir, { recursive: true, force: true });
+      console.log('[Icon Helper] Successfully generated ' + publicIcnsPath + ' and ' + buildIcnsPath);
+    } else {
+      console.log(`[Icon Helper] Skipping macOS ICNS generation on ${process.platform}`);
     }
-    fs.mkdirSync(tempIconsetDir, { recursive: true });
-
-    const iconsetEntries = [
-      { name: 'icon_16x16.png', size: 16 },
-      { name: 'icon_16x16@2x.png', size: 32 },
-      { name: 'icon_32x32.png', size: 32 },
-      { name: 'icon_32x32@2x.png', size: 64 },
-      { name: 'icon_128x128.png', size: 128 },
-      { name: 'icon_128x128@2x.png', size: 256 },
-      { name: 'icon_256x256.png', size: 256 },
-      { name: 'icon_256x256@2x.png', size: 512 },
-      { name: 'icon_512x512.png', size: 512 },
-      { name: 'icon_512x512@2x.png', size: 1024 }
-    ];
-
-    for (const entry of iconsetEntries) {
-      await sharp(masterPngPath)
-        .resize(entry.size, entry.size)
-        .png()
-        .toFile(path.join(tempIconsetDir, entry.name));
-    }
-
-    const { execSync } = require('child_process');
-    execSync(`iconutil -c icns "${tempIconsetDir}" -o "${buildIcnsPath}"`);
-    fs.copyFileSync(buildIcnsPath, publicIcnsPath);
-    fs.rmSync(tempIconsetDir, { recursive: true, force: true });
-    console.log('[Icon Helper] Successfully generated ' + publicIcnsPath + ' and ' + buildIcnsPath);
   } catch (err) {
     console.error('[Icon Helper] Error generating icons:', err);
     process.exit(1);
