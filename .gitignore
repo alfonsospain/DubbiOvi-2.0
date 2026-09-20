@@ -45,3 +45,16 @@ firebase-debug.log
 firestore-debug.log
 # electron
 /dist
+
+# Local generated project/test audio
+/Audio/
+/tmp/
+
+# Local runtime diagnostics
+/logs/
+
+# Microsoft Office temporary lock files
+~$*
+
+# Legacy local marker
+/.modified
