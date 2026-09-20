@@ -108,43 +108,38 @@ async function generateIcons() {
     fs.writeFileSync(buildIcoPath, icoBuffer);
     console.log('[Icon Helper] Successfully generated ' + publicIcoPath + ' and ' + buildIcoPath);
 
-    // 3. Generate ICNS for macOS
-    console.log('[Icon Helper] Generating multi-resolution icon.icns (16x16, 32x32, 64x64, 128x128, 256x256, 512x512, 1024x1024)...');
-    const icnsSizes = [
-      { size: 16, type: 'icp4' },
-      { size: 32, type: 'icp5' },
-      { size: 64, type: 'icp6' },
-      { size: 128, type: 'ic07' },
-      { size: 256, type: 'ic08' },
-      { size: 512, type: 'ic09' },
-      { size: 1024, type: 'ic10' }
+    // 3. Generate ICNS for macOS using standard iconset and iconutil
+    console.log('[Icon Helper] Generating build/icon.icns for macOS via iconutil...');
+    const tempIconsetDir = path.join(buildDir, 'icon.iconset');
+    if (fs.existsSync(tempIconsetDir)) {
+      fs.rmSync(tempIconsetDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(tempIconsetDir, { recursive: true });
+
+    const iconsetEntries = [
+      { name: 'icon_16x16.png', size: 16 },
+      { name: 'icon_16x16@2x.png', size: 32 },
+      { name: 'icon_32x32.png', size: 32 },
+      { name: 'icon_32x32@2x.png', size: 64 },
+      { name: 'icon_128x128.png', size: 128 },
+      { name: 'icon_128x128@2x.png', size: 256 },
+      { name: 'icon_256x256.png', size: 256 },
+      { name: 'icon_256x256@2x.png', size: 512 },
+      { name: 'icon_512x512.png', size: 512 },
+      { name: 'icon_512x512@2x.png', size: 1024 }
     ];
 
-    const icnsBlocks = [];
-    let icnsTotalLength = 8; // Header length (icns + total size)
-
-    for (const { size, type } of icnsSizes) {
-      const buffer = await sharp(masterPngPath)
-        .resize(size, size)
+    for (const entry of iconsetEntries) {
+      await sharp(masterPngPath)
+        .resize(entry.size, entry.size)
         .png()
-        .toBuffer();
-      
-      const blockHeader = Buffer.alloc(8);
-      blockHeader.write(type, 0, 4, 'ascii');
-      blockHeader.writeUInt32BE(buffer.length + 8, 4);
-      
-      icnsBlocks.push(blockHeader);
-      icnsBlocks.push(buffer);
-      icnsTotalLength += 8 + buffer.length;
+        .toFile(path.join(tempIconsetDir, entry.name));
     }
 
-    const icnsHeader = Buffer.alloc(8);
-    icnsHeader.write('icns', 0, 4, 'ascii');
-    icnsHeader.writeUInt32BE(icnsTotalLength, 4);
-
-    const icnsBuffer = Buffer.concat([icnsHeader, ...icnsBlocks]);
-    fs.writeFileSync(publicIcnsPath, icnsBuffer);
-    fs.writeFileSync(buildIcnsPath, icnsBuffer);
+    const { execSync } = require('child_process');
+    execSync(`iconutil -c icns "${tempIconsetDir}" -o "${buildIcnsPath}"`);
+    fs.copyFileSync(buildIcnsPath, publicIcnsPath);
+    fs.rmSync(tempIconsetDir, { recursive: true, force: true });
     console.log('[Icon Helper] Successfully generated ' + publicIcnsPath + ' and ' + buildIcnsPath);
   } catch (err) {
     console.error('[Icon Helper] Error generating icons:', err);
