@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electron', {
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   saveFile: (filePath, data, projectPath) => ipcRenderer.invoke('save-file', filePath, data, projectPath),
-  runWhisperLocal: (audioBuffer, modelPath) => ipcRenderer.invoke('run-whisper-local', { audioBuffer, modelPath }),
+  runWhisperLocal: (audioBuffer, modelPath, language) => ipcRenderer.invoke('run-whisper-local', { audioBuffer, modelPath, language }),
   checkEngineBinary: (engineId) => ipcRenderer.invoke('check-engine-binary', { engineId }),
   downloadEngineBinary: (engineId) => ipcRenderer.invoke('download-engine-binary', { engineId }),
   onEngineDownloadProgress: (callback) => {

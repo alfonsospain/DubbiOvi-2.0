@@ -14,8 +14,12 @@ async function runMilestone7BTests() {
   console.log(' STARTING MILESTONE 7B WHISPER RUNTIME EXECUTION TEST');
   console.log('=====================================================');
 
-  const execPath = '/Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/dist/whisper-darwin_arm64/bin/whisper-cli';
-  const modelPath = '/Users/alfonso/Library/Application Support/dubbiovi/models/whisper/ggml-tiny.bin';
+  const candidateExecPaths = [
+    '/Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/dist/whisper-darwin_arm64/bin/whisper-cli',
+    path.join(os.homedir(), 'Library/Application Support/dubbiovi/runtimes/whisper/1.9.1/bin/whisper-cli'),
+  ];
+  const execPath = candidateExecPaths.find(p => fs.existsSync(p)) || candidateExecPaths[0];
+  const modelPath = path.join(os.homedir(), 'Library/Application Support/dubbiovi/models/whisper/ggml-tiny.bin');
   const tempWavPath = path.join(os.tmpdir(), `milestone_7b_sample_${Date.now()}.wav`);
 
   if (!fs.existsSync(execPath)) {
@@ -200,6 +204,20 @@ async function runMilestone7BTests() {
       throw new Error('FAILED: Cancellation should have thrown an error!');
     }
     console.log('  ✓ PASSED: AbortSignal process cancellation handled cleanly.');
+
+    // -------------------------------------------------------------------------
+    // Test 7b: Explicit Language Option Verification (-l es)
+    // -------------------------------------------------------------------------
+    console.log('\n[Test 7b] Verifying Explicit Language Option Execution (-l es)...');
+    const spanishResult = await provider.transcribeAudio(tempWavPath, modelPath, {
+      executor,
+      language: 'es',
+      timeoutMs: 60000,
+    });
+    if (!spanishResult.execution.success || spanishResult.execution.exitCode !== 0) {
+      throw new Error(`FAILED: Spanish transcribeAudio failed with code ${spanishResult.execution.exitCode}`);
+    }
+    console.log('  ✓ PASSED: Explicit language option (-l es) executed successfully.');
 
     // -------------------------------------------------------------------------
     // Test 8: Architectural Invariance — Verify RuntimeExecutor remains untouched

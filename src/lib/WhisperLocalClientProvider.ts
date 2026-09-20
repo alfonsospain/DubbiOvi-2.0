@@ -177,7 +177,7 @@ export class WhisperLocalClientProvider implements TranscriptionProvider {
 
     let rawResult;
     try {
-      rawResult = await (window as any).electron.runWhisperLocal(arrayBuffer, modelToUse);
+      rawResult = await (window as any).electron.runWhisperLocal(arrayBuffer, modelToUse, sourceLanguage);
     } catch (err: any) {
       console.error('Whisper Local transcription error:', err);
       throw new Error(`Whisper Local Error: ${err.message || String(err)}`);

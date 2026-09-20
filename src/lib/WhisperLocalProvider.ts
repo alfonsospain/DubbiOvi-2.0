@@ -191,7 +191,7 @@ export class WhisperLocalProvider implements TranscriptionProvider {
 
     let rawResult;
     try {
-      rawResult = await (window as any).electron.runWhisperLocal(arrayBuffer, this.activeModelName);
+      rawResult = await (window as any).electron.runWhisperLocal(arrayBuffer, this.activeModelName, sourceLanguage);
     } catch (err: any) {
       console.error('Whisper Local transcription error:', err);
       throw new Error(`Whisper Local Error: ${err.message || String(err)}`);
@@ -217,7 +217,7 @@ export class WhisperLocalProvider implements TranscriptionProvider {
   public async transcribeAudio(
     audioPath: string,
     modelPath: string,
-    options?: Partial<RuntimeExecutionOptions> & { executor?: RuntimeExecutor }
+    options?: Partial<RuntimeExecutionOptions> & { executor?: RuntimeExecutor; language?: string }
   ): Promise<WhisperExecutionResult> {
     // 1. Validate input parameters
     if (!audioPath || typeof audioPath !== 'string') {
@@ -260,6 +260,15 @@ export class WhisperLocalProvider implements TranscriptionProvider {
       '-oj',
       '-of', outputPrefix
     ];
+
+    const hasExplicitLangInArgs = options?.args && options.args.some((a) => a === '-l' || a === '--language');
+    if (!hasExplicitLangInArgs) {
+      const cleanLang = (options?.language || '').trim().toLowerCase();
+      const normalizedLang = (!cleanLang || cleanLang === 'auto-detect' || cleanLang === 'none' || cleanLang === 'auto')
+        ? 'auto'
+        : cleanLang.split('-')[0].split('_')[0];
+      whisperArgs.push('-l', normalizedLang);
+    }
 
     if (options?.args && Array.isArray(options.args)) {
       whisperArgs.push(...options.args);

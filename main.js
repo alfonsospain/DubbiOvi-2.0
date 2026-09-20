@@ -14,7 +14,7 @@ const runtimePath = fs.existsSync(path.join(__dirname, 'lib', 'runtime', 'index.
   ? './lib/runtime'
   : (fs.existsSync(path.join(__dirname, 'src', 'runtime', 'index.js')) ? './src/runtime' : './lib/runtime');
 const { RuntimeManager, RuntimeRepository, RuntimeExecutor } = require(runtimePath);
-const { WhisperBinaryLocator, WhisperModelManager } = require('./whisper-helpers');
+const { WhisperBinaryLocator, WhisperModelManager, buildWhisperArgs } = require('./whisper-helpers');
 const EngineRegistry = require('./engine-registry');
 const LocalEngineManager = require('./local-engine-manager');
 const AppSettingsService = require('./app-settings-service');
@@ -737,7 +737,7 @@ ipcMain.on('close-detached-video', () => {
   }
 });
 
-ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) => {
+ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath, language }) => {
   const tempId = Math.random().toString(36).substring(7);
   const tempWavPath = path.join(app.getPath('temp'), `whisper_${tempId}.wav`);
   const tempJsonPath = `${tempWavPath}.json`;
@@ -788,16 +788,17 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath }) =>
       throw new Error(`Whisper model file not found at: ${resolvedModelPath}. Please download 'ggml-tiny.bin' and place it in the 'models/whisper/' folder.`);
     }
 
-    const args = ['-m', resolvedModelPath, '-f', tempWavPath, '-oj'];
-
     // Older Intel Macs may experience SIGSEGV crashes during whisper.cpp inference.
     // Use the most conservative execution configuration for Intel macOS by disabling
     // GPU acceleration and Flash Attention. Apple Silicon, Windows, and Linux remain unchanged.
     const isIntelMac = process.platform === 'darwin' && process.arch === 'x64';
 
-    if (isIntelMac) {
-      args.push('-ng', '-nfa');
-    }
+    const args = buildWhisperArgs({
+      modelPath: resolvedModelPath,
+      audioPath: tempWavPath,
+      language,
+      isIntelMac,
+    });
 
     const osVersionStr = typeof os.version === 'function' ? os.version() : os.type();
     const fullCommandLine = `${cliPath} ${args.map(a => (a.includes(' ') ? `"${a}"` : a)).join(' ')}`;

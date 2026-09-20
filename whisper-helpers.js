@@ -79,7 +79,53 @@ class WhisperModelManager {
   }
 }
 
+/**
+ * Normalizes an incoming language string for whisper-cli.
+ * 'Auto-Detect', 'none', empty string, or 'auto' map to 'auto'.
+ * Explicit language codes or tags (e.g. 'ES', 'es', 'es-ES') are normalized to lowercase ISO codes (e.g. 'es').
+ *
+ * @param {string} [language]
+ * @returns {string}
+ */
+function normalizeWhisperLanguage(language) {
+  const clean = (language || '').trim().toLowerCase();
+  if (!clean || clean === 'auto-detect' || clean === 'none' || clean === 'auto') {
+    return 'auto';
+  }
+  return clean.split('-')[0].split('_')[0];
+}
+
+/**
+ * Builds command line arguments for whisper-cli.
+ *
+ * @param {Object} params
+ * @param {string} params.modelPath
+ * @param {string} params.audioPath
+ * @param {string} [params.language]
+ * @param {boolean} [params.isIntelMac]
+ * @param {string} [params.outputPrefix]
+ * @returns {string[]}
+ */
+function buildWhisperArgs({ modelPath, audioPath, language, isIntelMac, outputPrefix }) {
+  const args = ['-m', modelPath, '-f', audioPath, '-oj'];
+
+  if (outputPrefix) {
+    args.push('-of', outputPrefix);
+  }
+
+  args.push('-l', normalizeWhisperLanguage(language));
+
+  if (isIntelMac) {
+    args.push('-ng', '-nfa');
+  }
+
+  return args;
+}
+
 module.exports = {
   WhisperBinaryLocator,
   WhisperModelManager,
+  normalizeWhisperLanguage,
+  buildWhisperArgs,
 };
+
