@@ -30,14 +30,16 @@ Verbatim full license text files corresponding to distributed third-party softwa
 
 ### Piper Neural TTS Engine
 - **Component**: Piper Neural Text-to-Speech Engine (`piper1-gpl`)
-- **Version**: 1.6.0
+- **Piper Software Version**: 1.6.0
+- **DubbiOvi Runtime Package Version**: 1.0.0
 - **License**: GNU General Public License version 3 or later (GPL-3.0-or-later)
 - **License Text Reference**: [`licenses/GPL-3.0.txt`](file:///Volumes/AlfonsoSSD/GitHub/DubbiOvi-2.0/licenses/GPL-3.0.txt)
 - **Distribution Mode**: On-demand downloaded runtime package executed as an independent standalone binary process (`piper`) via `child_process.spawn`. No C++ or Python code imports, bindings, or shared library linking.
 - **Upstream Project**: https://github.com/OHF-voice/piper1-gpl (Tag `v1.6.0`, Commit `f04d52c5528ac7cf2d73757f57990ff490f75005`)
+- **Upstream Source Archive SHA-256**: `171e27d9f5dc38048552155909f5760f781c08958e6208ea4b5d97525e1ad82b`
 - **Copyright**: Copyright (c) 2023-2024 OHF-Voice / Michael Hansen
 - **Runtime Package Details**: Downloaded archive contains `piper` binary executable, `piper_tts-1.6.0.dist-info`, and `COPYING` file (GPL-3.0).
-- **Packaging Specification Note**: PyInstaller specification (`piper.spec`) preserved from the DubbiOvi Piper 1.6.0 packaging workspace; exact single-build linkage to the distributed production binary could not be independently re-verified.
+- **Packaging Specification Note**: PyInstaller specification (`piper.spec`) was generated directly by PyInstaller 6.21.0 during the production build of `piper-darwin_arm64.zip` on 27 July 2026, from the virtual environment workspace `.build_piper_darwin_arm64_1785110063`. The resulting production runtime archive has SHA-256 `88d9a643f26464d8131975d85e99e9496dbe07ff2c908550c9fc28ad9ba33c61`, and the distributed `bin/piper` executable has SHA-256 `737c5e385d3ae19f3114a100bd7f29f9c58ff5b89258ca24186ed7bea864111f`. Historical build provenance is verified; rebuilding with PyInstaller, codesign, and zip may not reproduce byte-for-byte identical archives due to archive timestamps, signature entropy, and compiler metadata.
 
 > [!NOTE]
 > **GPL Section 6 Corresponding Source Delivery**
