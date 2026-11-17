@@ -335,19 +335,28 @@ jobs:
           $binDir = "build/bin/Release"
           $outDir = "dubbiovi/dist"
 
-          # Use DubbiOvi standard packager
+          # Use DubbiOvi standard packager with explicit Windows binary name
           node dubbiovi/scripts/package-runtimes.js `
             --engine whisper `
             --name "Whisper.cpp Engine (Baseline)" `
             --category asr `
             --version 1.9.1 `
-            --exec whisper-cli `
+            --exec whisper-cli.exe `
             --src $binDir `
             --out $outDir `
             --platform win32_x64
 
-          # Rename archive to explicit baseline variant name
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaging failed with exit code $LASTEXITCODE"
+          }
+
+          # Verify generated archive exists before attempting rename
           $generatedZip = Join-Path $outDir "whisper-win32_x64.zip"
+          if (-not (Test-Path $generatedZip)) {
+            throw "Expected generated package archive not found: $generatedZip"
+          }
+
+          # Rename archive to explicit baseline variant name
           $baselineZip = Join-Path $outDir "whisper-win32_x64_baseline.zip"
           Move-Item -Path $generatedZip -Destination $baselineZip -Force
 
