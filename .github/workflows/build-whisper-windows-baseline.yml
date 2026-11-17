@@ -1,0 +1,243 @@
+name: Build Whisper Windows Baseline Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      whisper_version:
+        description: 'whisper.cpp release tag'
+        required: true
+        default: 'v1.9.1'
+      enable_sse42:
+        description: 'Enable SSE4.2 (leave false for universal x86-64 baseline)'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-baseline:
+    name: Build Windows x64 Baseline Runtime
+    runs-on: windows-2022
+
+    steps:
+      - name: Setup Developer Command Prompt for MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Node.js (for packager script)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Checkout DubbiOvi Repository
+        uses: actions/checkout@v4
+        with:
+          path: dubbiovi
+
+      - name: Checkout whisper.cpp (${{ inputs.whisper_version }})
+        uses: actions/checkout@v4
+        with:
+          repository: ggerganov/whisper.cpp
+          ref: ${{ inputs.whisper_version }}
+          path: whisper-src
+
+      - name: "Configure CMake (Baseline CPU - No AVX, No AVX2, No FMA, No F16C, No BMI2)"
+        shell: pwsh
+        run: |
+          $sse42 = if ("${{ inputs.enable_sse42 }}" -eq "true") { "ON" } else { "OFF" }
+          Write-Host "Configuring CMake with GGML_SSE42=$sse42..."
+
+          cmake -B build -S whisper-src -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_SHARED_LIBS=ON `
+            -DWHISPER_BUILD_TESTS=OFF `
+            -DWHISPER_BUILD_EXAMPLES=ON `
+            -DWHISPER_BUILD_SERVER=OFF `
+            -DGGML_NATIVE=OFF `
+            -DGGML_AVX=OFF `
+            -DGGML_AVX2=OFF `
+            -DGGML_FMA=OFF `
+            -DGGML_F16C=OFF `
+            -DGGML_BMI2=OFF `
+            -DGGML_AVX512=OFF `
+            "-DGGML_SSE42=$sse42" `
+            -DWHISPER_AVX=OFF `
+            -DWHISPER_AVX2=OFF `
+            -DWHISPER_FMA=OFF `
+            -DWHISPER_F16C=OFF
+
+      - name: Compile Release Target (whisper-cli)
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --target whisper-cli --parallel
+
+      - name: Verify Artifact Existence
+        shell: pwsh
+        run: |
+          $binDir = "build/bin/Release"
+          $requiredFiles = @("whisper-cli.exe", "whisper.dll", "ggml.dll", "ggml-cpu.dll", "ggml-base.dll")
+          foreach ($file in $requiredFiles) {
+            $fullPath = Join-Path $binDir $file
+            if (-not (Test-Path $fullPath)) {
+              throw "Required compiled file missing: $fullPath"
+            }
+            $size = (Get-Item $fullPath).Length
+            Write-Host "  ✓ Found $file ($size bytes)"
+          }
+
+      - name: Binary Disassembly & Instruction Set Audit
+        shell: pwsh
+        run: |
+          $binDir = "build/bin/Release"
+          $report = "inspection-report.txt"
+          "=== Windows Whisper Baseline Binary Instruction Set Audit ===" | Out-File $report
+          "Built on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')" | Out-File $report -Append
+          "Runner OS: Windows Server 2022 x64" | Out-File $report -Append
+          "Whisper Tag: ${{ inputs.whisper_version }}" | Out-File $report -Append
+          "SSE4.2 Enabled: ${{ inputs.enable_sse42 }}" | Out-File $report -Append
+          "" | Out-File $report -Append
+          "NOTICE:" | Out-File $report -Append
+          "This static disassembly scan is a preliminary safety check to detect and prevent" | Out-File $report -Append
+          "compiler vectorization leaks (AVX, AVX2, FMA, F16C, BMI2). It does not substitute" | Out-File $report -Append
+          "for empirical validation across target CPU microarchitectures (Nehalem, Sandy Bridge," | Out-File $report -Append
+          "Ivy Bridge, and legacy Celerons/Pentiums)." | Out-File $report -Append
+          "" | Out-File $report -Append
+
+          $binaries = @("whisper-cli.exe", "whisper.dll", "ggml.dll", "ggml-cpu.dll", "ggml-base.dll")
+          $auditFailed = $false
+
+          foreach ($binName in $binaries) {
+            $binPath = Join-Path $binDir $binName
+            Write-Host "Auditing $binName..."
+            "--------------------------------------------------" | Out-File $report -Append
+            "Binary: $binName" | Out-File $report -Append
+            "--------------------------------------------------" | Out-File $report -Append
+
+            # 1. Dependency analysis
+            "Dependencies:" | Out-File $report -Append
+            & dumpbin /dependents $binPath | Select-String -Pattern '\.dll$' | ForEach-Object {
+              "  $($_.Line.Trim())" | Out-File $report -Append
+            }
+            "" | Out-File $report -Append
+
+            # 2. Disassembly analysis
+            $disasmFile = Join-Path $env:TEMP "$binName-disasm.txt"
+            & dumpbin /disasm $binPath | Out-File $disasmFile
+
+            $avxMatches = Select-String -Path $disasmFile -Pattern '\b(vmovaps|vmovups|vxorps|vandps|vaddps|vmulps)\b'
+            $avx2Matches = Select-String -Path $disasmFile -Pattern '\b(vpbroadcast\w+|vpcmpeq\w+|vpshuf\w+|vpgather\w+|vpermd|vpermpd|vpermps|vpadd[bwdq]|vpsub[bwdq]|vpmul\w+)\b'
+            $fmaMatches = Select-String -Path $disasmFile -Pattern '\b(vfm[su][ab][d]\w+)\b'
+            $f16cMatches = Select-String -Path $disasmFile -Pattern '\b(vcvtph2ps|vcvtps2ph)\b'
+            $bmi2Matches = Select-String -Path $disasmFile -Pattern '\b(pext|pdep|rorx|shlx|shrx|sarx|mulx|bzhi)\b'
+
+            "Instruction Scan Results:" | Out-File $report -Append
+            "  AVX instructions  : $($avxMatches.Count)" | Out-File $report -Append
+            "  AVX2 instructions : $($avx2Matches.Count)" | Out-File $report -Append
+            "  FMA instructions  : $($fmaMatches.Count)" | Out-File $report -Append
+            "  F16C instructions : $($f16cMatches.Count)" | Out-File $report -Append
+            "  BMI2 instructions : $($bmi2Matches.Count)" | Out-File $report -Append
+            "" | Out-File $report -Append
+
+            Write-Host "  $binName -> AVX: $($avxMatches.Count), AVX2: $($avx2Matches.Count), FMA: $($fmaMatches.Count), F16C: $($f16cMatches.Count), BMI2: $($bmi2Matches.Count)"
+
+            if ($avx2Matches.Count -gt 0 -or $fmaMatches.Count -gt 0 -or $f16cMatches.Count -gt 0 -or $bmi2Matches.Count -gt 0) {
+              Write-Host "  ❌ Prohibited instruction detected in $binName!" -ForegroundColor Red
+              $auditFailed = $true
+            } else {
+              Write-Host "  ✓ Preliminary instruction audit passed for $binName" -ForegroundColor Green
+            }
+
+            Remove-Item $disasmFile -Force -ErrorAction SilentlyContinue
+          }
+
+          Get-Content $report
+
+          if ($auditFailed) {
+            throw "PRELIMINARY SAFETY AUDIT FAILED: Prohibited instruction(s) detected in baseline binaries!"
+          }
+
+      - name: Smoke Test (CLI Help & Transcription)
+        shell: pwsh
+        run: |
+          $binDir = "build/bin/Release"
+          $exe = Join-Path $binDir "whisper-cli.exe"
+
+          # 1. CLI help check
+          Write-Host "Executing whisper-cli.exe --help..."
+          & $exe --help | Select-Object -First 20
+
+          # 2. Download ggml-tiny.bin for live transcription validation
+          Write-Host "Downloading ggml-tiny.bin..."
+          $modelPath = Join-Path $env:TEMP "ggml-tiny.bin"
+          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin" -OutFile $modelPath
+
+          # 3. Download official test sample jfk.wav
+          Write-Host "Downloading jfk.wav..."
+          $wavPath = Join-Path $env:TEMP "jfk.wav"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ggerganov/whisper.cpp/v1.9.1/samples/jfk.wav" -OutFile $wavPath
+
+          # 4. Execute transcription with exact DubbiOvi args
+          Write-Host "Executing baseline transcription test..."
+          & $exe -m $modelPath -f $wavPath -oj -l en
+
+          $jsonPath = "$wavPath.json"
+          if (-not (Test-Path $jsonPath)) {
+            throw "Transcription test failed: JSON output file was not generated ($jsonPath)"
+          }
+
+          $jsonContent = Get-Content $jsonPath -Raw | ConvertFrom-Json
+          Write-Host "Transcription successful! Detected text:"
+          $jsonContent.transcription | ForEach-Object { Write-Host "  [$($_.timestamps.from) --> $($_.timestamps.to)] $($_.text)" }
+
+      - name: Package Runtime Archive
+        shell: pwsh
+        run: |
+          $binDir = "build/bin/Release"
+          $outDir = "dubbiovi/dist"
+
+          # Use DubbiOvi standard packager
+          node dubbiovi/scripts/package-runtimes.js `
+            --engine whisper `
+            --name "Whisper.cpp Engine (Baseline)" `
+            --category asr `
+            --version 1.9.1 `
+            --exec whisper-cli `
+            --src $binDir `
+            --out $outDir `
+            --platform win32_x64
+
+          # Rename archive to explicit baseline variant name
+          $generatedZip = Join-Path $outDir "whisper-win32_x64.zip"
+          $baselineZip = Join-Path $outDir "whisper-win32_x64_baseline.zip"
+          Move-Item -Path $generatedZip -Destination $baselineZip -Force
+
+          # Remove obsolete default sha file from packager
+          $generatedSha = Join-Path $outDir "whisper-win32_x64.zip.sha256"
+          if (Test-Path $generatedSha) { Remove-Item $generatedSha -Force }
+
+          # Compute SHA-256 for baseline archive
+          $sha256 = (Get-FileHash -Path $baselineZip -Algorithm SHA256).Hash.ToLower()
+          $shaFile = "$baselineZip.sha256"
+          "$sha256  whisper-win32_x64_baseline.zip`r`n" | Out-File $shaFile -NoNewline -Encoding utf8
+
+          Write-Host "=========================================================="
+          Write-Host " Baseline Package Successfully Created:"
+          Write-Host " File   : $baselineZip"
+          Write-Host " SHA256 : $sha256"
+          Write-Host "=========================================================="
+
+          # Copy inspection report to output directory for upload
+          Copy-Item -Path "inspection-report.txt" -Destination $outDir
+
+      - name: Upload Baseline Runtime Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-win32_x64_baseline-v1.9.1
+          path: |
+            dubbiovi/dist/whisper-win32_x64_baseline.zip
+            dubbiovi/dist/whisper-win32_x64_baseline.zip.sha256
+            dubbiovi/dist/inspection-report.txt
+          retention-days: 14
