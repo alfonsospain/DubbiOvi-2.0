@@ -15,21 +15,23 @@ function getActiveApiKey(clientKey?: string | null): string | undefined {
 }
 
 export async function testGeminiConnection(
-  apiKey: string
+  apiKey: string,
+  timeoutMs: number = 25000
 ): Promise<{ success: boolean; error?: string }> {
   if (!apiKey || !apiKey.trim()) {
     return { success: false, error: 'Gemini API key is required.' };
   }
   const key = apiKey.trim();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
       {
-        method: 'POST',
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Respond with OK' }] }],
-        }),
+        signal: controller.signal,
       }
     );
 
@@ -53,10 +55,38 @@ export async function testGeminiConnection(
       };
     }
 
-    if (status === 401 || status === 403 || errMessage.includes('API_KEY_INVALID') || errMessage.toLowerCase().includes('key')) {
+    if (status === 503 || errMessage.includes('UNAVAILABLE') || errMessage.toLowerCase().includes('high demand') || errMessage.toLowerCase().includes('overloaded')) {
+      return {
+        success: false,
+        error: `Google Gemini service is temporarily unavailable (HTTP 503). The service is experiencing high demand. Please try again shortly. (${errMessage})`,
+      };
+    }
+
+    // Google returns HTTP 400 with "API key not valid..." or HTTP 401/403 for invalid/unauthorized keys
+    if (
+      status === 401 ||
+      status === 403 ||
+      errMessage.includes('API_KEY_INVALID') ||
+      errMessage.includes('API key not valid') ||
+      (status === 400 && errMessage.toLowerCase().includes('api key'))
+    ) {
       return {
         success: false,
         error: `Authentication failed (HTTP ${status}): Invalid or unauthorized Gemini API key.`,
+      };
+    }
+
+    if (status === 404 || errMessage.includes('is not found') || errMessage.includes('no longer available') || errMessage.includes('not supported')) {
+      return {
+        success: false,
+        error: `Endpoint unavailable (HTTP ${status}): ${errMessage}`,
+      };
+    }
+
+    if (status === 400) {
+      return {
+        success: false,
+        error: `Invalid request (HTTP 400): ${errMessage}`,
       };
     }
 
@@ -65,10 +95,18 @@ export async function testGeminiConnection(
       error: `Gemini API Error (HTTP ${status}): ${errMessage}`,
     };
   } catch (error: any) {
+    if (error?.name === 'AbortError' || controller.signal.aborted) {
+      return {
+        success: false,
+        error: `Connection timeout: Google Gemini API did not respond within ${Math.round(timeoutMs / 1000)} seconds. The service may be experiencing high demand; please retry.`,
+      };
+    }
     return {
       success: false,
       error: `Connection failure: Unable to reach Google Gemini API servers (${error.message || String(error)}).`,
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -222,35 +260,82 @@ export async function getSentiment(
 
 import { asrTranscriptionFlow } from '@/ai/flows/asr-transcription';
 import type { AsrOutput } from '@/ai/flows/asr-transcription';
+import {
+  type AudioTranscriptionResult,
+  classifyGeminiAsrError,
+  sanitizeGeminiError,
+} from '@/lib/gemini-asr-helpers';
+
+export type { AudioTranscriptionResult };
 
 export async function getAudioTranscription(
-  formData: FormData
-): Promise<AsrOutput | null> {
+  formData: FormData,
+  retryDelayMs: number = 2000
+): Promise<AudioTranscriptionResult> {
   const file = formData.get('audio') as File;
   const sourceLang = formData.get('sourceLang') as string;
   const apiKey = formData.get('apiKey') as string | null;
 
   if (!file) {
-    console.error('getAudioTranscription: No audio file found in FormData.');
-    return null;
+    return {
+      success: false,
+      error: 'No audio data received for transcription.',
+      statusCode: 400,
+    };
   }
 
+  let arrayBuffer: ArrayBuffer;
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString('base64');
-    const mimeType = file.type || 'audio/wav';
+    arrayBuffer = await file.arrayBuffer();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Failed to read audio file: ${sanitizeGeminiError(err?.message || String(err))}`,
+      statusCode: 400,
+    };
+  }
 
-    const activeKey = getActiveApiKey(apiKey);
-    const result = await asrTranscriptionFlow({
-      audioBase64: base64Data,
-      mimeType,
-      sourceLanguage: sourceLang || undefined,
-      apiKey: activeKey,
-    });
+  const base64Data = Buffer.from(arrayBuffer).toString('base64');
+  const mimeType = file.type || 'audio/wav';
+  const activeKey = getActiveApiKey(apiKey);
 
-    return result;
-  } catch (error) {
-    console.error('Error in getAudioTranscription server action:', error);
-    return null;
+  const flowInput = {
+    audioBase64: base64Data,
+    mimeType,
+    sourceLanguage: sourceLang || undefined,
+    apiKey: activeKey,
+  };
+
+  try {
+    const result = await asrTranscriptionFlow(flowInput);
+    return { success: true, data: result };
+  } catch (firstError: any) {
+    const classified = classifyGeminiAsrError(firstError, activeKey);
+
+    // Controlled single retry strictly for transient HTTP 503 errors
+    if (classified.isRetryable) {
+      try {
+        if (retryDelayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
+        const retryResult = await asrTranscriptionFlow(flowInput);
+        return { success: true, data: retryResult };
+      } catch (secondError: any) {
+        const finalClassified = classifyGeminiAsrError(secondError, activeKey);
+        console.error('Gemini ASR failed on retry:', finalClassified.error);
+        return {
+          success: false,
+          error: finalClassified.error,
+          statusCode: finalClassified.statusCode,
+        };
+      }
+    }
+
+    console.error('Gemini ASR failed:', classified.error);
+    return {
+      success: false,
+      error: classified.error,
+      statusCode: classified.statusCode,
+    };
   }
 }

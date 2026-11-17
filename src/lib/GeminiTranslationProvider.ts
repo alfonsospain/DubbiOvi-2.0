@@ -51,15 +51,12 @@ export class GeminiTranslationProvider implements TranslationProvider {
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-      },
     };
 
     let response: Response;
     try {
       response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${key}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -84,11 +81,27 @@ export class GeminiTranslationProvider implements TranslationProvider {
         throw new Error('Gemini API key accepted, but the current API quota has been exhausted. Please wait for the quota to reset or review billing.');
       }
 
+      if (response.status === 404 || errDetail.includes('is not found') || errDetail.includes('no longer available')) {
+        throw new Error(`Gemini Model Unavailable (HTTP ${response.status}): The translation model is not accessible for this API key or project. Details: ${errDetail}`);
+      }
+
       throw new Error(`Gemini Translation Error (HTTP ${response.status}): ${errDetail}`);
     }
 
     const resJson = await response.json();
-    const translatedText = resJson?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const candidate = resJson?.candidates?.[0];
+    const parts = candidate?.content?.parts;
+
+    let translatedText = '';
+    if (Array.isArray(parts)) {
+      // Filter out internal reasoning parts (thought: true) and extract only user-facing text
+      const userFacingParts = parts.filter(
+        (part: any) => !part.thought && typeof part.text === 'string' && part.text.trim().length > 0
+      );
+      if (userFacingParts.length > 0) {
+        translatedText = userFacingParts.map((part: any) => part.text).join('').trim();
+      }
+    }
 
     if (!translatedText) {
       throw new Error('Gemini API returned an empty translation response.');
@@ -100,7 +113,7 @@ export class GeminiTranslationProvider implements TranslationProvider {
       targetLanguage: request.targetLanguage,
       metadata: {
         providerId: this.id,
-        modelName: 'gemini-2.5-flash',
+        modelName: 'gemini-3.5-flash-lite',
       },
     };
   }
