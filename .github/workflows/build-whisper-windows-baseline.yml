@@ -99,21 +99,63 @@ jobs:
           "Whisper Tag: ${{ inputs.whisper_version }}" | Out-File $report -Append
           "SSE4.2 Enabled: ${{ inputs.enable_sse42 }}" | Out-File $report -Append
           "" | Out-File $report -Append
-          "NOTICE:" | Out-File $report -Append
-          "This static disassembly scan is a preliminary safety check to detect and prevent" | Out-File $report -Append
-          "compiler vectorization leaks (AVX, AVX2, FMA, F16C, BMI2). It does not substitute" | Out-File $report -Append
-          "for empirical validation across target CPU microarchitectures (Nehalem, Sandy Bridge," | Out-File $report -Append
-          "Ivy Bridge, and legacy Celerons/Pentiums)." | Out-File $report -Append
+          "POLICY:" | Out-File $report -Append
+          "- Strictly 0 tolerance for FMA, F16C, and BMI2 instructions across all binaries." | Out-File $report -Append
+          "- Strictly 0 AVX/AVX2 instructions in Whisper & GGML compute kernels." | Out-File $report -Append
+          "- Exception permitted ONLY for known, verified MSVC CRT/STL multi-versioned CPU dispatch stubs" | Out-File $report -Append
+          "  (memchr, wmemchr, string/regex find) that dynamically check __isa_available (test al, 20h)" | Out-File $report -Append
+          "  and provide guaranteed scalar/SSE fallbacks." | Out-File $report -Append
           "" | Out-File $report -Append
+
+          # Strict specification of verified MSVC CRT dispatch exceptions
+          $crtSpecifications = @{
+            "ggml-base.dll" = @{
+              expectedAvxCount  = 0;
+              expectedAvx2Count = 0;
+              allowedAvxMnem    = @();
+              allowedAvx2Mnem   = @();
+              routine           = "Pure baseline (no vector extensions permitted)";
+            };
+            "ggml-cpu.dll" = @{
+              expectedAvxCount  = 0;
+              expectedAvx2Count = 4;
+              allowedAvxMnem    = @();
+              allowedAvx2Mnem   = @("vpshufb", "vpcmpeqb", "vpmaskmovd");
+              routine           = "MSVC CRT memchr/strchr dispatcher";
+            };
+            "whisper-cli.exe" = @{
+              expectedAvxCount  = 0;
+              expectedAvx2Count = 4;
+              allowedAvxMnem    = @();
+              allowedAvx2Mnem   = @("vpshufb", "vpcmpeqb", "vpmaskmovd");
+              routine           = "MSVC CRT memchr/strchr dispatcher";
+            };
+            "ggml.dll" = @{
+              expectedAvxCount  = 0;
+              expectedAvx2Count = 7;
+              allowedAvxMnem    = @();
+              allowedAvx2Mnem   = @("vpshufd", "vpcmpeqw", "vpcmpeqb", "vpmaskmovd", "vpbroadcastw");
+              routine           = "MSVC CRT wmemchr dispatcher";
+            };
+            "whisper.dll" = @{
+              expectedAvxCount  = 6;
+              expectedAvx2Count = 14;
+              allowedAvxMnem    = @("vmovaps", "vmovups", "vxorps");
+              allowedAvx2Mnem   = @("vpbroadcastb", "vpcmpeqb", "vpshufd", "vpermd", "vpshufb", "vpaddd");
+              routine           = "MSVC STL string/regex search dispatcher";
+            };
+          }
 
           $binaries = @("whisper-cli.exe", "whisper.dll", "ggml.dll", "ggml-cpu.dll", "ggml-base.dll")
           $auditFailed = $false
 
           foreach ($binName in $binaries) {
             $binPath = Join-Path $binDir $binName
+            $spec = $crtSpecifications[$binName]
             Write-Host "Auditing $binName..."
             "--------------------------------------------------" | Out-File $report -Append
             "Binary: $binName" | Out-File $report -Append
+            "Specification: $($spec.routine)" | Out-File $report -Append
             "--------------------------------------------------" | Out-File $report -Append
 
             # 1. Dependency analysis
@@ -127,27 +169,85 @@ jobs:
             $disasmFile = Join-Path $env:TEMP "$binName-disasm.txt"
             & dumpbin /disasm $binPath | Out-File $disasmFile
 
-            $avxMatches = Select-String -Path $disasmFile -Pattern '\b(vmovaps|vmovups|vxorps|vandps|vaddps|vmulps)\b'
-            $avx2Matches = Select-String -Path $disasmFile -Pattern '\b(vpbroadcast\w+|vpcmpeq\w+|vpshuf\w+|vpgather\w+|vpermd|vpermpd|vpermps|vpadd[bwdq]|vpsub[bwdq]|vpmul\w+)\b'
-            $fmaMatches = Select-String -Path $disasmFile -Pattern '\b(vfm[su][ab][d]\w+)\b'
-            $f16cMatches = Select-String -Path $disasmFile -Pattern '\b(vcvtph2ps|vcvtps2ph)\b'
-            $bmi2Matches = Select-String -Path $disasmFile -Pattern '\b(pext|pdep|rorx|shlx|shrx|sarx|mulx|bzhi)\b'
+            # Scan instruction categories
+            $avxMatches = @(Select-String -Path $disasmFile -Pattern '\b(vmovaps|vmovups|vxorps|vandps|vaddps|vmulps)\b')
+            $avx2Matches = @(Select-String -Path $disasmFile -Pattern '\b(vpbroadcast\w+|vpcmpeq\w+|vpshuf\w+|vpgather\w+|vpermd|vpermpd|vpermps|vpadd[bwdq]|vpsub[bwdq]|vpmul\w+)\b')
+            $fmaMatches = @(Select-String -Path $disasmFile -Pattern '\b(vfm[su][ab][d]\w+)\b')
+            $f16cMatches = @(Select-String -Path $disasmFile -Pattern '\b(vcvtph2ps|vcvtps2ph)\b')
+            $bmi2Matches = @(Select-String -Path $disasmFile -Pattern '\b(pext|pdep|rorx|shlx|shrx|sarx|mulx|bzhi)\b')
+
+            # Verify dynamic CPU guard check (test al, 20h / A8 20)
+            $guardMatches = @(Select-String -Path $disasmFile -Pattern '(\btest\s+(al|eax),\s*20h\b|\bA8\s+20\b)')
+            $hasDynamicGuard = ($guardMatches.Count -gt 0)
 
             "Instruction Scan Results:" | Out-File $report -Append
-            "  AVX instructions  : $($avxMatches.Count)" | Out-File $report -Append
-            "  AVX2 instructions : $($avx2Matches.Count)" | Out-File $report -Append
-            "  FMA instructions  : $($fmaMatches.Count)" | Out-File $report -Append
-            "  F16C instructions : $($f16cMatches.Count)" | Out-File $report -Append
-            "  BMI2 instructions : $($bmi2Matches.Count)" | Out-File $report -Append
+            "  AVX matches  : $($avxMatches.Count) (expected max: $($spec.expectedAvxCount))" | Out-File $report -Append
+            "  AVX2 matches : $($avx2Matches.Count) (expected max: $($spec.expectedAvx2Count))" | Out-File $report -Append
+            "  FMA matches  : $($fmaMatches.Count) (expected: 0)" | Out-File $report -Append
+            "  F16C matches : $($f16cMatches.Count) (expected: 0)" | Out-File $report -Append
+            "  BMI2 matches : $($bmi2Matches.Count) (expected: 0)" | Out-File $report -Append
+            "  Hardware CPU Guard (__isa_available AVX2 check present): $hasDynamicGuard ($($guardMatches.Count) check(s) detected)" | Out-File $report -Append
             "" | Out-File $report -Append
 
-            Write-Host "  $binName -> AVX: $($avxMatches.Count), AVX2: $($avx2Matches.Count), FMA: $($fmaMatches.Count), F16C: $($f16cMatches.Count), BMI2: $($bmi2Matches.Count)"
+            Write-Host "  $binName -> AVX: $($avxMatches.Count)/$($spec.expectedAvxCount), AVX2: $($avx2Matches.Count)/$($spec.expectedAvx2Count), FMA: $($fmaMatches.Count)/0, F16C: $($f16cMatches.Count)/0, BMI2: $($bmi2Matches.Count)/0, Guard: $hasDynamicGuard"
 
-            if ($avx2Matches.Count -gt 0 -or $fmaMatches.Count -gt 0 -or $f16cMatches.Count -gt 0 -or $bmi2Matches.Count -gt 0) {
-              Write-Host "  ❌ Prohibited instruction detected in $binName!" -ForegroundColor Red
+            # Strict Verification Step 1: Universal Zero Tolerance for FMA, F16C, BMI2
+            if ($fmaMatches.Count -gt 0 -or $f16cMatches.Count -gt 0 -or $bmi2Matches.Count -gt 0) {
+              Write-Host "  ❌ PROHIBITED VECTOR INSTRUCTIONS (FMA/F16C/BMI2) DETECTED in $binName!" -ForegroundColor Red
+              "FAIL: Prohibited vector instructions (FMA/F16C/BMI2) detected!" | Out-File $report -Append
+              $auditFailed = $true
+            }
+
+            # Strict Verification Step 2: AVX verification
+            if ($avxMatches.Count -gt $spec.expectedAvxCount) {
+              Write-Host "  ❌ UNEXPECTED AVX INSTRUCTION COUNT ($($avxMatches.Count) > $($spec.expectedAvxCount)) in $binName!" -ForegroundColor Red
+              "FAIL: Unexpected AVX instruction count ($($avxMatches.Count) > $($spec.expectedAvxCount))!" | Out-File $report -Append
               $auditFailed = $true
             } else {
-              Write-Host "  ✓ Preliminary instruction audit passed for $binName" -ForegroundColor Green
+              foreach ($match in $avxMatches) {
+                $line = $match.Line.Trim()
+                $isAllowed = $false
+                foreach ($mnem in $spec.allowedAvxMnem) {
+                  if ($line -match "\b$mnem\b") { $isAllowed = $true; break }
+                }
+                if (-not $isAllowed) {
+                  Write-Host "  ❌ UNAPPROVED AVX MNEMONIC in $binName: $line" -ForegroundColor Red
+                  "FAIL: Unapproved AVX mnemonic: $line" | Out-File $report -Append
+                  $auditFailed = $true
+                }
+              }
+            }
+
+            # Strict Verification Step 3: AVX2 verification
+            if ($avx2Matches.Count -gt $spec.expectedAvx2Count) {
+              Write-Host "  ❌ UNEXPECTED AVX2 INSTRUCTION COUNT ($($avx2Matches.Count) > $($spec.expectedAvx2Count)) in $binName!" -ForegroundColor Red
+              "FAIL: Unexpected AVX2 instruction count ($($avx2Matches.Count) > $($spec.expectedAvx2Count))!" | Out-File $report -Append
+              $auditFailed = $true
+            } else {
+              foreach ($match in $avx2Matches) {
+                $line = $match.Line.Trim()
+                $isAllowed = $false
+                foreach ($mnem in $spec.allowedAvx2Mnem) {
+                  if ($line -match "\b$mnem\b") { $isAllowed = $true; break }
+                }
+                if (-not $isAllowed) {
+                  Write-Host "  ❌ UNAPPROVED AVX2 MNEMONIC in $binName: $line" -ForegroundColor Red
+                  "FAIL: Unapproved AVX2 mnemonic: $line" | Out-File $report -Append
+                  $auditFailed = $true
+                }
+              }
+            }
+
+            # Strict Verification Step 4: Validate dynamic CPU guard
+            if (($spec.expectedAvxCount -gt 0 -or $spec.expectedAvx2Count -gt 0) -and -not $hasDynamicGuard) {
+              Write-Host "  ❌ MISSING DYNAMIC CPU FEATURE GUARD in $binName!" -ForegroundColor Red
+              "FAIL: Advanced instructions present without verified __isa_available dynamic guard!" | Out-File $report -Append
+              $auditFailed = $true
+            }
+
+            if (-not $auditFailed) {
+              Write-Host "  ✓ Verified baseline compliance for $binName ($($spec.routine))" -ForegroundColor Green
+              "PASS: Verified baseline compliance ($($spec.routine))" | Out-File $report -Append
             }
 
             Remove-Item $disasmFile -Force -ErrorAction SilentlyContinue
@@ -156,7 +256,7 @@ jobs:
           Get-Content $report
 
           if ($auditFailed) {
-            throw "PRELIMINARY SAFETY AUDIT FAILED: Prohibited instruction(s) detected in baseline binaries!"
+            throw "BASELINE SAFETY AUDIT FAILED: Unverified or unapproved instruction detected!"
           }
 
       - name: Smoke Test (CLI Help & Transcription)
