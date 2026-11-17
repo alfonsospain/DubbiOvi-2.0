@@ -9,3 +9,4 @@ export * from './RuntimeExecution';
 export * from './RuntimeExecutionResult';
 export * from './RuntimeProcess';
 export * from './RuntimeExecutor';
+export * from './CpuCompatibility';

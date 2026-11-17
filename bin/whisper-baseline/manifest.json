@@ -1,0 +1,24 @@
+{
+  "manifestVersion": "2.0.0",
+  "runtimeApiVersion": "2.0.0",
+  "schemaVersion": "2.0.0",
+  "minimumDubbiOviVersion": "2.0.0",
+  "id": "whisper",
+  "engine": "whisper",
+  "name": "Whisper.cpp Engine (Baseline)",
+  "category": "asr",
+  "version": "1.9.1",
+  "executable": "bin/whisper-cli.exe",
+  "binary": "bin/whisper-cli.exe",
+  "platform": "win32",
+  "arch": "x64",
+  "packagedAt": "2026-11-17T19:05:30.871Z",
+  "files": [
+    "bin/ggml-base.dll",
+    "bin/ggml-cpu.dll",
+    "bin/ggml.dll",
+    "bin/whisper-cli.exe",
+    "bin/whisper.dll"
+  ],
+  "checksumSha256": null
+}

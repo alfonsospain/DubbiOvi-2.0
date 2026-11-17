@@ -106,7 +106,7 @@ export class RuntimeRepository {
     };
     this.registerDescriptor(whisperMacX64, 'darwin', 'x64');
 
-    // Official Whisper.cpp v1.9.1 Windows x64 release package
+    // Official Whisper.cpp v1.9.1 Windows x64 release package (AVX2 Optimized)
     const whisperWinX64: RuntimeDescriptor = {
       id: 'whisper',
       name: 'Whisper.cpp Engine',
@@ -119,6 +119,20 @@ export class RuntimeRepository {
       minimumDubbiOviVersion: '2.0.0',
     };
     this.registerDescriptor(whisperWinX64, 'win32', 'x64');
+
+    // Official Whisper.cpp v1.9.1 Windows x64 Baseline release package (Universal Baseline: No AVX2/FMA/F16C)
+    const whisperWinX64Baseline: RuntimeDescriptor = {
+      id: 'whisper-baseline',
+      name: 'Whisper.cpp Engine (Baseline)',
+      category: 'asr',
+      version: '1.9.1',
+      downloadUrl: 'https://github.com/alfonsospain/DubbiOvi-2.0/releases/download/v2.0.0-runtimes/whisper-win32_x64_baseline.zip',
+      checksumSha256: '4ea1cdb60325d4e0762af2d16b0bc3774fc93d587055f63bc9c4831f22d5a478',
+      estimatedSize: '955 KB',
+      runtimeApiVersion: '2.0.0',
+      minimumDubbiOviVersion: '2.0.0',
+    };
+    this.registerDescriptor(whisperWinX64Baseline, 'win32', 'x64');
 
     // Piper Neural TTS runtime packages v1.0.0
     const piperMacArm64: RuntimeDescriptor = {
