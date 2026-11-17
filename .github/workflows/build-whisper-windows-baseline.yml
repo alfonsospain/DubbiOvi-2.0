@@ -211,7 +211,7 @@ jobs:
                   if ($line -match "\b$mnem\b") { $isAllowed = $true; break }
                 }
                 if (-not $isAllowed) {
-                  Write-Host "  ❌ UNAPPROVED AVX MNEMONIC in $binName: $line" -ForegroundColor Red
+                  Write-Host "  ❌ UNAPPROVED AVX MNEMONIC in $($binName): $line" -ForegroundColor Red
                   "FAIL: Unapproved AVX mnemonic: $line" | Out-File $report -Append
                   $auditFailed = $true
                 }
@@ -231,7 +231,7 @@ jobs:
                   if ($line -match "\b$mnem\b") { $isAllowed = $true; break }
                 }
                 if (-not $isAllowed) {
-                  Write-Host "  ❌ UNAPPROVED AVX2 MNEMONIC in $binName: $line" -ForegroundColor Red
+                  Write-Host "  ❌ UNAPPROVED AVX2 MNEMONIC in $($binName): $line" -ForegroundColor Red
                   "FAIL: Unapproved AVX2 mnemonic: $line" | Out-File $report -Append
                   $auditFailed = $true
                 }
