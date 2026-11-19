@@ -13,7 +13,7 @@ const os = require('os');
 const runtimePath = fs.existsSync(path.join(__dirname, 'lib', 'runtime', 'index.js'))
   ? './lib/runtime'
   : (fs.existsSync(path.join(__dirname, 'src', 'runtime', 'index.js')) ? './src/runtime' : './lib/runtime');
-const { RuntimeManager, RuntimeRepository, RuntimeExecutor } = require(runtimePath);
+const { RuntimeManager, RuntimeRepository, RuntimeExecutor, CpuCompatibility } = require(runtimePath);
 const { WhisperBinaryLocator, WhisperModelManager, buildWhisperArgs } = require('./whisper-helpers');
 const EngineRegistry = require('./engine-registry');
 const LocalEngineManager = require('./local-engine-manager');
@@ -764,20 +764,50 @@ ipcMain.handle('run-whisper-local', async (event, { audioBuffer, modelPath, lang
 
     let cliPath = null;
     let detectedRuntimeVersion = 'unknown';
-    if (runtimeManager) {
-      const runtimeInfo = runtimeManager.getRuntime('whisper', '1.9.1');
-      if (runtimeInfo && runtimeInfo.executablePath && fs.existsSync(runtimeInfo.executablePath)) {
-        cliPath = runtimeInfo.executablePath;
-        detectedRuntimeVersion = runtimeInfo.version || '1.9.1';
+
+    // 1. Resolve CPU variant for Windows x64 (fail-closed to baseline if unverified)
+    let targetVariant = 'optimized';
+    if (process.platform === 'win32' && (process.arch === 'x64' || process.arch === 'ia32')) {
+      targetVariant = CpuCompatibility && typeof CpuCompatibility.resolveWindowsWhisperVariant === 'function'
+        ? CpuCompatibility.resolveWindowsWhisperVariant()
+        : 'baseline';
+      logDiag(`[WhisperLocal] Windows CPU instruction-set variant resolved: ${targetVariant}`);
+    }
+
+    // 2. If Optimized variant is selected, check if Optimized runtime is installed
+    if (targetVariant === 'optimized') {
+      if (runtimeManager) {
+        const runtimeInfo = runtimeManager.getRuntime('whisper', '1.9.1');
+        if (runtimeInfo && runtimeInfo.executablePath && fs.existsSync(runtimeInfo.executablePath)) {
+          cliPath = runtimeInfo.executablePath;
+          detectedRuntimeVersion = `${runtimeInfo.version || '1.9.1'} (optimized)`;
+        }
+      }
+      if (!cliPath && localEngineManager) {
+        const candidate = localEngineManager.locateExecutable('whisper');
+        if (candidate && fs.existsSync(candidate)) {
+          cliPath = candidate;
+          detectedRuntimeVersion = 'legacy-local-engine (optimized)';
+        }
       }
     }
-    if (!cliPath && localEngineManager) {
-      cliPath = localEngineManager.locateExecutable('whisper');
-      if (cliPath) detectedRuntimeVersion = 'legacy-local-engine';
-    }
+
+    // 3. If Baseline variant OR if Optimized runtime is not yet installed, resolve Baseline runtime
     if (!cliPath) {
-      cliPath = WhisperBinaryLocator.locate(app);
-      if (cliPath) detectedRuntimeVersion = 'fallback-binary-locator';
+      if (runtimeManager) {
+        const baselineInfo = runtimeManager.getRuntime('whisper-baseline', '1.9.1');
+        if (baselineInfo && baselineInfo.executablePath && fs.existsSync(baselineInfo.executablePath)) {
+          cliPath = baselineInfo.executablePath;
+          detectedRuntimeVersion = `${baselineInfo.version || '1.9.1'} (managed-baseline)`;
+        }
+      }
+      if (!cliPath) {
+        const candidate = WhisperBinaryLocator.locate(app, localEngineManager, targetVariant);
+        if (candidate && fs.existsSync(candidate)) {
+          cliPath = candidate;
+          detectedRuntimeVersion = `bundled-baseline (${targetVariant})`;
+        }
+      }
     }
 
     const resolvedModelPath = localEngineManager
@@ -869,6 +899,27 @@ ipcMain.handle('check-engine-binary', async (event, { engineId }) => {
   if (runtimeManager && (targetEngine === 'whisper' || targetEngine === 'whisper-local' || targetEngine === 'piper' || targetEngine === 'piper-local')) {
     const runtimeId = targetEngine.includes('piper') ? 'piper' : 'whisper';
     const version = runtimeId === 'piper' ? '1.0.0' : '1.9.1';
+
+    // Windows Whisper dual-runtime resolution
+    if (runtimeId === 'whisper' && process.platform === 'win32') {
+      const targetVariant = CpuCompatibility && typeof CpuCompatibility.resolveWindowsWhisperVariant === 'function'
+        ? CpuCompatibility.resolveWindowsWhisperVariant()
+        : 'baseline';
+
+      if (targetVariant === 'optimized') {
+        const optInfo = runtimeManager.getRuntime('whisper', '1.9.1');
+        if (optInfo && fs.existsSync(optInfo.executablePath)) {
+          return { installed: true, executablePath: optInfo.executablePath };
+        }
+      }
+
+      // Check bundled or managed baseline executable
+      const baselineExec = WhisperBinaryLocator.locate(app, localEngineManager, 'baseline');
+      if (baselineExec && fs.existsSync(baselineExec)) {
+        return { installed: true, executablePath: baselineExec };
+      }
+    }
+
     const info = runtimeManager.getRuntime(runtimeId, version);
     const installed = !!info && fs.existsSync(info.executablePath);
     return { installed, executablePath: installed ? info.executablePath : null };
@@ -1022,23 +1073,73 @@ ipcMain.handle('check-runtime-installed', async (event, { runtimeId, version }) 
   if (!runtimeManager) {
     return { isInstalled: false, runtimeInfo: null };
   }
+
+  // Windows Whisper dual-runtime resolution
+  if (targetId === 'whisper' && process.platform === 'win32') {
+    const targetVariant = CpuCompatibility && typeof CpuCompatibility.resolveWindowsWhisperVariant === 'function'
+      ? CpuCompatibility.resolveWindowsWhisperVariant()
+      : 'baseline';
+
+    if (targetVariant === 'optimized') {
+      const optInfo = runtimeManager.getRuntime('whisper', version || '1.9.1');
+      if (optInfo && fs.existsSync(optInfo.executablePath)) {
+        return { isInstalled: true, runtimeInfo: optInfo };
+      }
+    }
+
+    // Check bundled or managed baseline executable
+    const baselineExec = WhisperBinaryLocator.locate(app, localEngineManager, 'baseline');
+    if (baselineExec && fs.existsSync(baselineExec)) {
+      return {
+        isInstalled: true,
+        runtimeInfo: {
+          id: 'whisper-baseline',
+          name: 'Whisper.cpp Engine (Baseline)',
+          version: '1.9.1',
+          executablePath: baselineExec,
+          category: 'asr',
+          status: 'INSTALLED',
+        }
+      };
+    }
+  }
+
   const info = runtimeManager.getRuntime(targetId, version);
   const isInstalled = !!info && fs.existsSync(info.executablePath);
   return { isInstalled, runtimeInfo: isInstalled ? info : null };
 });
 
 ipcMain.handle('get-runtime-descriptor', async (event, { runtimeId, version }) => {
-  const targetId = runtimeId || 'whisper';
+  let targetId = runtimeId || 'whisper';
   if (!runtimeRepository) {
     return null;
   }
+
+  if (targetId === 'whisper' && process.platform === 'win32') {
+    const targetVariant = CpuCompatibility && typeof CpuCompatibility.resolveWindowsWhisperVariant === 'function'
+      ? CpuCompatibility.resolveWindowsWhisperVariant()
+      : 'baseline';
+    if (targetVariant === 'baseline') {
+      targetId = 'whisper-baseline';
+    }
+  }
+
   return runtimeRepository.getDescriptor(targetId, version, process.platform, process.arch);
 });
 
 ipcMain.handle('install-runtime', async (event, { runtimeId, version }) => {
-  const targetId = runtimeId || 'whisper';
+  let targetId = runtimeId || 'whisper';
   if (!runtimeManager || !runtimeRepository) {
     throw new Error('RuntimeManager or RuntimeRepository is not initialized.');
+  }
+
+  if (targetId === 'whisper' && process.platform === 'win32') {
+    const targetVariant = CpuCompatibility && typeof CpuCompatibility.resolveWindowsWhisperVariant === 'function'
+      ? CpuCompatibility.resolveWindowsWhisperVariant()
+      : 'baseline';
+    if (targetVariant === 'baseline') {
+      targetId = 'whisper-baseline';
+    }
   }
 
   const descriptor = await runtimeRepository.getDescriptor(targetId, version, process.platform, process.arch);

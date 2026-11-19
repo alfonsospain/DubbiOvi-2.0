@@ -37,15 +37,15 @@ export class ProviderServiceManager {
     ProviderServiceManager.registerCapability({
       providerId: 'gemini',
       serviceType: 'asr',
-      defaultModel: 'gemini-2.5-flash',
-      supportedModels: ['gemini-2.5-flash', 'gemini-2.5-pro'],
+      defaultModel: 'gemini-3.5-flash-lite',
+      supportedModels: ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'],
       description: 'Gemini Speech Recognition ASR model',
     });
     ProviderServiceManager.registerCapability({
       providerId: 'gemini',
       serviceType: 'mt',
-      defaultModel: 'gemini-2.5-flash',
-      supportedModels: ['gemini-2.5-flash', 'gemini-2.5-pro'],
+      defaultModel: 'gemini-3.5-flash-lite',
+      supportedModels: ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'],
       description: 'Gemini Machine Translation MT model',
     });
     ProviderServiceManager.registerCapability({

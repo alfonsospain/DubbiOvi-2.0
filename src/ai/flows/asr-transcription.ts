@@ -41,7 +41,7 @@ export const asrTranscriptionFlow = ai.defineFlow(
       : `Auto-detect the primary language spoken and output its ISO-2 code (e.g., EN, ES, FR, DE, JA, ZH) in the "detectedLanguage" field.`;
 
     const response = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
+      model: 'googleai/gemini-3.5-flash-lite',
       prompt: [
         {
           text: `You are an expert audiovisual transcription assistant.

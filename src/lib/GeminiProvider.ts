@@ -1,38 +1,31 @@
 import { v4 as uuidv4 } from 'uuid';
 import { TranscriptionProvider, ProviderCapabilities, TranscriptResult, PreparedAudio } from './transcription-types';
 import { getAudioTranscription } from '@/app/actions';
-import { parseTimestampToSeconds } from './utils';
+import { normalizeGeminiTakes } from './gemini-asr-helpers';
 
 /**
  * Parser responsible for converting the raw AI output (AsrOutput) from Gemini
  * into a strongly typed TranscriptResult conforming to the domain definition.
  */
 export class GeminiParser {
-  public static parse(rawResult: { detectedLanguage: string; takes: any[] }): TranscriptResult {
-    const takes = rawResult.takes.map(t => ({
-      id: uuidv4(),
-      character: t.character,
-      time: `${t.startTime} - ${t.endTime}`,
-      startSeconds: parseTimestampToSeconds(t.startTime),
-      endSeconds: parseTimestampToSeconds(t.endTime),
-      original: t.original,
-      translation: '',
-      notes: '',
-      status: 'Pending' as const,
-    }));
+  public static parse(
+    rawResult: { detectedLanguage: string; takes: any[] },
+    mediaDuration?: number
+  ): TranscriptResult {
+    const takes = normalizeGeminiTakes(rawResult?.takes || [], mediaDuration);
 
     return {
-      detectedLanguage: rawResult.detectedLanguage,
+      detectedLanguage: rawResult?.detectedLanguage || 'EN',
       takes,
       metadata: {
-        modelName: 'googleai/gemini-2.5-flash',
+        modelName: 'googleai/gemini-3.5-flash-lite',
       }
     };
   }
 }
 
 /**
- * TranscriptionProvider implementation for Google Gemini 2.5 Flash.
+ * TranscriptionProvider implementation for Google Gemini 3.5 Flash-Lite.
  */
 export class GeminiProvider implements TranscriptionProvider {
   public readonly id = 'gemini';
@@ -73,11 +66,16 @@ export class GeminiProvider implements TranscriptionProvider {
       formData.append('apiKey', apiKey);
     }
 
-    const response = await getAudioTranscription(formData);
+    const response: any = await getAudioTranscription(formData);
     if (!response) {
       throw new Error('Transcription failed. No response from AI service.');
     }
 
-    return GeminiParser.parse(response);
+    if (response.success === false) {
+      throw new Error(response.error || 'Gemini transcription failed.');
+    }
+
+    const asrData = response.success === true ? response.data : response;
+    return GeminiParser.parse(asrData, audio.duration);
   }
 }

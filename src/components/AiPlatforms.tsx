@@ -406,8 +406,19 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
       return;
     }
     setIsGeminiTesting(true);
+    let timeoutTimer: NodeJS.Timeout | null = null;
     try {
-      const res = await testGeminiConnection(trimmed);
+      const clientTimeoutPromise = new Promise<{ success: boolean; error: string }>((_, reject) => {
+        timeoutTimer = setTimeout(() => {
+          reject(new Error('Connection test timed out after 30 seconds. The server did not respond.'));
+        }, 30000);
+      });
+
+      const res = await Promise.race([
+        testGeminiConnection(trimmed),
+        clientTimeoutPromise,
+      ]);
+
       if (res.success) {
         toast({
           title: 'Connection Successful',
@@ -427,6 +438,9 @@ export default function AiPlatforms({ targetLanguage }: AiPlatformsProps = {}) {
         variant: 'destructive',
       });
     } finally {
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer);
+      }
       setIsGeminiTesting(false);
     }
   };
