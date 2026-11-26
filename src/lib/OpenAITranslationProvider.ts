@@ -1,5 +1,6 @@
 import { TranslationProvider, TranslationCapabilities, TranslationRequest, TranslationResult } from './translation-types';
 import { loadOpenAiApiKey } from './apiKeyStorage';
+import { LanguageRegistry } from './languages/LanguageRegistry';
 
 function maskApiKey(key?: string | null): string {
   if (!key || typeof key !== 'string') return '(none)';
@@ -17,7 +18,7 @@ export class OpenAITranslationProvider implements TranslationProvider {
   public readonly capabilities: TranslationCapabilities = {
     supportsGlossary: true,
     supportsBatchTranslation: false,
-    supportedLanguages: ['EN', 'ES', 'FR', 'DE', 'IT', 'PT', 'RU', 'JA', 'ZH', 'NL', 'PL', 'KO', 'AR'],
+    supportedLanguages: ['EN', 'ES', 'FR', 'DE', 'IT', 'PT', 'RU', 'JA', 'ZH', 'NL', 'PL', 'KO', 'AR', 'AST'],
     isOffline: false,
     requiresApiKey: true,
   };
@@ -37,7 +38,19 @@ export class OpenAITranslationProvider implements TranslationProvider {
       throw new Error('OpenAI API key is required. Please configure your OpenAI API Key in Settings / AI Platforms.');
     }
 
-    let systemPrompt = `You are a professional translator. Translate the text from ${request.sourceLanguage || 'auto-detected language'} to ${request.targetLanguage}. Output ONLY the translated text without commentary or quotation marks.`;
+    const targetDesc = LanguageRegistry.getLanguageByCode(request.targetLanguage);
+    const targetName = targetDesc ? targetDesc.name : request.targetLanguage;
+
+    let sourceName = 'auto-detected language';
+    if (request.sourceLanguage) {
+      const srcClean = request.sourceLanguage.trim().toLowerCase();
+      if (srcClean !== 'auto-detect' && srcClean !== 'auto' && srcClean !== 'none' && srcClean !== 'auto-detected language') {
+        const srcDesc = LanguageRegistry.getLanguageByCode(request.sourceLanguage);
+        sourceName = srcDesc ? srcDesc.name : request.sourceLanguage;
+      }
+    }
+
+    let systemPrompt = `You are a professional translator. Translate the text from ${sourceName} to ${targetName}. Output ONLY the translated text without commentary or quotation marks.`;
 
     if (request.glossary && Array.isArray(request.glossary) && request.glossary.length > 0) {
       systemPrompt += '\n\nGlossary terms to strictly follow:\n';

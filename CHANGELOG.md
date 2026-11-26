@@ -2,6 +2,31 @@
 
 All notable changes to the **Dubbing Studio Pro (DubiOvi)** project will be documented in this file.
 
+## [2.0.3] - 2026-11-26
+
+### Added
+- **Asturian Language Support**:
+  - Registered Asturian (`ast`, Asturian, Asturianu, ISO 639-3) in the centralized Language Registry (`LanguageRegistry.ts`).
+  - Enabled AI-assisted translation into Asturian across Google Gemini, OpenAI GPT, and Ollama (Local LLM).
+  - Added native heuristic recognition for `salamandra` translation models (e.g. SalamandraTA) in Ollama.
+  - Implemented explicit DeepL compatibility guard for Asturian with actionable user guidance suggesting Gemini, OpenAI, or Ollama.
+  - Added strict service capability isolation between translation, speech recognition (ASR), and speech synthesis (TTS).
+  - Implemented automated dynamic version binding in the application About dialog (`v2.0.3 · University of Oviedo · 2026`).
+
+## [2.0.1] - 2026-11-26
+
+### Added
+- **Windows Dual Whisper Runtime**:
+  - Implemented automatic CPU microarchitecture detection (AVX2 vs. legacy baseline).
+  - Bundled standalone Whisper baseline engine for legacy Windows PCs without AVX2.
+  - Applied Authenticode digital code signing via Certum Open Source Code Signing and SimplySign.
+
+### Fixed
+- **Gemini Compatibility**:
+  - Migrated transcription, translation, and connection test workflows to `gemini-3.5-flash-lite`.
+  - Added thinking token filtering for Gemini model outputs.
+  - Enhanced error handling for HTTP 400, 401, 403, 429, and 503 responses.
+
 ## [2.0.0-milestone8] - 2026-07-25
 
 ### Added

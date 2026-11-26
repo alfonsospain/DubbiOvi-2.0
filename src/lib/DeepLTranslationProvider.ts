@@ -9,7 +9,13 @@ function maskApiKey(key?: string | null): string {
 }
 
 function normalizeDeepLTargetLang(lang: string): string {
-  const norm = (lang || 'EN').trim().toUpperCase().split('-')[0].split('_')[0];
+  const clean = (lang || 'EN').trim().toLowerCase().split('-')[0].split('_')[0];
+  if (clean === 'ast' || clean === 'asturian' || clean === 'asturianu') {
+    throw new Error(
+      'DeepL does not support translation for Asturian. Please use Google Gemini, OpenAI or Ollama (with a model such as SalamandraTA) for Asturian translation.'
+    );
+  }
+  const norm = clean.toUpperCase();
   if (norm === 'EN') return 'EN-US';
   if (norm === 'PT') return 'PT-PT';
   return norm;
@@ -42,6 +48,21 @@ export class DeepLTranslationProvider implements TranslationProvider {
 
     if (!key) {
       throw new Error('DeepL API key is required. Please configure your DeepL API Key in Settings / AI Platforms.');
+    }
+
+    const targetNorm = (request.targetLanguage || '').trim().toLowerCase().split('-')[0].split('_')[0];
+    const sourceNorm = (request.sourceLanguage || '').trim().toLowerCase().split('-')[0].split('_')[0];
+    if (
+      targetNorm === 'ast' ||
+      targetNorm === 'asturian' ||
+      targetNorm === 'asturianu' ||
+      sourceNorm === 'ast' ||
+      sourceNorm === 'asturian' ||
+      sourceNorm === 'asturianu'
+    ) {
+      throw new Error(
+        'DeepL does not support translation for Asturian. Please use Google Gemini, OpenAI or Ollama (with a model such as SalamandraTA) for Asturian translation.'
+      );
     }
 
     const host = key.endsWith(':fx') ? 'https://api-free.deepl.com' : 'https://api.deepl.com';

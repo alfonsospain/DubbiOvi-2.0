@@ -545,7 +545,7 @@ const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Auto-Detect">Auto-Detect Language (AI)</SelectItem>
-                      {LanguageRegistry.getAllLanguages().map(lang => (
+                      {LanguageRegistry.getAsrLanguages().map(lang => (
                         <SelectItem key={lang.code} value={lang.code.toUpperCase()}>
                           {LanguageRegistry.formatDisplay(lang.code)}
                         </SelectItem>
