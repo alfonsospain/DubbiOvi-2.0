@@ -93,6 +93,10 @@ async function runAsturianTranslationTests() {
       deeplErrorTarget!.message.includes('SalamandraTA'),
       `Expected actionable suggestion in message, got: ${deeplErrorTarget!.message}`
     );
+    assert(
+      deeplErrorTarget!.message.includes('OpenAI'),
+      `Expected OpenAI in suggestion message, got: ${deeplErrorTarget!.message}`
+    );
 
     // Guard rejects Asturian uppercase target
     let deeplErrorUpper: Error | null = null;

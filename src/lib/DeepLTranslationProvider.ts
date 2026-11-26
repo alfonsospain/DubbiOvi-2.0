@@ -12,7 +12,7 @@ function normalizeDeepLTargetLang(lang: string): string {
   const clean = (lang || 'EN').trim().toLowerCase().split('-')[0].split('_')[0];
   if (clean === 'ast' || clean === 'asturian' || clean === 'asturianu') {
     throw new Error(
-      'DeepL does not support translation for Asturian. Please use Google Gemini or Ollama (with a model such as SalamandraTA) for Asturian translation.'
+      'DeepL does not support translation for Asturian. Please use Google Gemini, OpenAI or Ollama (with a model such as SalamandraTA) for Asturian translation.'
     );
   }
   const norm = clean.toUpperCase();
@@ -61,7 +61,7 @@ export class DeepLTranslationProvider implements TranslationProvider {
       sourceNorm === 'asturianu'
     ) {
       throw new Error(
-        'DeepL does not support translation for Asturian. Please use Google Gemini or Ollama (with a model such as SalamandraTA) for Asturian translation.'
+        'DeepL does not support translation for Asturian. Please use Google Gemini, OpenAI or Ollama (with a model such as SalamandraTA) for Asturian translation.'
       );
     }
 

@@ -178,7 +178,7 @@ Users may:
 
 If you use DubbiOvi 2.0 in research, teaching, or publications, please cite:
 
-> Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi 2.0 (Version 2.0.0). University of Oviedo. https://doi.org/10.5281/zenodo.22850190
+> Rodríguez Fernández-Peña, A. C. (2026). DubbiOvi 2.0 (Version 2.0.3). University of Oviedo. https://doi.org/10.5281/zenodo.22850190
 
 A `CITATION.cff` file is included in this repository to facilitate software citation through GitHub.
 
