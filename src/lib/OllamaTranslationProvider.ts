@@ -5,6 +5,7 @@ import {
   TranslationResult,
 } from './translation-types';
 import { OllamaClient } from './OllamaClient';
+import { LanguageRegistry } from './languages/LanguageRegistry';
 
 export interface OllamaTranslationProviderConfig {
   baseUrl?: string;
@@ -18,7 +19,7 @@ export class OllamaTranslationProvider implements TranslationProvider {
   public capabilities: TranslationCapabilities = {
     supportsGlossary: true,
     supportsBatchTranslation: false,
-    supportedLanguages: ['EN', 'ES', 'FR', 'DE', 'IT', 'PT', 'JA', 'ZH', 'KO', 'RU'],
+    supportedLanguages: ['EN', 'ES', 'FR', 'DE', 'IT', 'PT', 'JA', 'ZH', 'KO', 'RU', 'AST'],
     isOffline: true,
     requiresApiKey: false,
   };
@@ -55,7 +56,19 @@ export class OllamaTranslationProvider implements TranslationProvider {
       modelToUse = 'llama3:8b';
     }
 
-    let prompt = `Translate the following text from ${request.sourceLanguage} to ${request.targetLanguage}.\n\nOriginal Text:\n${request.text}\n\nTranslation:`;
+    const targetDesc = LanguageRegistry.getLanguageByCode(request.targetLanguage);
+    const targetName = targetDesc ? targetDesc.name : request.targetLanguage;
+
+    let sourceName = 'auto-detected language';
+    if (request.sourceLanguage) {
+      const srcClean = request.sourceLanguage.trim().toLowerCase();
+      if (srcClean !== 'auto-detect' && srcClean !== 'auto' && srcClean !== 'none' && srcClean !== 'auto-detected language') {
+        const srcDesc = LanguageRegistry.getLanguageByCode(request.sourceLanguage);
+        sourceName = srcDesc ? srcDesc.name : request.sourceLanguage;
+      }
+    }
+
+    let prompt = `Translate the following text from ${sourceName} to ${targetName}.\n\nOriginal Text:\n${request.text}\n\nTranslation:`;
 
     if (request.glossary && request.glossary.length > 0) {
       const glossaryLines = request.glossary
@@ -65,7 +78,7 @@ export class OllamaTranslationProvider implements TranslationProvider {
     }
 
     const systemPrompt = `You are an expert audio-visual subtitle and dubbing translator.
-Translate text accurately from ${request.sourceLanguage} to ${request.targetLanguage}.
+Translate text accurately from ${sourceName} to ${targetName}.
 Provide ONLY the direct translation. Do not include markdown code blocks, intro text, explanations, or quotes.`;
 
     const response = await client.generateCompletion(prompt, {

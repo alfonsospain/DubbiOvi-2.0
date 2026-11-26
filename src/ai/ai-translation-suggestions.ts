@@ -39,6 +39,7 @@ export type GetTranslationSuggestionOutput = z.infer<typeof GetTranslationSugges
 
 import { TranslationProviderRegistry } from '@/lib/TranslationProviderRegistry';
 import { loadApiKey, loadDeepLApiKey, loadOpenAiApiKey } from '@/lib/apiKeyStorage';
+import { LanguageRegistry } from '@/lib/languages/LanguageRegistry';
 
 export async function getTranslationSuggestion(input: GetTranslationSuggestionInput): Promise<GetTranslationSuggestionOutput> {
   const providerName = input.provider || 'Gemini';
@@ -114,11 +115,23 @@ const getTranslationSuggestionFlow = ai.defineFlow(
     outputSchema: GetTranslationSuggestionOutputSchema,
   },
   async input => {
+    const targetDesc = LanguageRegistry.getLanguageByCode(input.targetLanguage);
+    const targetName = targetDesc ? targetDesc.name : input.targetLanguage;
+
+    let sourceName = 'auto-detected language';
+    if (input.sourceLanguage) {
+      const srcClean = input.sourceLanguage.trim().toLowerCase();
+      if (srcClean !== 'auto-detect' && srcClean !== 'auto' && srcClean !== 'none' && srcClean !== 'auto-detected language') {
+        const srcDesc = LanguageRegistry.getLanguageByCode(input.sourceLanguage);
+        sourceName = srcDesc ? srcDesc.name : input.sourceLanguage;
+      }
+    }
+
     const {output} = await translationPrompt(
       {
         originalText: input.originalText,
-        sourceLanguage: input.sourceLanguage,
-        targetLanguage: input.targetLanguage,
+        sourceLanguage: sourceName,
+        targetLanguage: targetName,
         glossary: input.glossary,
       },
       input.apiKey ? { config: { apiKey: input.apiKey } } : {}

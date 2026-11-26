@@ -61,7 +61,8 @@ export function categorizeOllamaModels(models: string[]): CategorizedOllamaModel
       lower.includes('deepseek') ||
       lower.includes('command-r') ||
       lower.includes('yi') ||
-      lower.includes('solar')
+      lower.includes('solar') ||
+      lower.includes('salamandra')
     ) {
       translationModels.push(model);
     } else {

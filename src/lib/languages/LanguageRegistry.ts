@@ -12,11 +12,18 @@ export interface LocaleDescriptor {
   countryCode?: string;   // ISO 3166-1 alpha-2 country code e.g., 'US', 'ES', 'MX'
 }
 
+export interface LanguageCapabilities {
+  translation: boolean;
+  asr: boolean;
+  tts: boolean;
+}
+
 export interface LanguageDescriptor {
-  code: string;                   // Standard ISO 639-1 code (lowercase, e.g. 'en', 'es', 'fr', 'de')
-  name: string;                   // English name (e.g. 'Spanish')
-  nativeName: string;             // Native name (e.g. 'Español')
+  code: string;                   // Standard ISO 639-1 or 639-3 code (lowercase, e.g. 'en', 'es', 'ast')
+  name: string;                   // English name (e.g. 'Spanish', 'Asturian')
+  nativeName: string;             // Native name (e.g. 'Español', 'Asturianu')
   writingDirection?: WritingDirection; // 'ltr' | 'rtl' (default: 'ltr')
+  capabilities?: Partial<LanguageCapabilities>;
   locales?: LocaleDescriptor[];   // Extensible locale descriptors for future locale milestones
 }
 
@@ -150,6 +157,20 @@ const REGISTRY: LanguageDescriptor[] = [
     nativeName: 'हिन्दी',
     writingDirection: 'ltr',
   },
+  {
+    code: 'ast',
+    name: 'Asturian',
+    nativeName: 'Asturianu',
+    writingDirection: 'ltr',
+    capabilities: {
+      translation: true,
+      asr: false,
+      tts: false,
+    },
+    locales: [
+      { code: 'ast-ES', name: 'Asturian (Spain)', nativeName: 'Asturianu (España)', countryCode: 'ES' },
+    ],
+  },
 ];
 
 export class LanguageRegistry {
@@ -158,6 +179,27 @@ export class LanguageRegistry {
    */
   public static getAllLanguages(): LanguageDescriptor[] {
     return [...REGISTRY];
+  }
+
+  /**
+   * Return all registered languages that support text translation.
+   */
+  public static getTranslationLanguages(): LanguageDescriptor[] {
+    return REGISTRY.filter((l) => l.capabilities?.translation !== false);
+  }
+
+  /**
+   * Return all registered languages that support speech recognition (ASR).
+   */
+  public static getAsrLanguages(): LanguageDescriptor[] {
+    return REGISTRY.filter((l) => l.capabilities?.asr !== false);
+  }
+
+  /**
+   * Return all registered languages that support speech synthesis (TTS).
+   */
+  public static getTtsLanguages(): LanguageDescriptor[] {
+    return REGISTRY.filter((l) => l.capabilities?.tts !== false);
   }
 
   /**

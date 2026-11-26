@@ -40,6 +40,7 @@ import {
   FileCode,
 } from 'lucide-react';
 import { DubbiOviLogo } from './DubbiOviLogo';
+import packageInfo from '../../package.json';
 
 interface HeaderProps {
   projectName: string;
@@ -270,7 +271,7 @@ const Header: React.FC<HeaderProps> = ({
             <DialogTitle className="sr-only">About DubbiOvi 2.0</DialogTitle>
             <DubbiOviLogo />
             <p className="text-xs font-semibold text-emerald-400/90 mt-1">
-              v2.0 · University of Oviedo · 2026
+              v{packageInfo.version} · University of Oviedo · 2026
             </p>
           </div>
           <div className="p-6 pt-4 space-y-4 text-xs leading-relaxed">
